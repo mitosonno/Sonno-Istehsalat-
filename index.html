@@ -2,759 +2,679 @@
 <html lang="az">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sonno MES v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#111820">
+<title>Sonno MES</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
   --dk:#111820;--or:#F78930;--tl:#007565;--dp:#004f51;
   --lt:#E1F5EE;--lo:#FFF4E8;--bg:#F4F2ED;--sf:#fff;
   --bd:rgba(17,24,32,.10);--t1:#111820;--t2:#6B7280;--t3:#9CA3AF;
-  --r:10px;--rl:14px
+  --r:12px;--rl:16px;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bot:env(safe-area-inset-bottom,0px);
 }
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);font-size:14px;min-height:100vh}
 
-/* NAV */
-.nav{background:var(--dk);height:52px;display:flex;align-items:center;padding:0 18px;gap:0;position:sticky;top:0;z-index:200}
-.logo{display:flex;align-items:center;gap:8px;margin-right:24px;flex-shrink:0}
-.logo-txt{font-weight:600;font-size:14px;color:#fff;letter-spacing:.05em}
-.logo-ver{font-size:10px;color:var(--or);font-family:'DM Mono',monospace}
-.ntabs{display:flex;gap:2px;flex:1;overflow-x:auto;scrollbar-width:none}
-.ntabs::-webkit-scrollbar{display:none}
-.nt{padding:6px 13px;border:none;background:transparent;color:rgba(255,255,255,.42);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;border-radius:6px;white-space:nowrap;transition:all .15s}
-.nt:hover{color:rgba(255,255,255,.8);background:rgba(255,255,255,.07)}
-.nt.on{color:#fff;background:rgba(255,255,255,.13)}
-.nclock{font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.28);flex-shrink:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;min-height:100dvh;font-size:15px;overflow-x:hidden}
+
+/* ── LOGIN SCREEN ── */
+#login-screen{
+  position:fixed;inset:0;background:var(--dk);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px 24px calc(32px + var(--safe-bot));z-index:1000;
+  transition:opacity .3s,transform .3s;
+}
+#login-screen.out{opacity:0;transform:translateY(-20px);pointer-events:none}
+.login-logo{margin-bottom:40px;text-align:center}
+.login-logo svg{width:52px;height:38px;margin-bottom:12px}
+.login-logo h1{font-size:26px;font-weight:700;color:#fff;letter-spacing:.04em}
+.login-logo p{font-size:13px;color:rgba(255,255,255,.4);margin-top:4px}
+.login-card{width:100%;max-width:360px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:var(--rl);padding:24px}
+.login-field{margin-bottom:14px}
+.login-field label{display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,.5);letter-spacing:.05em;margin-bottom:6px;text-transform:uppercase}
+.login-field input{width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:var(--r);padding:13px 14px;font-family:'DM Sans',sans-serif;font-size:15px;color:#fff;outline:none;transition:border-color .15s}
+.login-field input::placeholder{color:rgba(255,255,255,.3)}
+.login-field input:focus{border-color:var(--or)}
+.login-err{font-size:12px;color:#F09595;text-align:center;min-height:18px;margin:8px 0}
+.login-btn{width:100%;padding:14px;background:var(--or);border:none;border-radius:var(--r);color:#fff;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .15s;margin-top:4px}
+.login-btn:active{transform:scale(.97);background:#e07820}
+
+/* ── APP SHELL ── */
+#app{display:none;flex-direction:column;min-height:100vh;min-height:100dvh}
+#app.visible{display:flex}
+
+/* TOP BAR */
+.topbar{
+  background:var(--dk);
+  padding:calc(10px + var(--safe-top)) 16px 10px;
+  display:flex;align-items:center;gap:10px;
+  position:sticky;top:0;z-index:100;flex-shrink:0;
+}
+.topbar-logo{display:flex;align-items:center;gap:7px}
+.topbar-logo svg{width:22px;height:16px}
+.topbar-logo span{font-size:14px;font-weight:700;color:#fff;letter-spacing:.05em}
+.topbar-logo em{font-size:10px;color:var(--or);font-family:'DM Mono',monospace;font-style:normal}
+.topbar-title{flex:1;font-size:14px;font-weight:600;color:#fff;text-align:center}
+.topbar-user{display:flex;align-items:center;gap:8px}
+.topbar-avatar{width:30px;height:30px;border-radius:50%;background:var(--or);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
+.topbar-role{font-size:10px;color:rgba(255,255,255,.4);text-align:right;line-height:1.3}
+
+/* MAIN CONTENT */
+#main-content{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px 16px calc(80px + var(--safe-bot));-webkit-overflow-scrolling:touch}
+
+/* BOTTOM NAV */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--sf);border-top:1px solid var(--bd);
+  padding:8px 0 calc(8px + var(--safe-bot));
+  display:flex;z-index:100;
+}
+.bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:6px 4px;border:none;background:none;transition:all .15s;min-width:0}
+.bnav-item svg,.bnav-item .bni{width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.bnav-label{font-size:10px;font-weight:500;color:var(--t3);white-space:nowrap;overflow:hidden;max-width:100%;text-overflow:ellipsis}
+.bnav-item.on .bnav-label{color:var(--tl)}
+.bnav-item.on .bni{position:relative}
+.bnav-item.on .bni::after{content:'';position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--tl)}
+.bnav-badge{position:absolute;top:-4px;right:-6px;background:#E24B4A;color:#fff;font-size:9px;font-weight:700;border-radius:10px;padding:1px 4px;min-width:14px;text-align:center}
 
 /* SCREENS */
-.sc{display:none;padding:20px;max-width:1180px;margin:0 auto}
-.sc.on{display:block}
+.sc{display:none}.sc.on{display:block}
 
-/* BASICS */
-.pgtitle{font-size:20px;font-weight:600;margin-bottom:18px;display:flex;align-items:center;gap:8px}
-.pgtitle small{font-size:12px;font-weight:400;color:var(--t2);margin-left:4px}
-.slbl{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--t3);margin:18px 0 10px}
-.card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:18px 20px}
+/* CARDS & SECTIONS */
+.pg-hd{font-size:18px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.pg-hd small{font-size:12px;font-weight:400;color:var(--t2)}
+.slbl{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--t3);margin:16px 0 8px}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden}
+.card-pad{padding:14px 16px}
 
 /* KPI */
-.krow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
-.kpi{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:14px 16px;position:relative;overflow:hidden}
-.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--rl) var(--rl) 0 0}
-.kpi.kT::before{background:var(--tl)}.kpi.kO::before{background:var(--or)}.kpi.kR::before{background:#E24B4A}.kpi.kD::before{background:var(--dk)}
-.kl{font-size:10px;color:var(--t3);font-weight:600;letter-spacing:.05em;margin-bottom:5px}
-.kv{font-size:26px;font-weight:600;line-height:1}.ks{font-size:11px;color:var(--t3);margin-top:4px}
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.kpi{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:14px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.kpi.kT::before{background:var(--tl)}.kpi.kO::before{background:var(--or)}
+.kpi.kR::before{background:#E24B4A}.kpi.kD::before{background:var(--dk)}
+.kl{font-size:10px;color:var(--t3);font-weight:600;letter-spacing:.04em;margin-bottom:4px}
+.kv{font-size:28px;font-weight:700;line-height:1}
+.ks{font-size:11px;color:var(--t3);margin-top:3px}
 
-/* TABLE */
-.tw{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden}
-table{width:100%;border-collapse:collapse}
-thead th{padding:9px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--t3);background:rgba(17,24,32,.03);border-bottom:1px solid var(--bd)}
-tbody td{padding:11px 14px;border-bottom:1px solid rgba(17,24,32,.05);font-size:13px}
-tbody tr:last-child td{border-bottom:none}
-tbody tr{cursor:pointer;transition:background .1s}
-tbody tr:hover td{background:rgba(0,117,101,.03)}
-.mono{font-family:'DM Mono',monospace;font-size:12px;color:var(--tl);font-weight:500}
+/* LIST ITEMS */
+.list-item{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid rgba(17,24,32,.05);cursor:pointer;transition:background .1s;background:var(--sf)}
+.list-item:last-child{border-bottom:none}
+.list-item:active{background:rgba(0,117,101,.04)}
+.li-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.li-body{flex:1;min-width:0}
+.li-title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li-sub{font-size:12px;color:var(--t2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.li-chevron{color:var(--t3);font-size:16px}
 
-/* BADGE */
-.badge{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:500}
-.badge::before{content:'';width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.7}
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.7}
 .bT{background:var(--lt);color:var(--dp)}.bO{background:var(--lo);color:#854F0B}
 .bR{background:#FCEBEB;color:#A32D2D}.bG{background:#F3F4F6;color:#4B5563}
 .bGN{background:#ECFDF5;color:#065F46}
 
 /* BUTTONS */
-.btn{padding:9px 18px;border-radius:var(--r);border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:6px}
-.btn-t{background:var(--tl);color:#fff}.btn-t:hover{background:var(--dp)}
-.btn-o{background:var(--or);color:#fff}.btn-o:hover{background:#e07820}
-.btn-ln{background:transparent;border:1px solid var(--bd);color:var(--t2)}.btn-ln:hover{background:rgba(0,0,0,.04)}
-.btn:active{transform:scale(.98)}.btn:disabled{opacity:.35;cursor:not-allowed;transform:none!important}
-.bfull{width:100%;padding:12px}
+.btn{padding:12px 20px;border-radius:var(--r);border:none;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.btn:active{transform:scale(.97)}
+.btn-t{background:var(--tl);color:#fff}.btn-t:active{background:var(--dp)}
+.btn-o{background:var(--or);color:#fff}.btn-o:active{background:#e07820}
+.btn-ln{background:transparent;border:1px solid var(--bd);color:var(--t2)}
+.btn-ln:active{background:rgba(0,0,0,.04)}
+.btn:disabled{opacity:.35;pointer-events:none}
+.btn-full{width:100%}
+.btn-lg{padding:15px 20px;font-size:15px;border-radius:14px}
 
 /* FORM */
-.fg2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.fg{display:flex;flex-direction:column;gap:4px}.fg.full{grid-column:1/-1}
-label{font-size:11px;font-weight:600;color:var(--t2);letter-spacing:.02em}
-input,select{padding:8px 11px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:13px;background:var(--sf);color:var(--t1);outline:none;transition:border-color .15s;width:100%}
-input:focus,select:focus{border-color:var(--tl)}
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
+label{font-size:12px;font-weight:600;color:var(--t2);letter-spacing:.02em}
+input,select,textarea{padding:12px 13px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:15px;background:var(--sf);color:var(--t1);outline:none;transition:border-color .15s;width:100%;-webkit-appearance:none}
+input:focus,select:focus,textarea:focus{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,101,.08)}
 
-/* ═══ MODEL CARDS (Admin) ═══ */
-.mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.mcard{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden;transition:all .2s}
-.mcard:hover{border-color:var(--tl);box-shadow:0 4px 18px rgba(0,117,101,.1)}
-.mcard-img{width:100%;height:148px;display:flex;align-items:center;justify-content:center;font-size:64px;position:relative;overflow:hidden;cursor:pointer}
-.mcard-img input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.mcard-img-overlay{position:absolute;inset:0;background:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;transition:background .2s;pointer-events:none}
-.mcard-img:hover .mcard-img-overlay{background:rgba(0,0,0,.35)}
-.mcard-img-overlay span{color:#fff;font-size:12px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none}
-.mcard-img:hover .mcard-img-overlay span{opacity:1}
-.mcard-body{padding:12px 14px}
-.mcard-name{font-weight:600;font-size:14px}
-.mcard-sub{font-size:12px;color:var(--t2);margin-top:2px}
-.mcard-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
-.chip{font-size:10px;padding:2px 7px;border-radius:4px;background:var(--lt);color:var(--dp);font-weight:500}
-.chip.chip-o{background:var(--lo);color:#854F0B}
+/* SECTION CARD */
+.sec-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);margin-bottom:12px;overflow:hidden}
+.sec-card-hd{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd);background:rgba(17,24,32,.02)}
+.sec-card-hd h3{font-size:14px;font-weight:600}
 
-/* ═══ PRODUCT PICKER (Manager) ═══ */
-.ppick{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:4px}
-.pcard{background:var(--sf);border:2px solid var(--bd);border-radius:var(--rl);overflow:hidden;cursor:pointer;transition:all .18s;position:relative}
-.pcard:hover{border-color:rgba(0,117,101,.45);transform:translateY(-2px)}
-.pcard.sel{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,101,.1)}
-.pcard-chk{position:absolute;top:8px;right:8px;width:22px;height:22px;background:var(--tl);color:#fff;border-radius:50%;font-size:11px;font-weight:700;display:none;align-items:center;justify-content:center}
-.pcard.sel .pcard-chk{display:flex}
-.pcard-img{width:100%;height:110px;display:flex;align-items:center;justify-content:center;font-size:48px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee)}
-.pcard-body{padding:10px 12px}
-.pcard-name{font-weight:600;font-size:13px}
-.pcard-info{font-size:11px;color:var(--t2);margin-top:2px}
-.pcard-hours{font-size:10px;font-family:'DM Mono',monospace;color:var(--tl);margin-top:4px;font-weight:500}
+/* BOTTOM SHEET */
+.sheet-overlay{position:fixed;inset:0;background:rgba(17,24,32,.55);z-index:400;display:none;opacity:0;transition:opacity .25s}
+.sheet-overlay.on{display:block;opacity:1}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:var(--sf);border-radius:20px 20px 0 0;z-index:401;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);padding:0 0 calc(20px + var(--safe-bot));max-height:92dvh;overflow-y:auto}
+.sheet.on{transform:translateY(0)}
+.sheet-handle{width:36px;height:4px;background:var(--bd);border-radius:2px;margin:12px auto 0}
+.sheet-title{font-size:16px;font-weight:700;padding:16px 20px 12px;border-bottom:1px solid var(--bd)}
+.sheet-body{padding:16px 20px}
 
-/* QTY */
-.qty-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--lt);border-radius:var(--r);margin:12px 0}
-.qty-lbl{font-size:13px;font-weight:500;flex:1}
-.qbtn{width:32px;height:32px;border-radius:8px;border:1px solid rgba(0,117,101,.3);background:var(--sf);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--tl);font-weight:300;transition:all .12s;line-height:1}
-.qbtn:hover{background:var(--tl);color:#fff;border-color:var(--tl)}
-.qnum{font-size:22px;font-weight:700;min-width:36px;text-align:center;color:var(--tl)}
+/* PIN KEYBOARD */
+.pin-dots{display:flex;justify-content:center;gap:14px;margin:24px 0}
+.pdot{width:16px;height:16px;border-radius:50%;border:2px solid var(--bd);background:transparent;transition:all .15s}
+.pdot.filled{background:var(--dk);border-color:var(--dk)}
+.pdot.err{background:#E24B4A;border-color:#E24B4A;animation:shake .35s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:280px;margin:0 auto}
+.pk{background:var(--sf);border:1px solid var(--bd);border-radius:16px;font-size:24px;font-weight:500;color:var(--t1);cursor:pointer;padding:0;height:70px;font-family:'DM Sans',sans-serif;transition:all .1s;-webkit-tap-highlight-color:transparent}
+.pk:active{background:var(--tl);color:#fff;border-color:var(--tl);transform:scale(.93)}
+.pk-ghost{background:transparent;border:none;pointer-events:none}
+.pk-del{font-size:20px}
 
-/* ETA BOX */
-.etabox{background:linear-gradient(135deg,rgba(0,117,101,.06),rgba(0,79,81,.03));border:1px solid rgba(0,117,101,.18);border-radius:var(--r);padding:12px 16px;display:flex;gap:20px;flex-wrap:wrap;margin:12px 0;font-size:13px}
-.etai{display:flex;flex-direction:column;gap:2px}
-.etalk{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
-.etalv{font-weight:600;color:var(--tl)}
-
-/* PIPE STAGES */
-.pipe-list{display:flex;flex-direction:column;gap:5px;margin:12px 0}
-.ps{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:var(--r);background:rgba(0,117,101,.04);border:1px solid rgba(0,117,101,.1);font-size:13px}
-.psn{width:20px;height:20px;border-radius:50%;background:var(--tl);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.psname{flex:1;font-weight:500}
-.psinfo{font-size:11px;color:var(--t2);font-family:'DM Mono',monospace}
-
-/* ═══ ŞÖBƏ EKRANI ═══ */
-.dept-header{background:var(--dk);color:#fff;padding:20px 24px;border-radius:var(--rl);margin-bottom:18px;display:flex;align-items:center;justify-content:space-between}
-.dept-header h2{font-size:22px;font-weight:600}
-.dept-header p{font-size:13px;color:rgba(255,255,255,.5);margin-top:3px}
-.dept-header .dept-count{font-size:36px;font-weight:700;color:var(--or)}
-
-.task-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
-.task-tile{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden;transition:box-shadow .2s}
-.task-tile:hover{box-shadow:0 4px 20px rgba(0,0,0,.08)}
-.task-tile-head{padding:14px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:start}
-.task-tile-head h3{font-size:15px;font-weight:600}
-.task-tile-head p{font-size:12px;color:var(--t2);margin-top:2px}
-.task-tile-body{padding:14px 16px}
-.task-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.tmg-item{background:rgba(17,24,32,.03);border-radius:var(--r);padding:8px 10px}
-.tmg-k{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);margin-bottom:2px;font-weight:600}
-.tmg-v{font-size:13px;font-weight:500}
-.task-status{text-align:center;padding:10px;border-radius:var(--r);font-size:13px;font-weight:500;margin:10px 0;transition:all .3s}
+/* TASK CARD */
+.task-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);margin-bottom:12px;overflow:hidden}
+.task-card-top{padding:13px 15px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd)}
+.task-card-top.late{background:#FCEBEB}
+.task-card-body{padding:13px 15px}
+.stage-dots{display:flex;gap:4px;margin:8px 0}
+.sdot{flex:1;height:5px;border-radius:3px;background:rgba(17,24,32,.08)}
+.sdot.done{background:var(--tl)}.sdot.cur{background:var(--or)}
+.task-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.tm-i{background:rgba(17,24,32,.03);border-radius:var(--r);padding:9px 11px}
+.tm-k{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);font-weight:600;margin-bottom:2px}
+.tm-v{font-size:14px;font-weight:500}
+.ts{text-align:center;padding:11px;border-radius:var(--r);font-size:13px;font-weight:500;margin:10px 0;transition:all .3s}
 .ts-idle{background:rgba(17,24,32,.04);color:var(--t2)}
 .ts-go{background:var(--lo);color:#854F0B}
 .ts-done{background:var(--lt);color:var(--dp)}
-.task-btns{display:flex;gap:8px}
-.task-btns .btn{flex:1;font-size:13px}
-.stage-dots{display:flex;gap:3px;flex-wrap:wrap;margin:8px 0}
-.sdot{flex:1;height:5px;border-radius:3px;background:rgba(17,24,32,.08);min-width:10px}
-.sdot.done{background:var(--tl)}.sdot.cur{background:var(--or)}
+.task-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
 
-/* DEPT SELECTOR */
-.dept-sel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:20px}
-.dept-sel-btn{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:16px;cursor:pointer;transition:all .18s;text-align:center}
-.dept-sel-btn:hover{border-color:var(--tl);transform:translateY(-2px)}
-.dept-sel-btn.active{border-color:var(--tl);background:var(--lt)}
-.dsb-icon{font-size:28px;margin-bottom:8px}
-.dsb-name{font-weight:600;font-size:13px}
-.dsb-count{font-size:11px;color:var(--t2);margin-top:3px}
-.dsb-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#E24B4A;margin-left:4px;vertical-align:middle}
+/* WORKERS CHIPS */
+.worker-chips{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.wchip{display:flex;align-items:center;gap:5px;padding:4px 10px;background:var(--lt);border-radius:20px}
+.wchip-av{width:20px;height:20px;border-radius:50%;background:var(--tl);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.wchip span{font-size:12px;color:var(--dp);font-weight:500}
 
-/* MODAL */
-.moverlay{position:fixed;inset:0;background:rgba(17,24,32,.6);z-index:300;display:none;align-items:center;justify-content:center;padding:20px}
-.moverlay.on{display:flex}
-.mdl{background:var(--sf);border-radius:var(--rl);padding:24px;max-width:520px;width:100%;animation:su .2s ease}
-@keyframes su{from{transform:translateY(18px);opacity:0}to{transform:translateY(0);opacity:1}}
-.mdl h3{font-size:16px;font-weight:600;margin-bottom:8px}
-.mdl-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
-.stage-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;font-size:12px;margin-bottom:4px}
-.stage-row.s-done{background:var(--lt)}.stage-row.s-cur{background:var(--lo)}.stage-row.s-lock{background:#f3f4f6;color:var(--t3)}
+/* ADMIN SECTIONS */
+.admin-menu{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.admin-menu-item{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:16px;cursor:pointer;transition:all .15s;text-align:center;-webkit-tap-highlight-color:transparent}
+.admin-menu-item:active{transform:scale(.97);border-color:var(--tl)}
+.ami-icon{font-size:28px;margin-bottom:8px}
+.ami-name{font-size:13px;font-weight:600}
+.ami-sub{font-size:11px;color:var(--t2);margin-top:3px}
+
+/* USER ROLE BADGE */
+.role-pill{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.role-admin{background:#EEEDFE;color:#3C3489}
+.role-manager{background:var(--lo);color:#854F0B}
+.role-dept{background:var(--lt);color:var(--dp)}
+.role-logistics{background:#EAF3DE;color:#3B6D11}
+
+/* PERMISSION TOGGLES */
+.perm-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid rgba(17,24,32,.05)}
+.perm-row:last-child{border-bottom:none}
+.perm-label{font-size:13px;font-weight:500}
+.perm-sub{font-size:11px;color:var(--t2);margin-top:2px}
+.toggle{width:44px;height:26px;border-radius:13px;border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+.toggle.off{background:rgba(17,24,32,.15)}
+.toggle.on{background:var(--tl)}
+.toggle::after{content:'';position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle.off::after{left:3px}
+.toggle.on::after{left:21px}
 
 /* TOAST */
-#toast{position:fixed;bottom:22px;right:22px;background:var(--dk);color:#fff;padding:11px 16px;border-radius:var(--r);font-size:13px;transform:translateY(70px);opacity:0;transition:all .28s;z-index:999;max-width:330px;line-height:1.5;border-left:3px solid var(--or)}
+#toast{position:fixed;bottom:calc(80px + var(--safe-bot) + 8px);left:16px;right:16px;background:var(--dk);color:#fff;padding:13px 16px;border-radius:var(--r);font-size:13px;font-weight:500;transform:translateY(20px);opacity:0;transition:all .28s;z-index:999;border-left:3px solid var(--or);text-align:center}
 #toast.on{transform:translateY(0);opacity:1}
 
-/* Hide on mobile */
-@media(max-width:640px){
-  .hide-mob{display:none}
-  table{min-width:unset}
-}
-.upload-zone{width:100%;height:148px;border:2px dashed rgba(0,117,101,.3);border-radius:var(--r);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--t2);font-size:13px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;gap:6px}
-.upload-zone:hover{border-color:var(--tl);background:var(--lt);color:var(--tl)}
-.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer}
-.upload-zone .uz-icon{font-size:28px}
-
-/* PIN */
-.pdot{width:14px;height:14px;border-radius:50%;border:2px solid var(--bd);background:transparent;transition:all .15s}
-.pdot.filled{background:var(--dk);border-color:var(--dk)}
-.pdot.err{background:#E24B4A;border-color:#E24B4A}
-.pin-key{background:var(--sf);border:1px solid var(--bd);border-radius:14px;font-size:22px;font-weight:500;color:var(--t1);cursor:pointer;padding:0;height:64px;font-family:'DM Sans',sans-serif;transition:all .1s;-webkit-tap-highlight-color:transparent}
-.pin-key:hover{background:var(--lt);border-color:var(--tl)}
-.pin-key:active{transform:scale(.93);background:var(--tl);color:#fff;border-color:var(--tl)}
-.pin-key-ghost{background:transparent;border:none;cursor:default}
-.pin-key-ghost:hover,.pin-key-ghost:active{background:transparent;transform:none}
-.pin-key-del{font-size:18px}
-
-@media(max-width:640px){
-  /* Nav */
-  .nav{padding:0 10px;height:48px}
-  .logo-txt{font-size:13px}
-  .logo-ver{display:none}
-  .nt{padding:5px 9px;font-size:11px}
-  .nclock{display:none}
-
-  /* Screens */
-  .sc{padding:12px}
-  .pgtitle{font-size:17px;margin-bottom:12px}
-  .slbl{margin:14px 0 8px}
-
-  /* KPI */
-  .krow{grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-  .kv{font-size:22px}
-
-  /* Admin table — horizontal scroll */
-  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  table{min-width:560px}
-
-  /* Product picker */
-  .ppick{grid-template-columns:1fr 1fr;gap:8px}
-  .pcard-img{height:80px;font-size:36px}
-  .pcard-body{padding:8px 10px}
-  .pcard-name{font-size:12px}
-
-  /* Model admin grid */
-  .mgrid{grid-template-columns:1fr 1fr;gap:10px}
-  .mcard-img-placeholder{height:110px;font-size:48px}
-
-  /* Manager form */
-  .fg2{grid-template-columns:1fr}
-
-  /* Workers screen — hide left sidebar, show only list */
-  #sc-workers>div{grid-template-columns:1fr!important}
-  #sc-workers>div>div:first-child{display:none}
-
-  /* Task grid */
-  .task-grid{grid-template-columns:1fr}
-  .task-btns .btn{font-size:14px;padding:14px 10px}
-  .task-meta-grid{grid-template-columns:1fr 1fr}
-
-  /* Dept sel */
-  .dept-sel-grid{grid-template-columns:1fr 1fr;gap:8px}
-  .dept-sel-btn{padding:12px 8px}
-  .dsb-icon{font-size:22px;margin-bottom:5px}
-  .dsb-name{font-size:11px}
-
-  /* PIN screen */
-  #dept-pin-view{padding:0 4px}
-  .pin-key{height:72px;font-size:24px;border-radius:16px}
-
-  /* Modal */
-  .moverlay{padding:12px;align-items:flex-end}
-  .mdl{border-radius:var(--rl) var(--rl) 0 0;max-height:92vh;overflow-y:auto}
-  .mdl>div[style*="overflow-y"]{max-height:60vh}
-
-  /* ETA box */
-  .etabox{gap:12px}
-  .etabox .etai{min-width:80px}
-
-  /* Toast */
-  #toast{bottom:12px;right:12px;left:12px;max-width:none}
-
-  /* Workers mobile — show dept selector as dropdown row */
-  #workers-mobile-dept{display:flex}
-}
+/* PULL TO REFRESH indicator */
+.ptr{height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--t3);transition:height .2s}
 </style>
 </head>
 <body>
 
-<nav class="nav">
-  <div class="logo">
-    <svg width="24" height="18" viewBox="0 0 24 18" fill="none">
-      <path d="M3 9Q3 3 9 3Q13 3 13 7Q13 11 9 11Q13 11 13 15Q13 18 9 18Q3 18 3 12" stroke="#F78930" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+<!-- ══════════════════════════
+     LOGIN
+══════════════════════════ -->
+<div id="login-screen">
+  <div class="login-logo">
+    <svg viewBox="0 0 52 38" fill="none">
+      <path d="M6 19Q6 6 18 6Q26 6 26 14Q26 22 18 22Q26 22 26 30Q26 38 18 38Q6 38 6 26" stroke="#F78930" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <path d="M32 19 L48 19" stroke="rgba(255,255,255,.25)" stroke-width="3" stroke-linecap="round"/>
     </svg>
-    <span class="logo-txt">SONNO <span class="logo-ver">MES</span></span>
+    <h1>SONNO MES</h1>
+    <p>İstehsal İdarəetmə Sistemi</p>
   </div>
-  <div class="ntabs">
-    <button class="nt on" onclick="goTo('admin',this)">Admin</button>
-    <button class="nt" onclick="goTo('manager',this)">Manager</button>
-    <button class="nt" onclick="goTo('workers',this)">İşçilər</button>
-    <button class="nt" onclick="goTo('dept',this)">Şöbə Ekranı</button>
-    <button class="nt" onclick="goTo('logistics',this)">Logistika</button>
-    <button class="nt" onclick="goTo('ai',this)">AI Analiz</button>
+  <div class="login-card">
+    <div class="login-field">
+      <label>İstifadəçi adı</label>
+      <input id="l-user" type="text" placeholder="admin" autocomplete="username" autocapitalize="none">
+    </div>
+    <div class="login-field">
+      <label>Şifrə</label>
+      <input id="l-pass" type="password" placeholder="••••••" autocomplete="current-password">
+    </div>
+    <div class="login-err" id="l-err"></div>
+    <button class="login-btn" onclick="doLogin()">Daxil ol</button>
   </div>
-  <div class="nclock" id="clk">--:--:--</div>
-</nav>
-
-<!-- ══════════════════════════════
-     ADMIN
-══════════════════════════════ -->
-<div id="sc-admin" class="sc on">
-  <div class="pgtitle">Admin Dashboard <small>canlı istehsal</small></div>
-
-  <div class="krow">
-    <div class="kpi kT"><div class="kl">AKTİV SİFARİŞLƏR</div><div class="kv" id="k-act">—</div><div class="ks">istehsalda</div></div>
-    <div class="kpi kR"><div class="kl">GECİKƏN</div><div class="kv" id="k-lat" style="color:#E24B4A">—</div><div class="ks">müdaxilə lazım</div></div>
-    <div class="kpi kO"><div class="kl">HAZIR / ÇATDIRILABİLƏR</div><div class="kv" id="k-rdy" style="color:var(--or)">—</div><div class="ks">logistika gözləyir</div></div>
-    <div class="kpi kD"><div class="kl">TƏSLİM EDİLDİ</div><div class="kv" id="k-don">—</div><div class="ks">bu həftə</div></div>
-  </div>
-
-  <div style="display:flex;justify-content:space-between;align-items:center">
-    <div class="slbl" style="margin:0">Sifarişlər</div>
-    <button class="btn btn-ln" style="font-size:12px;padding:6px 12px" onclick="goTo('manager',document.querySelector('.nt:nth-child(2)'))">+ Yeni sifariş</button>
-  </div>
-  <div style="height:10px"></div>
-  <div class="tw"><table>
-    <thead><tr>
-      <th>Sifariş</th>
-      <th class="hide-mob">Məhsul</th>
-      <th>Müştəri</th>
-      <th class="hide-mob">Ədəd</th>
-      <th class="hide-mob">Cari mərhələ</th>
-      <th>Deadline</th>
-      <th>Status</th>
-      <th class="hide-mob"></th>
-    </tr></thead>
-    <tbody id="admin-tb"></tbody>
-  </table></div>
-
-  <div class="slbl">Şöbə PIN kodları</div>
-  <div class="card" style="margin-bottom:18px">
-    <p style="font-size:13px;color:var(--t2);margin-bottom:14px">Hər şöbəyə xüsusi 4 rəqəmli PIN təyin edin. Məsul şəxs bu PINi daxil edərək öz şöbəsini açır.</p>
-    <div id="pin-admin-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px"></div>
-  </div>
-
-  <div class="slbl">Model idarəetməsi</div>
-  <div class="mgrid" id="model-admin-grid"></div>
-  <button class="btn btn-t" style="margin-top:10px" onclick="openAddModel()">+ Yeni model əlavə et</button>
 </div>
 
-<!-- ══════════════════════════════
-     MANAGER
-══════════════════════════════ -->
-<div id="sc-manager" class="sc">
-  <div class="pgtitle">Yeni Sifariş</div>
-  <div style="display:grid;grid-template-columns:1fr 360px;gap:20px">
-    <div>
-      <div class="slbl" style="margin-top:0">Məhsul seçin (şəklə basın)</div>
-      <div class="ppick" id="product-pick"></div>
+<!-- ══════════════════════════
+     APP SHELL
+══════════════════════════ -->
+<div id="app">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-logo">
+      <svg viewBox="0 0 22 16" fill="none">
+        <path d="M2 8Q2 2 8 2Q12 2 12 6Q12 10 8 10Q12 10 12 14Q12 16 8 16Q2 16 2 12" stroke="#F78930" stroke-width="2" stroke-linecap="round" fill="none"/>
+      </svg>
+      <span>SONNO <em>MES</em></span>
+    </div>
+    <div class="topbar-title" id="topbar-title">Dashboard</div>
+    <div class="topbar-user">
+      <div>
+        <div id="topbar-role" class="topbar-role">—</div>
+      </div>
+      <div class="topbar-avatar" id="topbar-av" onclick="openUserSheet()">?</div>
+    </div>
+  </div>
 
-      <div class="qty-row" id="qty-row" style="display:none">
-        <span class="qty-lbl" id="qty-product-name">—</span>
-        <button class="qbtn" onclick="changeQty(-1)">−</button>
-        <span class="qnum" id="qty-num">1</span>
-        <button class="qbtn" onclick="changeQty(1)">+</button>
-        <span style="font-size:13px;color:var(--t2)">ədəd</span>
+  <!-- Content -->
+  <div id="main-content">
+
+    <!-- DASHBOARD (Manager görür) -->
+    <div id="sc-dash" class="sc on">
+      <div class="kgrid">
+        <div class="kpi kT"><div class="kl">AKTİV</div><div class="kv" id="k-act">—</div><div class="ks">sifariş</div></div>
+        <div class="kpi kR"><div class="kl">GECİKƏN</div><div class="kv" id="k-lat" style="color:#E24B4A">—</div><div class="ks">təcili</div></div>
+        <div class="kpi kO"><div class="kl">HAZIR</div><div class="kv" id="k-rdy" style="color:var(--or)">—</div><div class="ks">çatdırılma</div></div>
+        <div class="kpi kD"><div class="kl">TƏSLİM</div><div class="kv" id="k-don">—</div><div class="ks">bu həftə</div></div>
       </div>
 
-      <div class="card" style="margin-top:14px">
-        <div class="fg2">
-          <div class="fg"><label>Müştəri şirkəti</label><input id="m-client" placeholder="Kapital Bank" /></div>
-          <div class="fg"><label>Material</label>
-            <select id="m-fabric">
-              <option>Parça A — Velvet (bej)</option>
-              <option>Parça B — Dəri (qara)</option>
-              <option>Parça C — Linen (boz)</option>
-            </select>
-          </div>
-          <div class="fg"><label>Ayaq rəngi</label>
-            <select id="m-legs">
-              <option>Qara — Pantone Black 6C</option><option>Ağ — White</option><option>Gümüşü</option>
-            </select>
-          </div>
-          <div class="fg"><label>Deadline</label><input id="m-dead" type="date" /></div>
-          <div class="fg full"><label>Qeydlər</label><input id="m-notes" placeholder="Xüsusi rəng, ölçü..." /></div>
+      <div class="slbl">Gecikən sifarişlər</div>
+      <div class="sec-card" id="late-orders-card"></div>
+
+      <div class="slbl">Bütün sifarişlər</div>
+      <div class="sec-card" id="all-orders-card"></div>
+    </div>
+
+    <!-- SİFARİŞ YARAT (Manager) -->
+    <div id="sc-order" class="sc">
+      <div class="slbl" style="margin-top:0">Məhsul seçin</div>
+      <div id="product-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px"></div>
+
+      <div id="qty-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:12px 14px;display:none;align-items:center;gap:12px;margin-bottom:14px">
+        <span id="qty-name" style="flex:1;font-size:13px;font-weight:600;color:var(--dp)">—</span>
+        <button class="qb" onclick="chQty(-1)">−</button>
+        <span id="qty-num" style="font-size:22px;font-weight:700;min-width:32px;text-align:center;color:var(--tl)">1</span>
+        <button class="qb" onclick="chQty(1)">+</button>
+      </div>
+
+      <style>
+        .qb{width:34px;height:34px;border-radius:8px;border:1px solid rgba(0,117,101,.3);background:#fff;font-size:20px;cursor:pointer;color:var(--tl);font-weight:300;transition:all .12s;display:flex;align-items:center;justify-content:center}
+        .qb:active{background:var(--tl);color:#fff}
+        .pcard{background:var(--sf);border:2px solid var(--bd);border-radius:var(--rl);overflow:hidden;cursor:pointer;transition:all .18s;position:relative;-webkit-tap-highlight-color:transparent}
+        .pcard:active{transform:scale(.97)}
+        .pcard.sel{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,101,.12)}
+        .pcard-chk{position:absolute;top:8px;right:8px;width:22px;height:22px;background:var(--tl);color:#fff;border-radius:50%;font-size:11px;font-weight:700;display:none;align-items:center;justify-content:center}
+        .pcard.sel .pcard-chk{display:flex}
+        .pcard-img{width:100%;height:90px;display:flex;align-items:center;justify-content:center;font-size:40px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee)}
+        .pcard-body{padding:9px 11px}
+        .pcard-name{font-weight:600;font-size:13px}
+        .pcard-info{font-size:11px;color:var(--t2);margin-top:2px}
+        .pcard-h{font-size:10px;font-family:'DM Mono',monospace;color:var(--tl);margin-top:3px}
+      </style>
+
+      <div class="sec-card card-pad" style="margin-bottom:14px">
+        <div class="fg"><label>Müştəri</label><input id="o-client" placeholder="Şirkət adı"></div>
+        <div class="fg"><label>Material</label>
+          <select id="o-fabric">
+            <option>Parça A — Velvet (bej)</option>
+            <option>Parça B — Dəri (qara)</option>
+            <option>Parça C — Linen (boz)</option>
+          </select>
         </div>
-        <div class="etabox" id="etabox" style="display:none">
-          <div class="etai"><div class="etalk">Ümumi vaxt</div><div class="etalv" id="eta-h">—</div></div>
-          <div class="etai"><div class="etalk">Ədəd</div><div class="etalv" id="eta-qty">—</div></div>
-          <div class="etai"><div class="etalk">ETA</div><div class="etalv" id="eta-dt">—</div></div>
-          <div class="etai"><div class="etalk">Deadline</div><div class="etalv" id="eta-ok">—</div></div>
+        <div class="fg"><label>Ayaq rəngi</label>
+          <select id="o-legs">
+            <option>Qara — Pantone Black 6C</option>
+            <option>Ağ — White</option>
+            <option>Gümüşü</option>
+          </select>
         </div>
-        <button class="btn btn-t bfull" onclick="createOrder()">Sifariş Yarat — Pipeline Avtomatik Başlasın</button>
-      </div>
-    </div>
-    <div>
-      <div class="slbl" style="margin-top:0">Avtomatik pipeline</div>
-      <div id="pipe-prev" style="font-size:13px;color:var(--t3);padding:20px;text-align:center">Məhsul seçin</div>
-    </div>
-  </div>
-</div>
+        <div class="fg"><label>Deadline</label><input id="o-dead" type="date"></div>
+        <div class="fg"><label>Qeydlər</label><input id="o-notes" placeholder="Xüsusi tələblər..."></div>
 
-<!-- ══════════════════════════════
-     ŞÖBƏ EKRANI — PIN sistemi
-══════════════════════════════ -->
-<div id="sc-dept" class="sc">
+        <div id="eta-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:11px 13px;margin-bottom:12px;font-size:13px">
+          <span style="color:var(--tl);font-weight:600" id="eta-txt">—</span>
+        </div>
 
-  <!-- STATE 1: Şöbə seçim ekranı -->
-  <div id="dept-pick-view">
-    <div class="pgtitle" style="margin-bottom:6px">Şöbə Ekranı</div>
-    <p style="font-size:13px;color:var(--t2);margin-bottom:20px">Şöbənizi seçin, sonra PIN kodunuzu daxil edin</p>
-    <div class="dept-sel-grid" id="dept-sel"></div>
-  </div>
-
-  <!-- STATE 2: PIN giriş ekranı (mobil-first) -->
-  <div id="dept-pin-view" style="display:none;max-width:360px;margin:0 auto">
-    <button onclick="backToDeptPick()" style="border:none;background:none;cursor:pointer;font-size:13px;color:var(--tl);padding:0;margin-bottom:24px;display:flex;align-items:center;gap:5px;font-family:inherit">← Geri</button>
-
-    <div style="text-align:center;margin-bottom:28px">
-      <div id="pin-dept-icon" style="font-size:48px;margin-bottom:10px">✂️</div>
-      <div id="pin-dept-name" style="font-size:18px;font-weight:600">—</div>
-      <div style="font-size:13px;color:var(--t2);margin-top:4px">PIN kodunu daxil edin</div>
-    </div>
-
-    <!-- PIN göstərici -->
-    <div style="display:flex;justify-content:center;gap:12px;margin-bottom:28px" id="pin-dots">
-      <div class="pdot"></div><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div>
-    </div>
-
-    <!-- Xəta mesajı -->
-    <div id="pin-error" style="text-align:center;color:#E24B4A;font-size:13px;min-height:20px;margin-bottom:12px"></div>
-
-    <!-- Klaviatura -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:300px;margin:0 auto">
-      <button class="pin-key" onclick="pinPress('1')">1</button>
-      <button class="pin-key" onclick="pinPress('2')">2</button>
-      <button class="pin-key" onclick="pinPress('3')">3</button>
-      <button class="pin-key" onclick="pinPress('4')">4</button>
-      <button class="pin-key" onclick="pinPress('5')">5</button>
-      <button class="pin-key" onclick="pinPress('6')">6</button>
-      <button class="pin-key" onclick="pinPress('7')">7</button>
-      <button class="pin-key" onclick="pinPress('8')">8</button>
-      <button class="pin-key" onclick="pinPress('9')">9</button>
-      <button class="pin-key pin-key-ghost"></button>
-      <button class="pin-key" onclick="pinPress('0')">0</button>
-      <button class="pin-key pin-key-del" onclick="pinDel()">⌫</button>
-    </div>
-  </div>
-
-  <!-- STATE 3: Şöbə tapşırıqları (mobil-first) -->
-  <div id="dept-tasks-view" style="display:none">
-    <!-- Mobil header -->
-    <div id="dept-mobile-header" style="background:var(--dk);border-radius:var(--rl);padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px">
-      <button onclick="lockDept()" style="border:none;background:rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px;font-family:inherit">🔒 Çıxış</button>
-      <div style="flex:1;text-align:center">
-        <div id="dth-icon" style="font-size:20px"></div>
-        <div id="dth-name" style="font-size:13px;font-weight:600;color:#fff"></div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:10px;color:rgba(255,255,255,.4)">TAPŞIRIQ</div>
-        <div id="dth-count" style="font-size:22px;font-weight:700;color:var(--or);line-height:1">0</div>
+        <button class="btn btn-t btn-full btn-lg" onclick="createOrder()">Sifariş Yarat</button>
       </div>
     </div>
 
-    <div id="dept-tasks" class="task-grid"></div>
-  </div>
-</div>
-
-<!-- ══════════════════════════════
-     İŞÇİLƏR
-══════════════════════════════ -->
-<div id="sc-workers" class="sc">
-  <div class="pgtitle">İşçi İdarəetməsi</div>
-
-  <!-- Mobile dept selector (only visible on small screens) -->
-  <div id="workers-mobile-dept" style="display:none;margin-bottom:14px">
-    <select id="workers-mobile-sel" onchange="selectWorkerDept(this.value)" style="width:100%">
-      <option value="">— Şöbə seçin —</option>
-    </select>
-  </div>
-
-  <div style="display:grid;grid-template-columns:260px 1fr;gap:18px;align-items:start">
-    <!-- Left: dept list -->
-    <div>
-      <div class="slbl" style="margin-top:0">Şöbələr</div>
-      <div id="workers-dept-list" style="display:flex;flex-direction:column;gap:3px"></div>
-    </div>
-    <!-- Right: workers of selected dept -->
-    <div>
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div class="slbl" style="margin:0" id="workers-dept-title">Şöbə seçin</div>
-        <button class="btn btn-t" style="font-size:12px;padding:6px 14px" id="add-worker-btn" onclick="openAddWorker()" style="display:none">+ İşçi əlavə et</button>
-      </div>
-      <div id="workers-list" style="margin-top:10px">
-        <div style="padding:32px;text-align:center;color:var(--t3);font-size:13px">Sol tərəfdən şöbə seçin</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Add/Edit Worker Modal -->
-<div class="moverlay" id="worker-modal">
-  <div class="mdl" style="max-width:420px">
-    <h3 id="wm-title">Yeni işçi əlavə et</h3>
-    <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
-      <div class="fg"><label>Ad Soyad</label><input id="wm-name" placeholder="Məs: Rauf Həsənov"/></div>
-      <div class="fg"><label>Vəzifə / İxtisas</label><input id="wm-role" placeholder="Məs: CNC operatoru"/></div>
-      <div class="fg"><label>Şöbə</label>
-        <select id="wm-dept"></select>
-      </div>
-      <div class="fg"><label>Status</label>
-        <select id="wm-status">
-          <option value="active">Aktiv — işdə</option>
-          <option value="away">Məzuniyyətdə</option>
-          <option value="inactive">Deaktiv</option>
-        </select>
-      </div>
-    </div>
-    <div class="mdl-acts" style="margin-top:18px">
-      <button class="btn btn-ln" onclick="closeWorkerModal()">Ləğv et</button>
-      <button class="btn btn-t" id="wm-save-btn" onclick="saveWorker()">Yadda saxla</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════════════════════════
-     LOGİSTİKA
-══════════════════════════════ -->
-<div id="sc-logistics" class="sc">
-  <div class="pgtitle">Çatdırılma</div>
-  <div class="krow" style="grid-template-columns:repeat(3,1fr)">
-    <div class="kpi kT"><div class="kl">HAZIR</div><div class="kv" id="l-rdy" style="color:var(--tl)">—</div><div class="ks">gözləyir</div></div>
-    <div class="kpi kO"><div class="kl">YOLDA</div><div class="kv" id="l-tr" style="color:var(--or)">—</div></div>
-    <div class="kpi kD"><div class="kl">TƏSLİM</div><div class="kv" id="l-dv">—</div><div class="ks">bu həftə</div></div>
-  </div>
-  <div class="tw" id="log-list"></div>
-</div>
-
-<!-- ══════════════════════════════
-     AI
-══════════════════════════════ -->
-<div id="sc-ai" class="sc">
-  <div class="pgtitle">AI Analiz</div>
-
-  <div class="card" style="margin-bottom:12px;border-left:3px solid #E24B4A">
-    <div style="display:flex;justify-content:space-between;align-items:start">
-      <div><b>Tikmə şöbəsi — darboğaz</b><br><span style="font-size:12px;color:var(--t2)">Son 7 gün: ortalama 2.4 saat gecikmə. Aytən S. yükü həddindən artıqdır.</span></div>
-      <span class="badge bR">KRİTİK</span>
-    </div>
-    <div style="margin-top:10px;display:flex;gap:8px">
-      <button class="btn btn-t" style="font-size:12px;padding:6px 12px" onclick="toast('✓ Rauf H. tikmə şöbəsinə köməkçi əlavə edildi')">Tətbiq et</button>
-      <button class="btn btn-ln" style="font-size:12px;padding:6px 12px" onclick="toast('Tikmə analizi hesabatı hazırlandı')">Hesabat</button>
-    </div>
-  </div>
-
-  <div class="card" style="margin-bottom:12px;border-left:3px solid var(--or)">
-    <div style="display:flex;justify-content:space-between;align-items:start">
-      <div><b>SON-2398 — SOCAR HQ risk altında</b><br><span style="font-size:12px;color:var(--t2)">4.2 saat gecikmə ehtimalı 87%. Müştəriyə SMS bildirişi göndərilsin?</span></div>
-      <span class="badge bO">XƏBƏRDARLIQ</span>
-    </div>
-    <div style="margin-top:10px;display:flex;gap:8px">
-      <button class="btn btn-o" style="font-size:12px;padding:6px 12px" onclick="toast('📱 SOCAR HQ-ya gecikmə SMS göndərildi')">SMS Göndər</button>
-      <button class="btn btn-ln" style="font-size:12px;padding:6px 12px" onclick="toast('SON-2398 prioritet artırıldı')">Prioritet artır</button>
-    </div>
-  </div>
-
-  <div class="card" style="margin-bottom:18px;border-left:3px solid var(--tl)">
-    <div style="display:flex;justify-content:space-between;align-items:start">
-      <div><b>Model X — paralel mərhələ mümkündür</b><br><span style="font-size:12px;color:var(--t2)">Zımparalama + Rəngləmə paralel getsə: 6.2 → 5.4 gün (13% sürətli)</span></div>
-      <span class="badge bT">OPTİMAL</span>
-    </div>
-    <div style="margin-top:10px">
-      <button class="btn btn-t" style="font-size:12px;padding:6px 12px" onclick="toast('✓ Model X şablonu güncəlləndi')">Şablona tətbiq et</button>
-    </div>
-  </div>
-
-  <div class="slbl">İşçi performansı</div>
-  <div class="card" id="perf-wrap"></div>
-</div>
-
-<!-- Add Model Modal -->
-<div class="moverlay" id="add-model-modal">
-  <div class="mdl" style="max-width:560px;width:100%;display:flex;flex-direction:column;max-height:90vh;padding:0;overflow:hidden">
-    <!-- fixed header -->
-    <div style="padding:20px 24px 16px;border-bottom:1px solid var(--bd);flex-shrink:0">
-      <h3 id="nm-modal-title">Yeni model əlavə et</h3>
-      <p style="font-size:12px;color:var(--t2);margin-top:3px">Şöbələri seçin, ardıcıllığı sürükləyin</p>
-    </div>
-    <!-- scrollable body -->
-    <div style="overflow-y:auto;flex:1;padding:20px 24px;display:flex;flex-direction:column;gap:14px">
-
-      <div class="fg2">
-        <div class="fg"><label>Model adı</label><input id="nm-name" placeholder="Məs: Model Z — Divan" /></div>
-        <div class="fg"><label>Qısa məlumat</label><input id="nm-desc" placeholder="Məs: 3+2 oturacaq" /></div>
+    <!-- ŞÖBƏ EKRANI -->
+    <div id="sc-dept" class="sc">
+      <div id="dept-pick">
+        <p style="font-size:13px;color:var(--t2);margin-bottom:14px">Şöbənizi seçin, sonra PIN daxil edin</p>
+        <div id="dept-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
       </div>
 
-      <!-- image upload -->
-      <div class="fg">
-        <label>Məhsul şəkli</label>
-        <div style="display:flex;gap:10px;align-items:center">
-          <div id="nm-prev-box" style="width:90px;height:72px;border-radius:var(--r);border:1px solid var(--bd);background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;overflow:hidden">🛋️</div>
-          <div style="flex:1">
-            <label style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;font-size:13px;font-weight:400;color:var(--t1);background:var(--sf);transition:all .15s" onmouseover="this.style.borderColor='var(--tl)'" onmouseout="this.style.borderColor='var(--bd)'">
-              📷 Şəkil seç
-              <input type="file" accept="image/*" style="display:none" onchange="previewModelImg(this)">
-            </label>
-            <div style="font-size:11px;color:var(--t3);margin-top:5px">və ya emoji seçin:</div>
-            <div style="display:flex;gap:6px;margin-top:4px" id="emoji-pick">
-              <span style="font-size:20px;cursor:pointer;padding:2px 4px;border-radius:4px" onclick="setEmoji(this,'🛋️')">🛋️</span>
-              <span style="font-size:20px;cursor:pointer;padding:2px 4px;border-radius:4px" onclick="setEmoji(this,'🪑')">🪑</span>
-              <span style="font-size:20px;cursor:pointer;padding:2px 4px;border-radius:4px" onclick="setEmoji(this,'🛏️')">🛏️</span>
-              <span style="font-size:20px;cursor:pointer;padding:2px 4px;border-radius:4px" onclick="setEmoji(this,'🪞')">🪞</span>
-              <span style="font-size:20px;cursor:pointer;padding:2px 4px;border-radius:4px" onclick="setEmoji(this,'🪟')">🪟</span>
-            </div>
-          </div>
+      <div id="dept-pin" style="display:none;max-width:320px;margin:0 auto;padding:8px 0">
+        <button onclick="backDept()" style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--tl);padding:0;margin-bottom:20px;display:flex;align-items:center;gap:5px;font-family:inherit;font-weight:500">← Geri</button>
+        <div style="text-align:center;margin-bottom:20px">
+          <div id="pin-icon" style="font-size:44px;margin-bottom:8px"></div>
+          <div id="pin-dname" style="font-size:17px;font-weight:700"></div>
+          <div style="font-size:13px;color:var(--t2);margin-top:3px">PIN kodunu daxil edin</div>
+        </div>
+        <div class="pin-dots"><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div></div>
+        <div id="pin-err" style="text-align:center;color:#E24B4A;font-size:13px;min-height:18px;margin-bottom:12px"></div>
+        <div class="pin-grid">
+          <button class="pk" onclick="pp('1')">1</button><button class="pk" onclick="pp('2')">2</button><button class="pk" onclick="pp('3')">3</button>
+          <button class="pk" onclick="pp('4')">4</button><button class="pk" onclick="pp('5')">5</button><button class="pk" onclick="pp('6')">6</button>
+          <button class="pk" onclick="pp('7')">7</button><button class="pk" onclick="pp('8')">8</button><button class="pk" onclick="pp('9')">9</button>
+          <button class="pk pk-ghost"></button><button class="pk" onclick="pp('0')">0</button><button class="pk pk-del" onclick="pd()">⌫</button>
         </div>
       </div>
 
-      <!-- dept checkboxes -->
-      <div class="fg">
-        <label>İstehsal mərhələləri — iştirak edən şöbələri seçin</label>
-        <div style="margin-top:8px;display:flex;flex-direction:column;gap:0" id="dept-checklist"></div>
-        <div style="font-size:11px;color:var(--t3);margin-top:6px">✓ Seçilmiş şöbələr aşağıdakı ardıcıllıqla işləyəcək. Sıranı dəyişmək üçün ↑↓ düymələrindən istifadə edin.</div>
+      <div id="dept-tasks" style="display:none">
+        <div id="dept-tasks-hd" style="background:var(--dk);border-radius:var(--rl);padding:13px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+          <button onclick="lockDept()" style="border:none;background:rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:600">🔒 Çıxış</button>
+          <div style="flex:1;text-align:center">
+            <div id="dt-icon" style="font-size:18px"></div>
+            <div id="dt-name" style="font-size:13px;font-weight:600;color:#fff"></div>
+          </div>
+          <div style="text-align:right"><div style="font-size:10px;color:rgba(255,255,255,.4)">İŞ</div><div id="dt-count" style="font-size:22px;font-weight:700;color:var(--or)">0</div></div>
+        </div>
+        <div id="dept-task-list"></div>
+      </div>
+    </div>
+
+    <!-- LOGİSTİKA -->
+    <div id="sc-logi" class="sc">
+      <div class="kgrid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="kpi kT"><div class="kl">HAZIR</div><div class="kv" id="l-rdy" style="color:var(--tl)">—</div></div>
+        <div class="kpi kO"><div class="kl">YOLDA</div><div class="kv" id="l-tr" style="color:var(--or)">—</div></div>
+        <div class="kpi kD"><div class="kl">TƏSLİM</div><div class="kv" id="l-dv">—</div></div>
+      </div>
+      <div class="sec-card" id="logi-list"></div>
+    </div>
+
+    <!-- ADMİN -->
+    <div id="sc-admin" class="sc">
+      <div class="admin-menu">
+        <div class="admin-menu-item" onclick="openAdminSection('users')">
+          <div class="ami-icon">👥</div>
+          <div class="ami-name">İstifadəçilər</div>
+          <div class="ami-sub" id="ami-users-count">—</div>
+        </div>
+        <div class="admin-menu-item" onclick="openAdminSection('pins')">
+          <div class="ami-icon">🔑</div>
+          <div class="ami-name">PIN Kodlar</div>
+          <div class="ami-sub">Şöbə girişi</div>
+        </div>
+        <div class="admin-menu-item" onclick="openAdminSection('models')">
+          <div class="ami-icon">🛋️</div>
+          <div class="ami-name">Modellər</div>
+          <div class="ami-sub" id="ami-models-count">—</div>
+        </div>
+        <div class="admin-menu-item" onclick="openAdminSection('workers')">
+          <div class="ami-icon">🧑‍🔧</div>
+          <div class="ami-name">İşçilər</div>
+          <div class="ami-sub" id="ami-workers-count">—</div>
+        </div>
       </div>
 
-      <!-- selected stages order -->
-      <div class="fg" id="stage-order-wrap" style="display:none">
-        <label>Seçilmiş mərhələlərin ardıcıllığı</label>
-        <div id="stage-order-list" style="margin-top:6px;display:flex;flex-direction:column;gap:4px"></div>
-      </div>
+      <div id="admin-section-content"></div>
+    </div>
 
+  </div><!-- /main-content -->
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav" id="bottom-nav"></nav>
+</div><!-- /app -->
+
+<!-- USER SHEET -->
+<div class="sheet-overlay" id="user-sheet-ov" onclick="closeUserSheet()"></div>
+<div class="sheet" id="user-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="us-name">—</div>
+  <div class="sheet-body">
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;color:var(--t2);margin-bottom:4px">Rol</div>
+      <div id="us-role-badge"></div>
     </div>
-    <!-- fixed footer — HƏMİŞƏ GÖRÜNÜR -->
-    <div style="padding:14px 24px;border-top:1px solid var(--bd);flex-shrink:0;display:flex;gap:8px;justify-content:flex-end;background:var(--sf)">
-      <button class="btn btn-ln" onclick="closeAddModel()">Ləğv et</button>
-      <button class="btn btn-t" onclick="saveNewModel()">💾 Yadda saxla</button>
-    </div>
+    <div style="font-size:12px;color:var(--t2);margin-bottom:8px">İcazələr</div>
+    <div id="us-perms" style="font-size:13px;color:var(--t1);display:flex;flex-direction:column;gap:4px;margin-bottom:20px"></div>
+    <button class="btn btn-ln btn-full" onclick="doLogout()">Çıxış</button>
   </div>
 </div>
 
-<!-- Order Detail Modal -->
-<div class="moverlay" id="order-modal">
-  <div class="mdl">
-    <h3 id="om-title">—</h3>
-    <p style="font-size:13px;color:var(--t2);margin-top:4px" id="om-sub">—</p>
-    <div style="margin-top:14px" id="om-stages"></div>
-    <div class="mdl-acts">
-      <button class="btn btn-ln" onclick="closeOrderModal()">Bağla</button>
+<!-- ADD USER SHEET -->
+<div class="sheet-overlay" id="add-user-ov" onclick="closeAddUser()"></div>
+<div class="sheet" id="add-user-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="au-sheet-title">Yeni istifadəçi</div>
+  <div class="sheet-body">
+    <div class="fg"><label>Ad Soyad</label><input id="au-name" placeholder="Cavidan İsmayılov"></div>
+    <div class="fg"><label>İstifadəçi adı (login)</label><input id="au-user" placeholder="cavidan" autocapitalize="none"></div>
+    <div class="fg"><label>Şifrə</label><input id="au-pass" type="password" placeholder="min 4 simvol"></div>
+    <div class="fg"><label>Rol</label>
+      <select id="au-role" onchange="updatePermUI()">
+        <option value="manager">Manager</option>
+        <option value="logistics">Logistika</option>
+        <option value="dept">Şöbə müdiri</option>
+        <option value="admin">Admin</option>
+      </select>
     </div>
+    <div class="slbl">İcazələr</div>
+    <div id="au-perms-wrap"></div>
+    <button class="btn btn-t btn-full btn-lg" style="margin-top:16px" onclick="saveUser()">Yadda saxla</button>
   </div>
 </div>
 
 <div id="toast"></div>
 
 <script>
-// ═══════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════
-const DEFAULT_MODELS = [
-  {id:'modelx', name:'Model X — Divan', desc:'3+2 oturacaq, velvet', emoji:'🛋️', img:null, hours:17.5,
-   stages:[
-    {name:'Hazırlıq — Kəsmə',dept:'hazirlik',hours:2,worker:''},
-    {name:'Bez kəsim',dept:'bez_kesim',hours:2,worker:''},
-    {name:'Karkaz yığım',dept:'karkaz',hours:4,worker:''},
-    {name:'Şkurka',dept:'shkurka',hours:1.5,worker:''},
-    {name:'Tikiş',dept:'tikiş',hours:3,worker:''},
-    {name:'Yastıqlama / Döşəmə',dept:'yastiqlama',hours:4,worker:''},
-    {name:'Logistika',dept:'logistics',hours:1,worker:''},
-  ]},
-  {id:'chairb', name:'Stul B — Kreslo', desc:'Tək oturacaq, ayaqlı', emoji:'🪑', img:null, hours:9,
-   stages:[
-    {name:'Hazırlıq — Kəsmə',dept:'hazirlik',hours:1.5,worker:''},
-    {name:'Karkaz yığım',dept:'karkaz',hours:2.5,worker:''},
-    {name:'Şkurka',dept:'shkurka',hours:1,worker:''},
-    {name:'Yastıqlama / Döşəmə',dept:'yastiqlama',hours:3,worker:''},
-    {name:'Logistika',dept:'logistics',hours:1,worker:''},
-  ]},
-  {id:'masa', name:'Masa — Stol', desc:'Taxta masa, CNC', emoji:'🪑', img:null, hours:12,
-   stages:[
-    {name:'Hazırlıq — Kəsmə',dept:'hazirlik',hours:2,worker:''},
-    {name:'Masa karkaz yığımı',dept:'masa_karkaz',hours:4,worker:''},
-    {name:'Şkurka',dept:'shkurka',hours:1.5,worker:''},
-    {name:'Masa rəngləmə',dept:'masa_rengle',hours:3,worker:''},
-    {name:'Keyfiyyət yoxlama',dept:'qa',hours:0.5,worker:''},
-    {name:'Logistika',dept:'logistics',hours:1,worker:''},
-  ]},
-];
-
+// ════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════
 const DEPT_INFO = {
-  hazirlik:    {name:'Hazırlıq — Kəsmə',          icon:'✂️'},
-  bez_kesim:   {name:'Bez kəsim şöbəsi',           icon:'🧶'},
-  karkaz:      {name:'Karkaz yığım şöbəsi',        icon:'🪵'},
-  shkurka:     {name:'Şkurka şöbəsi',              icon:'🔩'},
-  masa_karkaz: {name:'Masa karkaz şöbəsi',         icon:'🪚'},
-  masa_rengle: {name:'Masa rəngləmə şöbəsi',       icon:'🎨'},
-  yastiqlama:  {name:'Yastıqlama / Döşəmə',        icon:'🛋️'},
-  tikiş:       {name:'Tikiş şöbəsi',               icon:'🧵'},
-  qa:          {name:'Keyfiyyət yoxlama',           icon:'✅'},
-  logistics:   {name:'Logistika / Çatdırılma',     icon:'🚛'},
+  hazirlik:    {name:'Hazırlıq — Kəsmə',       icon:'✂️'},
+  bez_kesim:   {name:'Bez kəsim şöbəsi',        icon:'🧶'},
+  karkaz:      {name:'Karkaz yığım şöbəsi',     icon:'🪵'},
+  shkurka:     {name:'Şkurka şöbəsi',           icon:'🔩'},
+  masa_karkaz: {name:'Masa karkaz şöbəsi',      icon:'🪚'},
+  masa_rengle: {name:'Masa rəngləmə şöbəsi',    icon:'🎨'},
+  yastiqlama:  {name:'Yastıqlama / Döşəmə',     icon:'🛋️'},
+  tikiş:       {name:'Tikiş şöbəsi',            icon:'🧵'},
+  qa:          {name:'Keyfiyyət yoxlama',        icon:'✅'},
+  logistics:   {name:'Logistika / Çatdırılma',  icon:'🚛'},
 };
 
-// ═══════════════════════════════════════
-// İŞÇİ İDARƏETMƏ SİSTEMİ
-// ═══════════════════════════════════════
-const DEFAULT_WORKERS = [
-  {id:'w1', name:'Rauf Həsənov',   dept:'hazirlik',   role:'Lent kəsim operatoru', status:'active'},
-  {id:'w2', name:'Elşən Məmmədov', dept:'hazirlik',   role:'Frez operatoru',        status:'active'},
-  {id:'w3', name:'Tural Əliyev',   dept:'bez_kesim',  role:'Bez kəsim ustası',      status:'active'},
-  {id:'w4', name:'Nigar Rəhimova', dept:'bez_kesim',  role:'Bez kəsim köməkçisi',   status:'active'},
-  {id:'w5', name:'Cavidan İsmayılov',dept:'karkaz',   role:'CNC operatoru',         status:'active'},
-  {id:'w6', name:'Orxan Babayev',  dept:'karkaz',     role:'Ayaq bağlayan',         status:'active'},
-  {id:'w7', name:'Farid Cəfərov',  dept:'karkaz',     role:'Yapışdırma ustası',     status:'active'},
-  {id:'w8', name:'Anar Quliyev',   dept:'shkurka',    role:'Şkurka ustası',         status:'active'},
-  {id:'w9', name:'Samir Hüseynov', dept:'masa_karkaz',role:'Masa kəsim operatoru',  status:'active'},
-  {id:'w10',name:'Kamran Əsgərov', dept:'masa_karkaz',role:'Masa karkaz yığan',     status:'active'},
-  {id:'w11',name:'Vüsal Nəsirov',  dept:'masa_rengle',role:'Rəngləmə ustası',       status:'active'},
-  {id:'w12',name:'Aytən Sadıqova', dept:'tikiş',      role:'Tikiş ustası',          status:'active'},
-  {id:'w13',name:'Günel Əhmədova', dept:'tikiş',      role:'Tikiş köməkçisi',       status:'active'},
-  {id:'w14',name:'Leyla Mustafayeva',dept:'yastiqlama',role:'Döşəmə ustası',        status:'active'},
-  {id:'w15',name:'Rəşad Babazadə', dept:'yastiqlama', role:'Yastıqlama köməkçisi',  status:'active'},
-  {id:'w16',name:'Murad Əliyev',   dept:'qa',         role:'Keyfiyyət nəzarətçisi', status:'active'},
-  {id:'w17',name:'Elnur Həsənli',  dept:'logistics',  role:'Sürücü',                status:'active'},
+const ALL_PERMS = [
+  {key:'dashboard',  label:'Dashboard / Ümumi görüntü',  sub:'KPI, statistika'},
+  {key:'orders_view',label:'Sifarişlərə baxış',           sub:'Bütün sifariş siyahısı'},
+  {key:'orders_create',label:'Sifariş yarat',             sub:'Yeni sifariş əlavə et'},
+  {key:'dept_screen',label:'Şöbə ekranı',                 sub:'PIN ilə şöbəyə giriş'},
+  {key:'logistics',  label:'Logistika',                   sub:'Çatdırılma idarəetməsi'},
+  {key:'admin',      label:'Admin panel',                 sub:'Tam idarəetmə'},
 ];
 
-function getWorkers(){
-  try{const s=localStorage.getItem('snno_workers');return s?JSON.parse(s):DEFAULT_WORKERS}
-  catch(e){return DEFAULT_WORKERS}
-}
-function saveWorkers(w){localStorage.setItem('snno_workers',JSON.stringify(w))}
-function workersByDept(deptKey){return getWorkers().filter(w=>w.dept===deptKey)}
+const ROLE_PERMS = {
+  admin:     ['dashboard','orders_view','orders_create','dept_screen','logistics','admin'],
+  manager:   ['dashboard','orders_view','orders_create'],
+  logistics: ['logistics'],
+  dept:      ['dept_screen'],
+};
 
-function getModels(){
-  try{const s=localStorage.getItem('snno_models');return s?JSON.parse(s):DEFAULT_MODELS}
-  catch(e){return DEFAULT_MODELS}
-}
+const DEFAULT_USERS = [
+  {id:'u1',name:'Admin',username:'admin',password:'admin123',role:'admin',perms:ROLE_PERMS.admin},
+  {id:'u2',name:'Cavidan Mənəcər',username:'manager',password:'1234',role:'manager',perms:ROLE_PERMS.manager},
+  {id:'u3',name:'Elnur Logistika',username:'logist',password:'1234',role:'logistics',perms:ROLE_PERMS.logistics},
+];
+
+const DEFAULT_MODELS = [
+  {id:'modelx',name:'Model X — Divan',desc:'3+2 oturacaq',emoji:'🛋️',img:null,hours:17.5,stages:[
+    {name:'Hazırlıq — Kəsmə',dept:'hazirlik',hours:2},
+    {name:'Bez kəsim',dept:'bez_kesim',hours:2},
+    {name:'Karkaz yığım',dept:'karkaz',hours:4},
+    {name:'Şkurka',dept:'shkurka',hours:1.5},
+    {name:'Tikiş',dept:'tikiş',hours:3},
+    {name:'Yastıqlama',dept:'yastiqlama',hours:4},
+    {name:'Logistika',dept:'logistics',hours:1},
+  ]},
+  {id:'chairb',name:'Stul B — Kreslo',desc:'Tək oturacaq',emoji:'🪑',img:null,hours:9,stages:[
+    {name:'Hazırlıq — Kəsmə',dept:'hazirlik',hours:1.5},
+    {name:'Karkaz yığım',dept:'karkaz',hours:2.5},
+    {name:'Şkurka',dept:'shkurka',hours:1},
+    {name:'Yastıqlama',dept:'yastiqlama',hours:3},
+    {name:'Logistika',dept:'logistics',hours:1},
+  ]},
+  {id:'masa',name:'Masa — Stol',desc:'CNC, taxta',emoji:'🪑',img:null,hours:12,stages:[
+    {name:'Hazırlıq — Kəsmə',dept:'hazirlik',hours:2},
+    {name:'Masa karkaz',dept:'masa_karkaz',hours:4},
+    {name:'Şkurka',dept:'shkurka',hours:1.5},
+    {name:'Masa rəngləmə',dept:'masa_rengle',hours:3},
+    {name:'Keyfiyyət',dept:'qa',hours:0.5},
+    {name:'Logistika',dept:'logistics',hours:1},
+  ]},
+];
+
+const DEFAULT_WORKERS = [
+  {id:'w1',name:'Rauf Həsənov',dept:'hazirlik',role:'Lent kəsim operatoru',status:'active'},
+  {id:'w2',name:'Elşən Məmmədov',dept:'hazirlik',role:'Frez operatoru',status:'active'},
+  {id:'w3',name:'Tural Əliyev',dept:'bez_kesim',role:'Bez kəsim ustası',status:'active'},
+  {id:'w4',name:'Cavidan İsmayılov',dept:'karkaz',role:'CNC operatoru',status:'active'},
+  {id:'w5',name:'Orxan Babayev',dept:'karkaz',role:'Ayaq bağlayan',status:'active'},
+  {id:'w6',name:'Anar Quliyev',dept:'shkurka',role:'Şkurka ustası',status:'active'},
+  {id:'w7',name:'Samir Hüseynov',dept:'masa_karkaz',role:'Masa kəsim operatoru',status:'active'},
+  {id:'w8',name:'Vüsal Nəsirov',dept:'masa_rengle',role:'Rəngləmə ustası',status:'active'},
+  {id:'w9',name:'Aytən Sadıqova',dept:'tikiş',role:'Tikiş ustası',status:'active'},
+  {id:'w10',name:'Leyla Mustafayeva',dept:'yastiqlama',role:'Döşəmə ustası',status:'active'},
+  {id:'w11',name:'Murad Əliyev',dept:'qa',role:'Keyfiyyət nəzarətçisi',status:'active'},
+  {id:'w12',name:'Elnur Həsənli',dept:'logistics',role:'Sürücü',status:'active'},
+];
+
+const ST={created:{t:'Yaradıldı',c:'bG'},in_progress:{t:'İstehsalda',c:'bO'},ready:{t:'Hazır',c:'bT'},delivering:{t:'Yolda',c:'bO'},delivered:{t:'Təslim',c:'bGN'},late:{t:'GECİKMİŞ',c:'bR'}};
+
+function getUsers(){try{const s=localStorage.getItem('snno_users');return s?JSON.parse(s):DEFAULT_USERS}catch(e){return DEFAULT_USERS}}
+function saveUsers(u){localStorage.setItem('snno_users',JSON.stringify(u))}
+function getModels(){try{const s=localStorage.getItem('snno_models');return s?JSON.parse(s):DEFAULT_MODELS}catch(e){return DEFAULT_MODELS}}
 function saveModels(m){localStorage.setItem('snno_models',JSON.stringify(m))}
+function getWorkers(){try{const s=localStorage.getItem('snno_workers');return s?JSON.parse(s):DEFAULT_WORKERS}catch(e){return DEFAULT_WORKERS}}
+function saveWorkers(w){localStorage.setItem('snno_workers',JSON.stringify(w))}
+function getDeptPins(){
+  const s=localStorage.getItem('snno_pins');
+  if(s)return JSON.parse(s);
+  const d={};Object.keys(DEPT_INFO).forEach((k,i)=>{d[k]=String(1001+i*111).slice(0,4);});
+  localStorage.setItem('snno_pins',JSON.stringify(d));return d;
+}
+function saveDeptPins(p){localStorage.setItem('snno_pins',JSON.stringify(p))}
 function getOrders(){
   try{const s=localStorage.getItem('snno_orders');if(s)return JSON.parse(s)}catch(e){}
-  const today=new Date(),fd=d=>{const x=new Date(today);x.setDate(x.getDate()+d);return x.toISOString().split('T')[0]};
+  const t=new Date(),fd=n=>{const d=new Date(t);d.setDate(d.getDate()+n);return d.toISOString().split('T')[0]};
   const def=[
-    {id:'SON-2401',modelId:'modelx',qty:2,fabric:'Parça B — Dəri',client:'Kapital Bank',deadline:fd(3),status:'in_progress',stage:4,legs:'Qara',notes:''},
-    {id:'SON-2398',modelId:'modelx',qty:1,fabric:'Parça A — Velvet',client:'SOCAR HQ',deadline:fd(0),status:'late',stage:5,legs:'Ağ',notes:''},
-    {id:'SON-2395',modelId:'chairb',qty:4,fabric:'Parça C — Linen',client:'Pasha Bank',deadline:fd(5),status:'in_progress',stage:3,legs:'Gümüşü',notes:''},
+    {id:'SON-2401',modelId:'modelx',qty:2,fabric:'Parça B — Dəri',client:'Kapital Bank',deadline:fd(3),status:'in_progress',stage:3,legs:'Qara',notes:''},
+    {id:'SON-2398',modelId:'modelx',qty:1,fabric:'Parça A — Velvet',client:'SOCAR HQ',deadline:fd(0),status:'late',stage:4,legs:'Ağ',notes:''},
+    {id:'SON-2395',modelId:'chairb',qty:4,fabric:'Parça C — Linen',client:'Pasha Bank',deadline:fd(5),status:'in_progress',stage:2,legs:'Gümüşü',notes:''},
     {id:'SON-2390',modelId:'chairb',qty:2,fabric:'Parça B — Dəri',client:'Bakcell',deadline:fd(1),status:'ready',stage:5,legs:'Qara',notes:''},
-    {id:'SON-2385',modelId:'modely',qty:1,fabric:'Parça A — Velvet',client:'Bank Respublika',deadline:fd(10),status:'created',stage:1,legs:'Ağ',notes:''},
-    {id:'SON-2382',modelId:'modelx',qty:3,fabric:'Parça C — Linen',client:'ABB Bank',deadline:fd(-2),status:'delivered',stage:8,legs:'Qara',notes:''},
+    {id:'SON-2382',modelId:'modelx',qty:3,fabric:'Parça C',client:'ABB Bank',deadline:fd(-2),status:'delivered',stage:7,legs:'Qara',notes:''},
   ];
   localStorage.setItem('snno_orders',JSON.stringify(def));return def;
 }
 function saveOrders(o){localStorage.setItem('snno_orders',JSON.stringify(o))}
+function wByDept(d){return getWorkers().filter(w=>w.dept===d&&w.status==='active')}
 
-const ST={created:{t:'Yaradıldı',c:'bG'},in_progress:{t:'İstehsalda',c:'bO'},ready:{t:'Hazır',c:'bT'},delivering:{t:'Yolda',c:'bO'},delivered:{t:'Təslim',c:'bGN'},late:{t:'GECİKMİŞ',c:'bR'}};
+// ════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════
+let currentUser = null;
 
-// ═══════════════════════════════════════
-// NAV
-// ═══════════════════════════════════════
-function goTo(id,btn){
-  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
-  document.querySelectorAll('.nt').forEach(t=>t.classList.remove('on'));
-  document.getElementById('sc-'+id).classList.add('on');
-  if(btn) btn.classList.add('on');
-  if(id==='admin'){renderAdmin();renderModelAdmin();renderPinAdmin()}
-  if(id==='manager'){renderProductPick()}
-  if(id==='workers'){renderWorkersScreen()}
-  if(id==='dept'){renderDeptSel()}
-  if(id==='logistics'){renderLogistics()}
-  if(id==='ai'){renderPerf()}
+function doLogin(){
+  const u=document.getElementById('l-user').value.trim();
+  const p=document.getElementById('l-pass').value;
+  const users=getUsers();
+  const found=users.find(x=>x.username===u&&x.password===p);
+  if(!found){
+    document.getElementById('l-err').textContent='İstifadəçi adı və ya şifrə yanlışdır';
+    document.getElementById('l-pass').value='';
+    return;
+  }
+  currentUser=found;
+  document.getElementById('l-err').textContent='';
+  document.getElementById('login-screen').classList.add('out');
+  setTimeout(()=>{
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').classList.add('visible');
+    initApp();
+  },300);
 }
 
-// ═══════════════════════════════════════
-// ADMIN
-// ═══════════════════════════════════════
-function renderAdmin(){
+document.getElementById('l-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+document.getElementById('l-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('l-pass').focus()});
+
+function doLogout(){
+  currentUser=null;
+  closeUserSheet();
+  document.getElementById('app').classList.remove('visible');
+  const ls=document.getElementById('login-screen');
+  ls.style.display='flex';
+  ls.classList.remove('out');
+  document.getElementById('l-user').value='';
+  document.getElementById('l-pass').value='';
+  document.getElementById('l-err').textContent='';
+}
+
+function hasPerm(key){return currentUser&&currentUser.perms&&currentUser.perms.includes(key)}
+
+// ════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════
+const NAV_ITEMS = [
+  {key:'dash',    icon:'📊', label:'Dashboard', perm:'dashboard',   sc:'sc-dash'},
+  {key:'order',   icon:'➕', label:'Sifariş',   perm:'orders_create',sc:'sc-order'},
+  {key:'dept',    icon:'🏭', label:'Şöbə',      perm:'dept_screen', sc:'sc-dept'},
+  {key:'logi',    icon:'🚛', label:'Logistika', perm:'logistics',   sc:'sc-logi'},
+  {key:'admin',   icon:'⚙️', label:'Admin',     perm:'admin',       sc:'sc-admin'},
+];
+
+let activeScreen = '';
+
+function initApp(){
+  // Set topbar
+  const u=currentUser;
+  const ini=u.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('topbar-av').textContent=ini;
+  const roleLabels={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
+  document.getElementById('topbar-role').textContent=roleLabels[u.role]||u.role;
+
+  // Build bottom nav
+  const nav=document.getElementById('bottom-nav');
+  const visible=NAV_ITEMS.filter(n=>hasPerm(n.perm));
+  nav.innerHTML=visible.map(n=>`
+    <button class="bnav-item" id="bnav-${n.key}" onclick="goTo('${n.key}')">
+      <div class="bni" style="position:relative">${n.icon}</div>
+      <span class="bnav-label">${n.label}</span>
+    </button>`).join('');
+
+  // Go to first available screen
+  if(visible.length) goTo(visible[0].key);
+}
+
+function goTo(key){
+  const item=NAV_ITEMS.find(n=>n.key===key);
+  if(!item||!hasPerm(item.perm)) return;
+  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.bnav-item').forEach(b=>b.classList.remove('on'));
+  document.getElementById(item.sc).classList.add('on');
+  const nb=document.getElementById('bnav-'+key);
+  if(nb) nb.classList.add('on');
+  document.getElementById('topbar-title').textContent=
+    {dash:'Dashboard',order:'Yeni Sifariş',dept:'Şöbə Ekranı',logi:'Logistika',admin:'Admin'}[key];
+  activeScreen=key;
+  if(key==='dash') renderDash();
+  if(key==='order') renderOrderForm();
+  if(key==='dept') renderDeptPick();
+  if(key==='logi') renderLogi();
+  if(key==='admin') renderAdmin();
+  document.getElementById('main-content').scrollTo(0,0);
+}
+
+// ════════════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════════════
+function renderDash(){
   const orders=getOrders(),models=getModels();
   const act=orders.filter(o=>['in_progress','created','late'].includes(o.status)).length;
   const lat=orders.filter(o=>o.status==='late').length;
@@ -765,424 +685,306 @@ function renderAdmin(){
   document.getElementById('k-rdy').textContent=rdy;
   document.getElementById('k-don').textContent=don;
 
-  const tb=document.getElementById('admin-tb');
-  tb.innerHTML=orders.map(o=>{
-    const m=models.find(x=>x.id===o.modelId)||{name:'?',stages:[]};
-    const sn=o.stage>0&&o.stage<=m.stages.length?m.stages[o.stage-1].name:(o.status==='created'?'Başlanmayıb':'Tamamlandı');
-    const st=ST[o.status]||ST.created;
-    return`<tr onclick="openOrderModal('${o.id}')">
-      <td><span class="mono">${o.id}</span></td>
-      <td class="hide-mob">${m.name.split('—')[0].trim()}</td>
-      <td>${o.client}</td>
-      <td class="hide-mob" style="font-weight:600">${o.qty} ədəd</td>
-      <td class="hide-mob"><span class="badge bG" style="font-size:11px">${sn}</span></td>
-      <td style="${o.status==='late'?'color:#E24B4A;font-weight:600':''}">${o.deadline}</td>
-      <td><span class="badge ${st.c}">${st.t}</span></td>
-      <td class="hide-mob"><button class="btn btn-ln" style="padding:4px 10px;font-size:12px" onclick="event.stopPropagation();openOrderModal('${o.id}')">Detal</button></td>
-    </tr>`;
-  }).join('');
+  const late=orders.filter(o=>o.status==='late');
+  const lateCard=document.getElementById('late-orders-card');
+  lateCard.innerHTML=late.length
+    ? late.map(o=>orderListItem(o,models)).join('')
+    : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Gecikən sifariş yoxdur ✓</div>';
+
+  const allCard=document.getElementById('all-orders-card');
+  allCard.innerHTML=orders.map(o=>orderListItem(o,models)).join('');
 }
 
-function renderModelAdmin(){
+function orderListItem(o,models){
+  const m=models.find(x=>x.id===o.modelId)||{name:'?',emoji:'?'};
+  const st=ST[o.status]||ST.created;
+  const isLate=o.status==='late';
+  return`<div class="list-item" onclick="showOrderDetail('${o.id}')">
+    <div class="li-icon" style="background:${isLate?'#FCEBEB':'rgba(17,24,32,.04)'}">${m.emoji}</div>
+    <div class="li-body">
+      <div class="li-title">${o.client} <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--tl);font-weight:400">${o.id}</span></div>
+      <div class="li-sub">${m.name.split('—')[0].trim()} · ${o.qty} ədəd · ${o.deadline}</div>
+    </div>
+    <div class="li-right">
+      <span class="badge ${st.c}">${st.t}</span>
+    </div>
+  </div>`;
+}
+
+function showOrderDetail(id){
+  const orders=getOrders(),models=getModels();
+  const o=orders.find(x=>x.id===id);if(!o)return;
+  const m=models.find(x=>x.id===o.modelId)||{name:'?',stages:[]};
+  const st=ST[o.status]||ST.created;
+  openSheet('order-detail-sheet');
+  document.getElementById('ods-title').textContent=o.id+' — '+o.client;
+  document.getElementById('ods-body').innerHTML=`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      <span class="badge ${st.c}">${st.t}</span>
+      <span class="badge bG">${o.qty} ədəd</span>
+      <span class="badge bG">${o.fabric.split('—')[0].trim()}</span>
+    </div>
+    <div style="font-size:12px;color:var(--t2);margin-bottom:12px">Deadline: <b style="color:${o.status==='late'?'#E24B4A':'var(--t1)'}">${o.deadline}</b></div>
+    <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Mərhələlər</div>
+    ${m.stages.map((s,i)=>{
+      const n=i+1,cls=n<o.stage?'s-done':n===o.stage?'s-cur':'s-lock';
+      const icon=n<o.stage?'✓':n===o.stage?'▶':'○';
+      const bg=n<o.stage?'var(--lt)':n===o.stage?'var(--lo)':'rgba(17,24,32,.03)';
+      const col=n<o.stage?'var(--dp)':n===o.stage?'#854F0B':'var(--t3)';
+      return`<div style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:var(--r);background:${bg};margin-bottom:4px">
+        <span style="font-size:12px;font-weight:700;color:${col};width:16px">${icon}</span>
+        <span style="flex:1;font-size:13px;font-weight:500;color:${col}">${s.name}</span>
+        <span style="font-size:11px;color:var(--t3)">${s.hours}s</span>
+      </div>`;
+    }).join('')}`;
+}
+
+// ════════════════════════════════════════
+// ORDER CREATE
+// ════════════════════════════════════════
+let selModel=null,qty=1;
+
+function renderOrderForm(){
   const models=getModels();
-  document.getElementById('model-admin-grid').innerHTML=models.map(m=>{
-    const imgPart=m.img
-      ?`<img src="${m.img}" style="width:100%;height:148px;object-fit:cover;display:block" alt="${m.name}">`
-      :`<div class="mcard-img-placeholder" style="height:148px;font-size:64px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#f0f9f6,#e1f5ee)">${m.emoji||'🛋️'}</div>`;
-    const chips=m.stages.slice(0,4).map(s=>`<span class="chip">${s.name}</span>`).join('');
-    const more=m.stages.length>4?`<span class="chip chip-o">+${m.stages.length-4}</span>`:'';
-    return`<div class="mcard">
-      <div style="position:relative;cursor:pointer" onclick="document.getElementById('img-upload-${m.id}').click()">
-        ${imgPart}
-        <div style="position:absolute;inset:0;background:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;transition:background .2s" onmouseover="this.style.background='rgba(0,0,0,.35)'" onmouseout="this.style.background='rgba(0,0,0,0)'">
-          <span style="color:#fff;font-size:12px;font-weight:600;opacity:0;transition:opacity .2s" id="ov-${m.id}">📷 Şəkil dəyiş</span>
-        </div>
-        <input type="file" accept="image/*" id="img-upload-${m.id}" style="display:none" onchange="uploadModelImg('${m.id}',this)">
-      </div>
-      <div class="mcard-body">
-        <div class="mcard-name">${m.name}</div>
-        <div class="mcard-sub">${m.desc} · ${m.stages.length} mərhələ · ${m.hours}s</div>
-        <div class="mcard-chips">${chips}${more}</div>
-        <button class="btn btn-ln" style="margin-top:10px;width:100%;font-size:12px;padding:7px" onclick="editModel('${m.id}')">Mərhələləri düzəlt</button>
-      </div>
-    </div>`;
-  }).join('');
-  // hover fix
-  document.querySelectorAll('[id^="ov-"]').forEach(el=>{
-    const parent=el.closest('[style*="position:relative"]');
-    if(parent){
-      parent.addEventListener('mouseover',()=>el.style.opacity='1');
-      parent.addEventListener('mouseout',()=>el.style.opacity='0');
-    }
-  });
-}
-
-function uploadModelImg(modelId,input){
-  if(!input.files[0])return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const models=getModels();
-    const m=models.find(x=>x.id===modelId);
-    if(m){m.img=e.target.result;saveModels(models);renderModelAdmin();toast('✓ Şəkil yükləndi — '+m.name)}
-  };
-  reader.readAsDataURL(input.files[0]);
-}
-
-// ═══════════════════════════════════════
-// MANAGER
-// ═══════════════════════════════════════
-let selModel=null, qty=1, newModelEmoji='🛋️', newModelImgData=null;
-
-function renderProductPick(){
-  const models=getModels();
-  document.getElementById('product-pick').innerHTML=models.map(m=>{
-    const imgPart=m.img
-      ?`<img src="${m.img}" style="width:100%;height:110px;object-fit:cover;display:block" alt="${m.name}">`
-      :`<div class="pcard-img">${m.emoji||'🛋️'}</div>`;
-    return`<div class="pcard" id="pc-${m.id}" onclick="selectModel('${m.id}')">
-      <div class="pcard-chk">✓</div>
-      ${imgPart}
+  document.getElementById('product-grid').innerHTML=models.map(m=>{
+    const imgPart=m.img?`<img src="${m.img}" style="width:100%;height:90px;object-fit:cover">`
+      :`<div class="pcard-img">${m.emoji}</div>`;
+    return`<div class="pcard" id="pc-${m.id}" onclick="selProd('${m.id}')">
+      <div class="pcard-chk">✓</div>${imgPart}
       <div class="pcard-body">
-        <div class="pcard-name">${m.name}</div>
+        <div class="pcard-name">${m.name.split('—')[0].trim()}</div>
         <div class="pcard-info">${m.desc}</div>
-        <div class="pcard-hours">${m.stages.length} mərhələ · ${m.hours}s</div>
+        <div class="pcard-h">${m.stages.length} mərhələ · ${m.hours}s</div>
       </div>
     </div>`;
   }).join('');
-  const dl=document.getElementById('m-dead');
-  if(!dl.value){const d=new Date();d.setDate(d.getDate()+7);dl.value=d.toISOString().split('T')[0];}
+  if(!document.getElementById('o-dead').value){
+    const d=new Date();d.setDate(d.getDate()+7);
+    document.getElementById('o-dead').value=d.toISOString().split('T')[0];
+  }
 }
 
-function selectModel(id){
+function selProd(id){
   selModel=id; qty=1;
   document.getElementById('qty-num').textContent=1;
   document.querySelectorAll('.pcard').forEach(c=>c.classList.remove('sel'));
-  const pc=document.getElementById('pc-'+id);
-  if(pc)pc.classList.add('sel');
-  const models=getModels();
-  const m=models.find(x=>x.id===id);
-  if(!m)return;
-  document.getElementById('qty-row').style.display='flex';
-  document.getElementById('qty-product-name').textContent=m.name;
-  renderPipePrev(m);
+  const pc=document.getElementById('pc-'+id);if(pc)pc.classList.add('sel');
+  const models=getModels(),m=models.find(x=>x.id===id);if(!m)return;
+  const qb=document.getElementById('qty-bar');
+  qb.style.display='flex';
+  document.getElementById('qty-name').textContent=m.name;
   updateEta(m);
 }
 
-function changeQty(d){
+function chQty(d){
   qty=Math.max(1,qty+d);
   document.getElementById('qty-num').textContent=qty;
-  const models=getModels();
-  const m=models.find(x=>x.id===selModel);
+  const models=getModels(),m=models.find(x=>x.id===selModel);
   if(m)updateEta(m);
 }
 
-function renderPipePrev(m){
-  document.getElementById('pipe-prev').innerHTML=
-    `<div class="pipe-list">${m.stages.map((s,i)=>{
-      const dws=workersByDept(s.dept);
-      const wname=dws.length?dws.map(w=>w.name.split(' ')[0]).join(', '):'işçi yoxdur';
-      return`<div class="ps"><span class="psn">${i+1}</span><span class="psname">${s.name}</span><span class="psinfo">${s.hours}s · ${wname}</span></div>`;
-    }).join('')}</div>`;
-}
-
 function updateEta(m){
-  const eb=document.getElementById('etabox');
-  eb.style.display='flex';
-  const totalH=(m.hours*qty).toFixed(1);
+  const bar=document.getElementById('eta-bar');
+  bar.style.display='block';
+  const h=(m.hours*qty).toFixed(1);
   const days=Math.ceil(m.hours*qty/8);
   const d=new Date();d.setDate(d.getDate()+days);
   const eta=d.toLocaleDateString('az-AZ',{day:'2-digit',month:'long'});
-  const dl=document.getElementById('m-dead').value;
-  let okTxt='— tarix seçin',okColor='var(--t2)';
-  if(dl){
-    const dlD=new Date(dl),etaD=new Date(d);
-    const ok=dlD>=etaD;
-    okTxt=ok?'✓ Vaxt kifayətdir':'⚠ Risk var';
-    okColor=ok?'var(--tl)':'#E24B4A';
-  }
-  document.getElementById('eta-h').textContent=totalH+' saat';
-  document.getElementById('eta-qty').textContent=qty+' ədəd';
-  document.getElementById('eta-dt').textContent=eta;
-  document.getElementById('eta-ok').textContent=okTxt;
-  document.getElementById('eta-ok').style.color=okColor;
+  const dl=document.getElementById('o-dead').value;
+  let ok='';
+  if(dl){const ok2=new Date(dl)>=d;ok=ok2?' · <span style="color:var(--tl)">✓ Vaxt var</span>':' · <span style="color:#E24B4A">⚠ Risk</span>';}
+  document.getElementById('eta-txt').innerHTML=`${h} saat · ETA: ${eta}${ok}`;
 }
 
 function createOrder(){
   if(!selModel){toast('⚠ Məhsul seçin');return;}
-  const client=document.getElementById('m-client').value.trim();
+  const client=document.getElementById('o-client').value.trim();
   if(!client){toast('⚠ Müştəri adını yazın');return;}
   const orders=getOrders();
-  const newId='SON-'+(2410+Math.floor(Math.random()*50));
-  const dl=document.getElementById('m-dead').value||new Date(Date.now()+7*86400000).toISOString().split('T')[0];
-  orders.unshift({
-    id:newId, modelId:selModel, qty:qty,
-    fabric:document.getElementById('m-fabric').value,
-    client:client, deadline:dl, status:'created', stage:1,
-    legs:document.getElementById('m-legs').value,
-    notes:document.getElementById('m-notes').value
-  });
+  const newId='SON-'+(2410+Math.floor(Math.random()*90));
+  const dl=document.getElementById('o-dead').value||new Date(Date.now()+7*86400000).toISOString().split('T')[0];
+  orders.unshift({id:newId,modelId:selModel,qty,fabric:document.getElementById('o-fabric').value,
+    client,deadline:dl,status:'created',stage:1,legs:document.getElementById('o-legs').value,
+    notes:document.getElementById('o-notes').value});
   saveOrders(orders);
-  toast(`✓ ${newId} yaradıldı — ${qty} ədəd. Bütün şöbələrə tapşırıqlar paylandı!`);
-  document.getElementById('m-client').value='';
-  document.getElementById('m-notes').value='';
-  selModel=null; qty=1;
+  toast(`✓ ${newId} yaradıldı — pipeline başladı!`);
+  document.getElementById('o-client').value='';
+  document.getElementById('o-notes').value='';
+  selModel=null;qty=1;
   document.querySelectorAll('.pcard').forEach(c=>c.classList.remove('sel'));
-  document.getElementById('qty-row').style.display='none';
-  document.getElementById('etabox').style.display='none';
-  document.getElementById('pipe-prev').innerHTML='<div style="font-size:13px;color:var(--t3);padding:20px;text-align:center">Məhsul seçin</div>';
-  renderAdmin();
+  document.getElementById('qty-bar').style.display='none';
+  document.getElementById('eta-bar').style.display='none';
+  goTo('dash');
 }
 
-// ═══════════════════════════════════════
-// ŞÖBƏ EKRANI — HƏR ŞÖBƏyə AYRI
-// ═══════════════════════════════════════
-let curDept=null;
+// ════════════════════════════════════════
+// DEPT / PIN
+// ════════════════════════════════════════
+let pinDept=null,pinBuf='',pinUnlocked={};
 
-// ═══════════════════════════════════════
-// ŞÖBƏ EKRANI — PIN SİSTEMİ
-// ═══════════════════════════════════════
-
-// Default PINlər — admin bunları dəyişə bilər
-function getDeptPins(){
-  const saved = localStorage.getItem('snno_pins');
-  if(saved) return JSON.parse(saved);
-  const defaults = {};
-  Object.keys(DEPT_INFO).forEach((k,i)=>{ defaults[k]= String(1001+i*111).slice(0,4); });
-  localStorage.setItem('snno_pins', JSON.stringify(defaults));
-  return defaults;
-}
-function saveDeptPins(p){ localStorage.setItem('snno_pins', JSON.stringify(p)); }
-
-let pinDept = null;
-let pinBuffer = '';
-let pinLocked = {}; // dept -> true/false (unlocked)
-
-function renderDeptSel(){
-  const orders=getOrders(), models=getModels();
-  const deptCounts={};
+function renderDeptPick(){
+  const orders=getOrders(),models=getModels(),pins=getDeptPins();
+  const dCnt={};
   orders.forEach(o=>{
     if(['in_progress','created','late'].includes(o.status)){
-      const m=models.find(x=>x.id===o.modelId);
-      if(!m||o.stage<1||o.stage>m.stages.length) return;
-      const d=m.stages[o.stage-1].dept;
-      deptCounts[d]=(deptCounts[d]||0)+1;
+      const m=models.find(x=>x.id===o.modelId);if(!m||o.stage<1||o.stage>m.stages.length)return;
+      const d=m.stages[o.stage-1].dept;dCnt[d]=(dCnt[d]||0)+1;
     }
   });
-  const pins = getDeptPins();
-  document.getElementById('dept-sel').innerHTML = Object.entries(DEPT_INFO).map(([key,info])=>{
-    const cnt = deptCounts[key]||0;
-    const unlocked = pinLocked[key];
-    return`<div class="dept-sel-btn${unlocked?' active':''}" onclick="onDeptCardClick('${key}')">
-      <div style="position:relative;display:inline-block">
-        <div class="dsb-icon">${info.icon}</div>
-        ${unlocked?`<div style="position:absolute;top:-4px;right:-8px;width:16px;height:16px;background:var(--tl);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">✓</div>`:''}
-      </div>
-      <div class="dsb-name">${info.name}</div>
-      <div class="dsb-count" style="margin-top:4px">
-        ${cnt>0?`<span style="color:var(--or);font-weight:600">${cnt} tapşırıq</span>`:'<span style="color:var(--t3)">Boş</span>'}
-      </div>
-      <div style="font-size:10px;color:var(--t3);margin-top:3px">${unlocked?'Açıqdır':'PIN: '+pins[key]}</div>
+  document.getElementById('dept-grid').innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
+    const cnt=dCnt[key]||0,unl=pinUnlocked[key];
+    return`<div onclick="deptCard('${key}')" style="background:var(--sf);border:2px solid ${unl?'var(--tl)':'var(--bd)'};border-radius:var(--rl);padding:14px 10px;text-align:center;cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent;position:relative" ontouchstart="" >
+      ${unl?'<div style="position:absolute;top:8px;right:8px;width:18px;height:18px;background:var(--tl);border-radius:50%;color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">✓</div>':''}
+      <div style="font-size:26px;margin-bottom:6px">${info.icon}</div>
+      <div style="font-size:12px;font-weight:600;line-height:1.3">${info.name}</div>
+      <div style="font-size:11px;margin-top:5px;color:${cnt>0?'var(--or)':'var(--t3)'};font-weight:${cnt>0?'600':'400'}">${cnt>0?cnt+' tapşırıq':'Boş'}</div>
     </div>`;
   }).join('');
+  showDeptView('dept-pick');
 }
 
-function onDeptCardClick(dept){
-  if(pinLocked[dept]){
-    // already unlocked — go straight to tasks
-    showDeptTasks(dept);
-  } else {
-    openPinEntry(dept);
-  }
+function deptCard(dept){
+  if(pinUnlocked[dept]){showDeptTasks(dept);}
+  else{openPin(dept);}
 }
 
-function openPinEntry(dept){
-  pinDept = dept;
-  pinBuffer = '';
-  const info = DEPT_INFO[dept];
-  document.getElementById('pin-dept-icon').textContent = info.icon;
-  document.getElementById('pin-dept-name').textContent = info.name;
-  document.getElementById('pin-error').textContent = '';
-  updatePinDots();
-  document.getElementById('dept-pick-view').style.display='none';
-  document.getElementById('dept-pin-view').style.display='block';
-  document.getElementById('dept-tasks-view').style.display='none';
+function openPin(dept){
+  pinDept=dept;pinBuf='';
+  const info=DEPT_INFO[dept];
+  document.getElementById('pin-icon').textContent=info.icon;
+  document.getElementById('pin-dname').textContent=info.name;
+  document.getElementById('pin-err').textContent='';
+  updDots();showDeptView('dept-pin');
 }
 
-function backToDeptPick(){
-  pinDept=null; pinBuffer='';
-  document.getElementById('dept-pick-view').style.display='block';
-  document.getElementById('dept-pin-view').style.display='none';
-  document.getElementById('dept-tasks-view').style.display='none';
-}
+function backDept(){showDeptView('dept-pick');}
 
-function pinPress(digit){
-  if(pinBuffer.length>=4) return;
-  pinBuffer += digit;
-  updatePinDots();
-  if(pinBuffer.length===4) setTimeout(checkPin, 120);
-}
+function pp(d){if(pinBuf.length>=4)return;pinBuf+=d;updDots();if(pinBuf.length===4)setTimeout(chkPin,120);}
+function pd(){pinBuf=pinBuf.slice(0,-1);updDots();document.getElementById('pin-err').textContent='';}
+function updDots(){document.querySelectorAll('.pdot').forEach((dot,i)=>{dot.classList.remove('filled','err');if(i<pinBuf.length)dot.classList.add('filled');});}
 
-function pinDel(){
-  pinBuffer = pinBuffer.slice(0,-1);
-  updatePinDots();
-  document.getElementById('pin-error').textContent='';
-}
-
-function updatePinDots(){
-  document.querySelectorAll('.pdot').forEach((d,i)=>{
-    d.classList.remove('filled','err');
-    if(i < pinBuffer.length) d.classList.add('filled');
-  });
-}
-
-function checkPin(){
-  const pins = getDeptPins();
-  const correct = pins[pinDept];
-  if(pinBuffer === correct){
-    pinLocked[pinDept] = true;
-    document.querySelectorAll('.pdot').forEach(d=>{ d.classList.add('filled'); });
-    setTimeout(()=>showDeptTasks(pinDept), 200);
+function chkPin(){
+  const pins=getDeptPins();
+  if(pinBuf===pins[pinDept]){
+    pinUnlocked[pinDept]=true;
+    document.querySelectorAll('.pdot').forEach(d=>d.classList.add('filled'));
+    setTimeout(()=>showDeptTasks(pinDept),200);
   } else {
     document.querySelectorAll('.pdot').forEach(d=>d.classList.add('err'));
-    document.getElementById('pin-error').textContent='PIN yanlışdır. Yenidən cəhd edin.';
-    setTimeout(()=>{
-      pinBuffer='';
-      updatePinDots();
-    }, 700);
+    document.getElementById('pin-err').textContent='PIN yanlışdır';
+    setTimeout(()=>{pinBuf='';updDots();},700);
   }
 }
 
 function showDeptTasks(dept){
-  const info = DEPT_INFO[dept];
-  document.getElementById('dept-pick-view').style.display='none';
-  document.getElementById('dept-pin-view').style.display='none';
-  document.getElementById('dept-tasks-view').style.display='block';
-  document.getElementById('dth-icon').textContent = info.icon;
-  document.getElementById('dth-name').textContent = info.name;
-  renderDeptTasksFor(dept);
+  const info=DEPT_INFO[dept];
+  pinDept=dept;
+  document.getElementById('dt-icon').textContent=info.icon;
+  document.getElementById('dt-name').textContent=info.name;
+  showDeptView('dept-tasks');
+  renderDeptTasks(dept);
 }
 
 function lockDept(){
-  if(pinDept) pinLocked[pinDept]=false;
-  pinDept=null; pinBuffer='';
-  document.getElementById('dept-pick-view').style.display='block';
-  document.getElementById('dept-pin-view').style.display='none';
-  document.getElementById('dept-tasks-view').style.display='none';
-  renderDeptSel();
+  if(pinDept)pinUnlocked[pinDept]=false;
+  pinDept=null;pinBuf='';
+  showDeptView('dept-pick');
+  renderDeptPick();
 }
 
-function renderDeptTasksFor(dept){
-  const orders=getOrders(), models=getModels();
+function showDeptView(v){
+  ['dept-pick','dept-pin','dept-tasks'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.style.display='none';
+  });
+  const el=document.getElementById(v);if(el)el.style.display='block';
+}
+
+function renderDeptTasks(dept){
+  const orders=getOrders(),models=getModels();
   const tasks=[];
   orders.forEach(o=>{
     if(['in_progress','created','late'].includes(o.status)){
-      const m=models.find(x=>x.id===o.modelId);
-      if(!m) return;
+      const m=models.find(x=>x.id===o.modelId);if(!m)return;
       if(o.stage>=1&&o.stage<=m.stages.length){
         const s=m.stages[o.stage-1];
-        if(s.dept===dept) tasks.push({order:o,model:m,stage:s,stageIdx:o.stage});
+        if(s.dept===dept)tasks.push({o,m,s,si:o.stage});
       }
     }
   });
-
-  document.getElementById('dth-count').textContent = tasks.length;
-  const tg = document.getElementById('dept-tasks');
-
+  document.getElementById('dt-count').textContent=tasks.length;
+  const tl=document.getElementById('dept-task-list');
   if(!tasks.length){
-    tg.innerHTML=`<div class="card" style="text-align:center;padding:40px;grid-column:1/-1">
-      <div style="font-size:48px;margin-bottom:12px">✅</div>
-      <div style="font-weight:600;color:var(--tl);font-size:16px">Bu şöbədə aktiv iş yoxdur</div>
-      <div style="color:var(--t2);font-size:13px;margin-top:6px">Növbəti tapşırıq gəldikdə avtomatik görünəcək</div>
-    </div>`;
+    tl.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3)"><div style="font-size:44px;margin-bottom:10px">✅</div><div style="font-weight:600;color:var(--tl)">Bu şöbədə aktiv iş yoxdur</div></div>`;
     return;
   }
-
-  tg.innerHTML=tasks.map(t=>{
-    const {order:o,model:m,stage:s,stageIdx:si}=t;
+  tl.innerHTML=tasks.map(({o,m,s,si})=>{
     const key=`ts_${o.id}_${si}`;
-    const started=localStorage.getItem(key+'_s');
-    const done=localStorage.getItem(key+'_d');
-    const totalS=m.stages.length;
-    const dots=m.stages.map((_,i)=>{
-      const n=i+1;
-      return`<div class="sdot${n<si?' done':n===si?' cur':''}"></div>`;
-    }).join('');
-    let stCls='ts-idle', stTxt='Başlamaq üçün "Başla" basın';
-    if(done){stCls='ts-done';stTxt='✓ Tamamlandı — növbəti şöbəyə bildiriş göndərildi';}
-    else if(started){stCls='ts-go';stTxt='⏱ Tapşırıq icra olunur...';}
+    const started=localStorage.getItem(key+'_s'),done=localStorage.getItem(key+'_d');
+    const dots=m.stages.map((_,i)=>`<div class="sdot${i+1<si?' done':i+1===si?' cur':''}"></div>`).join('');
+    let stCls='ts-idle',stTxt='Başlamaq üçün "Başla" basın';
+    if(done){stCls='ts-done';stTxt='✓ Tamamlandı';}
+    else if(started){stCls='ts-go';stTxt='⏱ İcra olunur...';}
     const isLate=o.status==='late';
-    const dws=workersByDept(s.dept).filter(w=>w.status==='active');
-    const workersHtml = dws.length ? `<div style="margin:10px 0 8px">
-      <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--t3);margin-bottom:6px">İşçilər</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px">${dws.map(w=>{
-        const ini=w.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
-        return`<div style="display:flex;align-items:center;gap:5px;padding:4px 9px;background:var(--lt);border-radius:20px">
-          <div style="width:20px;height:20px;border-radius:50%;background:var(--tl);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini}</div>
-          <span style="font-size:12px;color:var(--dp);font-weight:500">${w.name.split(' ')[0]}</span>
-        </div>`;
-      }).join('')}</div></div>` : '';
-
-    return`<div class="task-tile">
-      <div class="task-tile-head" style="${isLate?'background:#FCEBEB':''}">
-        <div>
-          <h3>${s.name}</h3>
-          <p>${o.id} · ${m.name.split('—')[0].trim()}</p>
-        </div>
+    const dws=wByDept(s.dept);
+    const wHtml=dws.length?`<div class="worker-chips">${dws.map(w=>{
+      const ini=w.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+      return`<div class="wchip"><div class="wchip-av">${ini}</div><span>${w.name.split(' ')[0]}</span></div>`;
+    }).join('')}</div>`:'';
+    return`<div class="task-card">
+      <div class="task-card-top${isLate?' late':''}">
+        <div><div style="font-size:15px;font-weight:700">${s.name}</div><div style="font-size:12px;color:var(--t2);margin-top:2px">${o.id} · ${m.name.split('—')[0].trim()}</div></div>
         <span class="badge ${isLate?'bR':'bO'}">${isLate?'GECİKMİŞ':'Aktiv'}</span>
       </div>
-      <div class="task-tile-body">
+      <div class="task-card-body">
         <div class="stage-dots">${dots}</div>
-        <div style="font-size:11px;color:var(--t2);margin-bottom:10px">${si}/${totalS} mərhələ</div>
-        <div class="task-meta-grid">
-          <div class="tmg-item"><div class="tmg-k">Müştəri</div><div class="tmg-v">${o.client}</div></div>
-          <div class="tmg-item"><div class="tmg-k">Ədəd</div><div class="tmg-v" style="color:var(--tl);font-size:18px;font-weight:700">${o.qty} ədəd</div></div>
-          <div class="tmg-item"><div class="tmg-k">Müddət</div><div class="tmg-v">${s.hours} saat</div></div>
-          <div class="tmg-item"><div class="tmg-k">Deadline</div><div class="tmg-v" style="${isLate?'color:#E24B4A':''}">${o.deadline}</div></div>
+        <div style="font-size:11px;color:var(--t2);margin-bottom:8px">${si}/${m.stages.length} mərhələ</div>
+        <div class="task-meta">
+          <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v">${o.client}</div></div>
+          <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-size:20px;font-weight:700">${o.qty}</div></div>
+          <div class="tm-i"><div class="tm-k">Müddət</div><div class="tm-v">${s.hours} saat</div></div>
+          <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v" style="${isLate?'color:#E24B4A':''};font-size:13px">${o.deadline}</div></div>
         </div>
-        ${workersHtml}
-        <div class="task-status ${stCls}" id="sts-${o.id}">${stTxt}</div>
+        ${wHtml}
+        <div class="ts ${stCls}" id="ts-${o.id}">${stTxt}</div>
         <div class="task-btns">
-          <button class="btn btn-o" style="font-size:15px;padding:13px" ${started||done?'disabled':''} onclick="deptStart('${o.id}','${si}','${key}','${dept}')">▶ Başla</button>
-          <button class="btn btn-t" style="font-size:15px;padding:13px" ${!started||done?'disabled':''} id="done-${o.id}" onclick="deptDone('${o.id}','${si}','${key}','${dept}')">✓ Tamamla</button>
+          <button class="btn btn-o btn-lg" ${started||done?'disabled':''} onclick="dStart('${o.id}','${si}','${key}','${dept}')">▶ Başla</button>
+          <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}')">✓ Tamamla</button>
         </div>
       </div>
     </div>`;
   }).join('');
 }
 
-function deptStart(orderId,si,key,dept){
+function dStart(oid,si,key,dept){
   localStorage.setItem(key+'_s','1');
-  const el=document.getElementById('sts-'+orderId);
-  if(el){el.className='task-status ts-go';el.textContent='⏱ Tapşırıq icra olunur...';}
-  document.querySelectorAll(`[onclick*="deptStart('${orderId}"]`).forEach(b=>b.disabled=true);
-  const doneBtn=document.getElementById('done-'+orderId);
-  if(doneBtn) doneBtn.disabled=false;
-  toast('▶ Başladı — vaxt sayılır');
+  const el=document.getElementById('ts-'+oid);
+  if(el){el.className='ts ts-go';el.textContent='⏱ İcra olunur...';}
+  document.querySelectorAll(`[onclick*="dStart('${oid}"]`).forEach(b=>b.disabled=true);
+  const db=document.getElementById('td-'+oid);if(db)db.disabled=false;
+  toast('▶ Başladı');
 }
 
-function deptDone(orderId,si,key,dept){
+function dDone(oid,si,key,dept){
   localStorage.setItem(key+'_d','1');
   const orders=getOrders(),models=getModels();
-  const o=orders.find(x=>x.id===orderId);
+  const o=orders.find(x=>x.id===oid);
   if(o){
     const m=models.find(x=>x.id===o.modelId);
     o.stage++;
-    if(m&&o.stage>m.stages.length){o.status='ready';o.stage=m.stages.length;}
-    else{o.status='in_progress';}
+    if(m&&o.stage>m.stages.length){o.status='ready';}else{o.status='in_progress';}
     saveOrders(orders);
   }
-  const el=document.getElementById('sts-'+orderId);
-  if(el){el.className='task-status ts-done';el.textContent='✓ Tamamlandı — növbəti şöbəyə bildiriş!';}
-  const doneBtn=document.getElementById('done-'+orderId);
-  if(doneBtn) doneBtn.disabled=true;
-  toast('✅ Tamamlandı! Növbəti şöbəyə avtomatik tapşırıq göndərildi.');
-  setTimeout(()=>renderDeptTasksFor(dept), 900);
+  const el=document.getElementById('ts-'+oid);
+  if(el){el.className='ts ts-done';el.textContent='✓ Tamamlandı — növbəti şöbəyə bildiriş!';}
+  const db=document.getElementById('td-'+oid);if(db)db.disabled=true;
+  toast('✅ Tamamlandı!');
+  setTimeout(()=>renderDeptTasks(dept),900);
 }
 
-// ═══════════════════════════════════════
+// ════════════════════════════════════════
 // LOGISTICS
-// ═══════════════════════════════════════
-function renderLogistics(){
+// ════════════════════════════════════════
+function renderLogi(){
   const orders=getOrders(),models=getModels();
   const rdy=orders.filter(o=>o.status==='ready');
   const tr=orders.filter(o=>o.status==='delivering');
@@ -1191,455 +993,290 @@ function renderLogistics(){
   document.getElementById('l-tr').textContent=tr.length;
   document.getElementById('l-dv').textContent=dv.length;
   const items=[...rdy,...tr];
-  const el=document.getElementById('log-list');
-  if(!items.length){el.innerHTML='<div style="padding:32px;text-align:center;color:var(--t3)">Hazır sifariş yoxdur</div>';return;}
-  el.innerHTML=`<table><thead><tr><th>Sifariş</th><th>Məhsul</th><th>Müştəri</th><th>Ədəd</th><th>Status</th><th></th></tr></thead><tbody>`+
-    items.map(o=>{
-      const m=models.find(x=>x.id===o.modelId)||{name:'?'};
-      const isTr=o.status==='delivering';
-      return`<tr>
-        <td><span class="mono">${o.id}</span></td>
-        <td>${m.name.split('—')[0].trim()}</td>
-        <td>${o.client}</td>
-        <td style="font-weight:600">${o.qty} ədəd</td>
-        <td><span class="badge ${isTr?'bO':'bT'}">${isTr?'Yolda':'Hazır'}</span></td>
-        <td>${isTr
-          ?`<button class="btn btn-t" style="font-size:12px;padding:5px 12px" onclick="markDone('${o.id}')">✓ İmza alındı</button>`
-          :`<button class="btn btn-o" style="font-size:12px;padding:5px 12px" onclick="startDel('${o.id}')">Yola çıx</button>`
-        }</td>
-      </tr>`;
-    }).join('')+'</tbody></table>';
+  const el=document.getElementById('logi-list');
+  if(!items.length){el.innerHTML='<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Hazır sifariş yoxdur</div>';return;}
+  el.innerHTML=items.map(o=>{
+    const m=models.find(x=>x.id===o.modelId)||{name:'?',emoji:'📦'};
+    const isTr=o.status==='delivering';
+    return`<div class="list-item">
+      <div class="li-icon" style="background:${isTr?'var(--lo)':'var(--lt)'}">${isTr?'🚛':'📦'}</div>
+      <div class="li-body">
+        <div class="li-title">${o.client} <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--tl);font-weight:400">${o.id}</span></div>
+        <div class="li-sub">${m.name.split('—')[0].trim()} · ${o.qty} ədəd · ${o.deadline}</div>
+      </div>
+      <div class="li-right">
+        ${isTr
+          ?`<button class="btn btn-t" style="font-size:12px;padding:8px 12px" onclick="markDel('${o.id}')">✓ Təslim</button>`
+          :`<button class="btn btn-o" style="font-size:12px;padding:8px 12px" onclick="startDel('${o.id}')">Çatdır</button>`}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function startDel(id){
   const o=getOrders(),ord=o.find(x=>x.id===id);
   if(ord){ord.status='delivering';saveOrders(o);}
-  toast('🚛 Sürücüyə tapşırıq göndərildi');
-  renderLogistics();renderAdmin();
+  toast('🚛 Yola çıxıldı');renderLogi();
 }
-function markDone(id){
+function markDel(id){
   const o=getOrders(),ord=o.find(x=>x.id===id);
   if(ord){ord.status='delivered';saveOrders(o);}
-  toast('✅ Rəqəmsal imza alındı — təslim edildi!');
-  renderLogistics();renderAdmin();
+  toast('✅ Təslim edildi!');renderLogi();renderDash();
 }
 
-// ═══════════════════════════════════════
-// AI PERF
-// ═══════════════════════════════════════
-function renderPerf(){
-  const workers = getWorkers().filter(w=>w.status==='active');
-  const perfData = workers.map(w=>({
-    name: w.name, dept: DEPT_INFO[w.dept]?.name || w.dept,
-    score: 70+Math.floor(Math.random()*29), delay: Math.floor(Math.random()*20)
-  }));
-  document.getElementById('perf-wrap').innerHTML = perfData.length
-    ? perfData.map(p=>{
-        const c=p.score>=90?'var(--tl)':p.score>=75?'var(--or)':'#E24B4A';
-        return`<div style="margin-bottom:12px">
-          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
-            <span><b>${p.name}</b> <span style="color:var(--t2);font-size:12px">— ${p.dept}</span></span>
-            <span style="font-weight:600;color:${c}">${p.score}/100</span>
+// ════════════════════════════════════════
+// ADMIN
+// ════════════════════════════════════════
+function renderAdmin(){
+  const users=getUsers(),models=getModels(),workers=getWorkers();
+  const amiu=document.getElementById('ami-users-count');if(amiu)amiu.textContent=users.length+' nəfər';
+  const amim=document.getElementById('ami-models-count');if(amim)amim.textContent=models.length+' model';
+  const amiw=document.getElementById('ami-workers-count');if(amiw)amiw.textContent=workers.length+' işçi';
+}
+
+let adminSec='';
+function openAdminSection(sec){
+  adminSec=sec;
+  const el=document.getElementById('admin-section-content');
+  if(sec==='users') renderUsersSection(el);
+  if(sec==='pins') renderPinsSection(el);
+  if(sec==='models') renderModelsSection(el);
+  if(sec==='workers') renderWorkersSection(el);
+}
+
+function renderUsersSection(el){
+  const users=getUsers();
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="slbl" style="margin:0">İstifadəçilər</div>
+      <button class="btn btn-t" style="font-size:12px;padding:8px 14px" onclick="openAddUser()">+ Əlavə et</button>
+    </div>
+    <div class="sec-card">
+      ${users.map(u=>{
+        const rLabels={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
+        const rCls={admin:'role-admin',manager:'role-manager',logistics:'role-logistics',dept:'role-dept'};
+        const ini=u.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+        return`<div class="list-item">
+          <div class="li-icon" style="background:rgba(17,24,32,.06);font-size:14px;font-weight:700;color:var(--dk)">${ini}</div>
+          <div class="li-body">
+            <div class="li-title">${u.name}</div>
+            <div class="li-sub">@${u.username}</div>
           </div>
-          <div style="height:7px;background:rgba(17,24,32,.08);border-radius:4px;overflow:hidden">
-            <div style="height:7px;border-radius:4px;background:${c};width:${p.score}%"></div>
-          </div>
-          <div style="font-size:11px;color:var(--t3);margin-top:3px">Gecikmə: ${p.delay}%</div>
-        </div>`;
-      }).join('')
-    : '<div style="color:var(--t3);font-size:13px;text-align:center;padding:20px">Aktiv işçi yoxdur</div>';
-}
-
-// ═══════════════════════════════════════
-// İŞÇİ SCREEN
-// ═══════════════════════════════════════
-let selectedWorkerDept = null;
-let editingWorkerId = null;
-
-const STATUS_LABELS_W = {
-  active:   {t:'Aktiv',       c:'background:#ECFDF5;color:#065F46'},
-  away:     {t:'Məzuniyyətdə',c:'background:#FFF4E8;color:#854F0B'},
-  inactive: {t:'Deaktiv',     c:'background:#F3F4F6;color:#4B5563'},
-};
-
-function renderWorkersScreen(){
-  const workers = getWorkers();
-
-  // Mobile dropdown
-  const mobSel = document.getElementById('workers-mobile-sel');
-  if(mobSel){
-    const curVal = mobSel.value;
-    mobSel.innerHTML = '<option value="">— Şöbə seçin —</option>' +
-      Object.entries(DEPT_INFO).map(([key,info])=>{
-        const cnt = workers.filter(w=>w.dept===key).length;
-        return`<option value="${key}" ${key===selectedWorkerDept?'selected':''}>${info.icon} ${info.name} (${cnt})</option>`;
-      }).join('');
-  }
-  // Show/hide mobile dropdown vs sidebar based on screen width
-  const isMobile = window.innerWidth <= 640;
-  const mobDiv = document.getElementById('workers-mobile-dept');
-  if(mobDiv) mobDiv.style.display = isMobile ? 'flex' : 'none';
-  const deptList = document.getElementById('workers-dept-list');
-  deptList.innerHTML = Object.entries(DEPT_INFO).map(([key,info])=>{
-    const count = workers.filter(w=>w.dept===key).length;
-    const active = workers.filter(w=>w.dept===key&&w.status==='active').length;
-    const isSel = selectedWorkerDept===key;
-    return`<div onclick="selectWorkerDept('${key}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);cursor:pointer;border:1px solid ${isSel?'rgba(0,117,101,.3)':'transparent'};background:${isSel?'rgba(0,117,101,.06)':'transparent'};transition:all .15s" onmouseover="if('${key}'!==selectedWorkerDept)this.style.background='rgba(0,0,0,.03)'" onmouseout="if('${key}'!==selectedWorkerDept)this.style.background='transparent'">
-      <span style="font-size:18px">${info.icon}</span>
-      <span style="flex:1;font-size:13px;font-weight:${isSel?'600':'400'}">${info.name}</span>
-      <span style="font-size:11px;color:${active>0?'var(--tl)':'var(--t3)'};font-weight:500">${active}/${count}</span>
-    </div>`;
-  }).join('');
-}
-
-function selectWorkerDept(deptKey){
-  selectedWorkerDept = deptKey;
-  renderWorkersScreen();
-  const info = DEPT_INFO[deptKey];
-  document.getElementById('workers-dept-title').textContent = info.name;
-  document.getElementById('add-worker-btn').style.display='inline-flex';
-
-  const workers = getWorkers().filter(w=>w.dept===deptKey);
-  const list = document.getElementById('workers-list');
-  if(!workers.length){
-    list.innerHTML=`<div style="padding:24px;text-align:center;border:1px dashed var(--bd);border-radius:var(--rl);color:var(--t3);font-size:13px">Bu şöbədə hələ işçi yoxdur<br><span style="font-size:11px">Yuxarıdakı "+ İşçi əlavə et" düyməsini basın</span></div>`;
-    return;
-  }
-  list.innerHTML=`<div style="background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden">
-    <table style="width:100%;border-collapse:collapse">
-      <thead><tr>
-        <th style="padding:9px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--t3);background:rgba(17,24,32,.03);border-bottom:1px solid var(--bd)">Ad Soyad</th>
-        <th style="padding:9px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--t3);background:rgba(17,24,32,.03);border-bottom:1px solid var(--bd)">Vəzifə</th>
-        <th style="padding:9px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--t3);background:rgba(17,24,32,.03);border-bottom:1px solid var(--bd)">Status</th>
-        <th style="padding:9px 14px;background:rgba(17,24,32,.03);border-bottom:1px solid var(--bd)"></th>
-      </tr></thead>
-      <tbody>${workers.map(w=>{
-        const st=STATUS_LABELS_W[w.status]||STATUS_LABELS_W.active;
-        const ini=w.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
-        return`<tr style="border-bottom:1px solid rgba(17,24,32,.05)">
-          <td style="padding:11px 14px">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div style="width:32px;height:32px;border-radius:50%;background:var(--lt);color:var(--dp);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini}</div>
-              <span style="font-size:13px;font-weight:500">${w.name}</span>
+          <div class="li-right">
+            <span class="role-pill ${rCls[u.role]||'role-dept'}">${rLabels[u.role]||u.role}</span>
+            <div style="display:flex;gap:6px;margin-top:4px">
+              <button onclick="editUser('${u.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:var(--tl);font-family:inherit;padding:3px 6px;border-radius:6px" onmouseenter="this.style.background='var(--lt)'" onmouseleave="this.style.background='none'">Düzəlt</button>
+              ${u.id!=='u1'?`<button onclick="delUser('${u.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:#E24B4A;font-family:inherit;padding:3px 6px;border-radius:6px">Sil</button>`:''}
             </div>
-          </td>
-          <td style="padding:11px 14px;font-size:13px;color:var(--t2)">${w.role}</td>
-          <td style="padding:11px 14px"><span style="font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;${st.c}">${st.t}</span></td>
-          <td style="padding:11px 14px;text-align:right">
-            <button onclick="openEditWorker('${w.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:var(--tl);padding:4px 8px;border-radius:6px;font-family:inherit" onmouseover="this.style.background='var(--lt)'" onmouseout="this.style.background='none'">Düzəlt</button>
-            <button onclick="deleteWorker('${w.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:#E24B4A;padding:4px 8px;border-radius:6px;font-family:inherit" onmouseover="this.style.background='#FCEBEB'" onmouseout="this.style.background='none'">Sil</button>
-          </td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table>
-  </div>`;
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
 }
 
-function openAddWorker(){
-  editingWorkerId = null;
-  document.getElementById('wm-title').textContent='Yeni işçi əlavə et';
-  document.getElementById('wm-name').value='';
-  document.getElementById('wm-role').value='';
-  document.getElementById('wm-status').value='active';
-  fillDeptSelect(selectedWorkerDept);
-  document.getElementById('worker-modal').classList.add('on');
+function renderPinsSection(el){
+  const pins=getDeptPins();
+  el.innerHTML=`
+    <div class="slbl">Şöbə PIN kodları</div>
+    <div class="sec-card card-pad">
+      <p style="font-size:13px;color:var(--t2);margin-bottom:14px">4 rəqəmli PIN — məsul şəxs öz şöbəsini açmaq üçün istifadə edir</p>
+      ${Object.entries(DEPT_INFO).map(([key,info])=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(17,24,32,.06)">
+          <span style="font-size:18px">${info.icon}</span>
+          <span style="flex:1;font-size:13px;font-weight:500">${info.name}</span>
+          <input type="text" maxlength="4" value="${pins[key]||'0000'}" id="pi-${key}"
+            style="width:72px;font-family:'DM Mono',monospace;font-size:16px;font-weight:700;letter-spacing:.2em;text-align:center;padding:6px 4px;border:1px solid var(--bd);border-radius:8px"
+            oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)">
+          <button onclick="savePinChg('${key}')" style="border:none;background:var(--lt);color:var(--tl);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit">Saxla</button>
+        </div>`).join('')}
+    </div>`;
 }
 
-function openEditWorker(id){
-  const workers = getWorkers();
-  const w = workers.find(x=>x.id===id);
-  if(!w) return;
-  editingWorkerId = id;
-  document.getElementById('wm-title').textContent='İşçi məlumatlarını düzəlt';
-  document.getElementById('wm-name').value=w.name;
-  document.getElementById('wm-role').value=w.role;
-  document.getElementById('wm-status').value=w.status;
-  fillDeptSelect(w.dept);
-  document.getElementById('worker-modal').classList.add('on');
+function savePinChg(key){
+  const v=document.getElementById('pi-'+key).value;
+  if(v.length!==4){toast('⚠ 4 rəqəm lazımdır');return;}
+  const pins=getDeptPins();pins[key]=v;saveDeptPins(pins);
+  toast('✓ PIN dəyişdirildi: '+DEPT_INFO[key].name);
 }
 
-function fillDeptSelect(selectedKey){
-  const sel = document.getElementById('wm-dept');
-  sel.innerHTML = Object.entries(DEPT_INFO).map(([key,info])=>
-    `<option value="${key}" ${key===selectedKey?'selected':''}>${info.name}</option>`
-  ).join('');
+function renderModelsSection(el){
+  const models=getModels();
+  el.innerHTML=`
+    <div class="slbl">Modellər</div>
+    <div class="sec-card">
+      ${models.map(m=>`<div class="list-item">
+        <div class="li-icon" style="background:var(--lt);font-size:22px">${m.img?`<img src="${m.img}" style="width:40px;height:40px;object-fit:cover;border-radius:10px">`:m.emoji}</div>
+        <div class="li-body">
+          <div class="li-title">${m.name}</div>
+          <div class="li-sub">${m.stages.length} mərhələ · ${m.hours}s · ${m.desc}</div>
+        </div>
+        <div class="li-chevron">›</div>
+      </div>`).join('')}
+    </div>`;
 }
 
-function saveWorker(){
-  const name = document.getElementById('wm-name').value.trim();
-  const role = document.getElementById('wm-role').value.trim();
-  if(!name){toast('⚠ Ad yazın');return;}
-  if(!role){toast('⚠ Vəzifə yazın');return;}
-  const workers = getWorkers();
-  const dept = document.getElementById('wm-dept').value;
-  const status = document.getElementById('wm-status').value;
-  if(editingWorkerId){
-    const w = workers.find(x=>x.id===editingWorkerId);
-    if(w){w.name=name;w.role=role;w.dept=dept;w.status=status;}
-    saveWorkers(workers);
-    toast('✓ İşçi yeniləndi: '+name);
-  } else {
-    workers.push({id:'w_'+Date.now(),name,role,dept,status});
-    saveWorkers(workers);
-    toast('✓ İşçi əlavə edildi: '+name);
-  }
-  closeWorkerModal();
-  selectedWorkerDept = dept;
-  renderWorkersScreen();
-  selectWorkerDept(dept);
+function renderWorkersSection(el){
+  const workers=getWorkers();
+  const byDept={};
+  workers.forEach(w=>{if(!byDept[w.dept])byDept[w.dept]=[];byDept[w.dept].push(w);});
+  el.innerHTML=`
+    <div class="slbl">İşçilər — şöbə üzrə</div>
+    ${Object.entries(byDept).map(([dept,ws])=>{
+      const info=DEPT_INFO[dept]||{name:dept,icon:'👷'};
+      return`<div class="sec-card" style="margin-bottom:10px">
+        <div class="sec-card-hd"><h3>${info.icon} ${info.name}</h3><span style="font-size:12px;color:var(--t2)">${ws.length} nəfər</span></div>
+        ${ws.map(w=>{
+          const ini=w.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+          const sCls=w.status==='active'?'bGN':w.status==='away'?'bO':'bG';
+          const sTxt=w.status==='active'?'Aktiv':w.status==='away'?'Məzuniyyət':'Deaktiv';
+          return`<div class="list-item">
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--lt);color:var(--dp);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini}</div>
+            <div class="li-body"><div class="li-title">${w.name}</div><div class="li-sub">${w.role}</div></div>
+            <span class="badge ${sCls}">${sTxt}</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }).join('')}`;
 }
 
-function deleteWorker(id){
-  const workers = getWorkers();
-  const w = workers.find(x=>x.id===id);
-  if(!w) return;
-  if(!confirm(w.name+' silinsin?')) return;
-  const updated = workers.filter(x=>x.id!==id);
-  saveWorkers(updated);
-  toast('Silindi: '+w.name);
-  selectWorkerDept(selectedWorkerDept);
-  renderWorkersScreen();
+// ════════════════════════════════════════
+// USER MANAGEMENT
+// ════════════════════════════════════════
+let editingUserId=null;
+
+function openAddUser(){
+  editingUserId=null;
+  document.getElementById('au-sheet-title').textContent='Yeni istifadəçi';
+  document.getElementById('au-name').value='';
+  document.getElementById('au-user').value='';
+  document.getElementById('au-pass').value='';
+  document.getElementById('au-role').value='manager';
+  updatePermUI();
+  openSheet('add-user');
 }
 
-function closeWorkerModal(){
-  document.getElementById('worker-modal').classList.remove('on');
+function editUser(id){
+  const users=getUsers(),u=users.find(x=>x.id===id);if(!u)return;
+  editingUserId=id;
+  document.getElementById('au-sheet-title').textContent='İstifadəçini düzəlt';
+  document.getElementById('au-name').value=u.name;
+  document.getElementById('au-user').value=u.username;
+  document.getElementById('au-pass').value=u.password;
+  document.getElementById('au-role').value=u.role;
+  updatePermUI(u.perms);
+  openSheet('add-user');
 }
 
-// ═══════════════════════════════════════
-// ADD / EDIT MODEL — checkbox + sıra sistemi
-// ═══════════════════════════════════════
-
-// Bütün mövcud şöbələr — sabit siyahı
-const ALL_DEPTS = [
-  {key:'hazirlik',   name:'Hazırlıq — Kəsmə şöbəsi',      icon:'✂️', hours:2,  worker:''},
-  {key:'bez_kesim',  name:'Bez kəsim şöbəsi',              icon:'🧶', hours:2,  worker:''},
-  {key:'karkaz',     name:'Karkaz yığım şöbəsi',           icon:'🪵', hours:4,  worker:''},
-  {key:'shkurka',    name:'Şkurka şöbəsi',                 icon:'🔩', hours:1.5,worker:''},
-  {key:'masa_karkaz',name:'Masa karkaz şöbəsi',            icon:'🪚', hours:3,  worker:''},
-  {key:'masa_rengle',name:'Masa rəngləmə şöbəsi',          icon:'🎨', hours:2,  worker:''},
-  {key:'yastiqlama', name:'Yastıqlama / Döşəmə şöbəsi',   icon:'🛋️', hours:4,  worker:''},
-  {key:'tikiş',      name:'Tikiş şöbəsi',                  icon:'🧵', hours:3,  worker:''},
-  {key:'qa',         name:'Keyfiyyət yoxlama',              icon:'✅', hours:1,  worker:''},
-  {key:'logistics',  name:'Logistika / Çatdırılma',        icon:'🚛', hours:1,  worker:''},
-];
-
-let editingModelId = null; // null = yeni, string = edit
-
-function openAddModel(){
-  editingModelId = null;
-  document.getElementById('nm-modal-title').textContent = 'Yeni model əlavə et';
-  document.getElementById('nm-name').value = '';
-  document.getElementById('nm-desc').value = '';
-  newModelEmoji = '🛋️'; newModelImgData = null;
-  const prev = document.getElementById('nm-prev-box');
-  if(prev) prev.innerHTML = '🛋️';
-  renderDeptChecklist([]);
-  document.getElementById('add-model-modal').classList.add('on');
+function delUser(id){
+  if(!confirm('Silinsin?'))return;
+  const users=getUsers().filter(x=>x.id!==id);
+  saveUsers(users);
+  toast('Silindi');
+  openAdminSection('users');
 }
 
-function closeAddModel(){
-  document.getElementById('add-model-modal').classList.remove('on');
-}
-
-function setEmoji(el, emoji){
-  newModelEmoji = emoji;
-  if(!newModelImgData){
-    const prev = document.getElementById('nm-prev-box');
-    if(prev) prev.innerHTML = emoji;
-  }
-  document.querySelectorAll('#emoji-pick span').forEach(s=>s.style.background='');
-  el.style.background = 'var(--lt)';
-}
-
-function previewModelImg(input){
-  if(!input.files[0]) return;
-  const r = new FileReader();
-  r.onload = e => {
-    newModelImgData = e.target.result;
-    const prev = document.getElementById('nm-prev-box');
-    if(prev) prev.innerHTML = `<img src="${newModelImgData}" style="width:100%;height:100%;object-fit:cover">`;
-  };
-  r.readAsDataURL(input.files[0]);
-}
-
-// Checklist render — selectedKeys = seçili şöbə açarları (sıralı)
-function renderDeptChecklist(selectedKeys){
-  const cl = document.getElementById('dept-checklist');
-  if(!cl) return;
-  cl.innerHTML = ALL_DEPTS.map(d => {
-    const checked = selectedKeys.includes(d.key);
-    const idx = selectedKeys.indexOf(d.key);
-    return `<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--r);cursor:pointer;transition:background .12s;border:1px solid ${checked?'rgba(0,117,101,.2)':'transparent'};background:${checked?'rgba(0,117,101,.04)':'transparent'};margin-bottom:3px" onmouseover="this.style.background=this.querySelector('input').checked?'rgba(0,117,101,.08)':'rgba(0,0,0,.03)'" onmouseout="this.style.background=this.querySelector('input').checked?'rgba(0,117,101,.04)':'transparent'">
-      <input type="checkbox" ${checked?'checked':''} data-key="${d.key}" onchange="onDeptCheck(this)" style="width:16px;height:16px;accent-color:var(--tl);cursor:pointer;flex-shrink:0">
-      <span style="font-size:16px">${d.icon}</span>
-      <span style="flex:1;font-size:13px;font-weight:${checked?'500':'400'}">${d.name}</span>
-      <span style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${d.hours}s</span>
-      ${checked?`<span style="font-size:11px;background:var(--tl);color:#fff;border-radius:10px;padding:1px 7px;font-weight:600">${idx+1}</span>`:''}
-    </label>`;
-  }).join('');
-  updateStageOrder(selectedKeys);
-}
-
-function onDeptCheck(cb){
-  const selected = getSelectedDeptKeys();
-  renderDeptChecklist(selected);
-}
-
-function getSelectedDeptKeys(){
-  return Array.from(document.querySelectorAll('#dept-checklist input[type=checkbox]:checked'))
-    .map(cb => cb.dataset.key);
-}
-
-function moveStage(key, dir){
-  const keys = getSelectedDeptKeys();
-  const i = keys.indexOf(key);
-  if(i<0) return;
-  const ni = i+dir;
-  if(ni<0||ni>=keys.length) return;
-  [keys[i],keys[ni]] = [keys[ni],keys[i]];
-  // re-render checklist preserving new order
-  // uncheck all, recheck in new order via DOM
-  const cbs = document.querySelectorAll('#dept-checklist input[type=checkbox]');
-  cbs.forEach(cb => { cb.checked = keys.includes(cb.dataset.key); });
-  renderDeptChecklist(keys);
-}
-
-function updateStageOrder(keys){
-  const wrap = document.getElementById('stage-order-wrap');
-  const list = document.getElementById('stage-order-list');
-  if(!wrap||!list) return;
-  if(!keys.length){ wrap.style.display='none'; return; }
-  wrap.style.display='block';
-  list.innerHTML = keys.map((k,i) => {
-    const d = ALL_DEPTS.find(x=>x.key===k);
-    if(!d) return '';
-    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--sf);border:1px solid var(--bd);border-radius:var(--r)">
-      <span style="width:20px;height:20px;border-radius:50%;background:var(--tl);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
-      <span style="font-size:14px">${d.icon}</span>
-      <span style="flex:1;font-size:13px;font-weight:500">${d.name}</span>
-      <span style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${d.worker}</span>
-      <button onclick="moveStage('${k}',-1)" style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--t2);padding:2px 5px;border-radius:4px" title="Yuxarı" ${i===0?'disabled style="opacity:.3;cursor:not-allowed"':''}>↑</button>
-      <button onclick="moveStage('${k}',1)"  style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--t2);padding:2px 5px;border-radius:4px" title="Aşağı" ${i===keys.length-1?'disabled style="opacity:.3;cursor:not-allowed"':''}>↓</button>
+function updatePermUI(customPerms){
+  const role=document.getElementById('au-role').value;
+  const defaultPerms=ROLE_PERMS[role]||[];
+  const perms=customPerms||defaultPerms;
+  document.getElementById('au-perms-wrap').innerHTML=ALL_PERMS.map(p=>{
+    const active=perms.includes(p.key);
+    return`<div class="perm-row">
+      <div><div class="perm-label">${p.label}</div><div class="perm-sub">${p.sub}</div></div>
+      <button class="toggle ${active?'on':'off'}" id="pt-${p.key}" onclick="togglePerm('${p.key}')"></button>
     </div>`;
   }).join('');
 }
 
-function saveNewModel(){
-  const name = document.getElementById('nm-name').value.trim();
-  if(!name){ toast('⚠ Model adını yazın'); return; }
-  const keys = getSelectedDeptKeys();
-  if(!keys.length){ toast('⚠ Ən azı bir şöbə seçin'); return; }
+function togglePerm(key){
+  const btn=document.getElementById('pt-'+key);
+  const isOn=btn.classList.contains('on');
+  btn.classList.toggle('on',!isOn);
+  btn.classList.toggle('off',isOn);
+}
 
-  const stages = keys.map(k => {
-    const d = ALL_DEPTS.find(x=>x.key===k);
-    return { name:d.name, dept:d.key, hours:d.hours, worker:d.worker };
-  });
-  const totalHours = stages.reduce((s,x)=>s+x.hours, 0);
-  const models = getModels();
+function getSelectedPerms(){
+  return ALL_PERMS.filter(p=>{
+    const btn=document.getElementById('pt-'+p.key);
+    return btn&&btn.classList.contains('on');
+  }).map(p=>p.key);
+}
 
-  if(editingModelId){
-    const m = models.find(x=>x.id===editingModelId);
-    if(m){
-      m.name=name; m.desc=document.getElementById('nm-desc').value.trim();
-      m.emoji=newModelEmoji; if(newModelImgData) m.img=newModelImgData;
-      m.stages=stages; m.hours=totalHours;
-    }
-    saveModels(models); closeAddModel(); renderModelAdmin();
-    toast('✓ Model güncəlləndi: '+name);
+function saveUser(){
+  const name=document.getElementById('au-name').value.trim();
+  const username=document.getElementById('au-user').value.trim();
+  const password=document.getElementById('au-pass').value;
+  const role=document.getElementById('au-role').value;
+  if(!name||!username){toast('⚠ Ad və istifadəçi adı lazımdır');return;}
+  if(password.length<4&&!editingUserId){toast('⚠ Şifrə minimum 4 simvol');return;}
+  const perms=getSelectedPerms();
+  const users=getUsers();
+  if(editingUserId){
+    const u=users.find(x=>x.id===editingUserId);
+    if(u){u.name=name;u.username=username;u.role=role;u.perms=perms;if(password)u.password=password;}
+    toast('✓ Güncəlləndi: '+name);
   } else {
-    const newM = {
-      id:'m_'+Date.now(), name:name,
-      desc:document.getElementById('nm-desc').value.trim(),
-      emoji:newModelEmoji, img:newModelImgData,
-      hours:totalHours, stages:stages
-    };
-    models.push(newM);
-    saveModels(models); closeAddModel(); renderModelAdmin();
-    toast('✓ Model əlavə edildi: '+name+' ('+stages.length+' mərhələ, '+totalHours.toFixed(1)+'s)');
+    users.push({id:'u_'+Date.now(),name,username,password,role,perms});
+    toast('✓ Əlavə edildi: '+name);
   }
+  saveUsers(users);
+  closeAddUser();
+  openAdminSection('users');
 }
 
-function editModel(id){
-  const models = getModels();
-  const m = models.find(x=>x.id===id);
-  if(!m) return;
-  editingModelId = id;
-  document.getElementById('nm-modal-title').textContent = 'Modeli düzəlt — '+m.name;
-  document.getElementById('nm-name').value = m.name;
-  document.getElementById('nm-desc').value = m.desc||'';
-  newModelEmoji = m.emoji||'🛋️';
-  newModelImgData = m.img||null;
-  const prev = document.getElementById('nm-prev-box');
-  if(m.img) prev.innerHTML=`<img src="${m.img}" style="width:100%;height:100%;object-fit:cover">`;
-  else prev.innerHTML=m.emoji||'🛋️';
-  const selectedKeys = m.stages.map(s=>s.dept);
-  renderDeptChecklist(selectedKeys);
-  document.getElementById('add-model-modal').classList.add('on');
+// ════════════════════════════════════════
+// USER SHEET
+// ════════════════════════════════════════
+function openUserSheet(){
+  if(!currentUser)return;
+  document.getElementById('us-name').textContent=currentUser.name;
+  const rLabels={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
+  const rCls={admin:'role-admin',manager:'role-manager',logistics:'role-logistics',dept:'role-dept'};
+  document.getElementById('us-role-badge').innerHTML=`<span class="role-pill ${rCls[currentUser.role]||'role-dept'}">${rLabels[currentUser.role]||currentUser.role}</span>`;
+  const permLabels=Object.fromEntries(ALL_PERMS.map(p=>[p.key,p.label]));
+  document.getElementById('us-perms').innerHTML=(currentUser.perms||[]).map(p=>`<div>✓ ${permLabels[p]||p}</div>`).join('');
+  openSheet('user-sheet');
+}
+function closeUserSheet(){closeSheet('user-sheet');}
+function closeAddUser(){closeSheet('add-user');}
+
+// ════════════════════════════════════════
+// SHEET SYSTEM
+// ════════════════════════════════════════
+function openSheet(name){
+  const ov=document.getElementById(name+'-ov')||document.getElementById(name+'-sheet-ov');
+  const sh=document.getElementById(name+'-sheet');
+  if(ov){ov.classList.add('on');}
+  if(sh){setTimeout(()=>sh.classList.add('on'),10);}
+}
+function closeSheet(name){
+  const ov=document.getElementById(name+'-ov')||document.getElementById(name+'-sheet-ov');
+  const sh=document.getElementById(name+'-sheet');
+  if(sh)sh.classList.remove('on');
+  setTimeout(()=>{if(ov)ov.classList.remove('on');},300);
 }
 
-// ═══════════════════════════════════════
-// ORDER MODAL
-// ═══════════════════════════════════════
-function openOrderModal(id){
-  const orders=getOrders(),models=getModels();
-  const o=orders.find(x=>x.id===id);if(!o)return;
-  const m=models.find(x=>x.id===o.modelId)||{name:'?',stages:[]};
-  document.getElementById('om-title').textContent=o.id+' — '+o.client;
-  document.getElementById('om-sub').textContent=`${m.name} · ${o.qty} ədəd · ${o.fabric} · Deadline: ${o.deadline}`;
-  document.getElementById('om-stages').innerHTML=m.stages.map((s,i)=>{
-    const n=i+1;
-    const cls=n<o.stage?'s-done':n===o.stage?'s-cur':'s-lock';
-    const icon=n<o.stage?'✓':n===o.stage?'▶':'🔒';
-    return`<div class="stage-row ${cls}"><span>${icon}</span><span style="flex:1">${s.name}</span><span style="font-size:11px;color:var(--t2)">${s.worker}</span></div>`;
-  }).join('');
-  document.getElementById('order-modal').classList.add('on');
-}
-function closeOrderModal(){document.getElementById('order-modal').classList.remove('on');}
+// Order detail sheet (dynamic)
+const ods=document.createElement('div');ods.className='sheet-overlay';ods.id='order-detail-sheet-ov';ods.onclick=()=>closeSheet('order-detail-sheet');document.body.appendChild(ods);
+const odsh=document.createElement('div');odsh.className='sheet';odsh.id='order-detail-sheet';odsh.innerHTML='<div class="sheet-handle"></div><div class="sheet-title" id="ods-title">—</div><div class="sheet-body" id="ods-body"></div>';document.body.appendChild(odsh);
 
-// ═══════════════════════════════════════
-// UTILS
-// ═══════════════════════════════════════
-let toastT;
+// ════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════
+let tT;
 function toast(msg){
   const el=document.getElementById('toast');
   el.textContent=msg;el.classList.add('on');
-  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('on'),3800);
+  clearTimeout(tT);tT=setTimeout(()=>el.classList.remove('on'),3200);
 }
+
+// ════════════════════════════════════════
+// CLOCK
+// ════════════════════════════════════════
 setInterval(()=>{
-  document.getElementById('clk').textContent=new Date().toLocaleTimeString('az-AZ');
-},1000);
-document.querySelectorAll('.moverlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('on')}));
-
-function renderPinAdmin(){
-  const el = document.getElementById('pin-admin-grid');
-  if(!el) return;
-  const pins = getDeptPins();
-  el.innerHTML = Object.entries(DEPT_INFO).map(([key,info])=>`
-    <div style="background:rgba(17,24,32,.03);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;gap:10px">
-      <span style="font-size:20px">${info.icon}</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${info.name}</div>
-        <input type="text" maxlength="4" value="${pins[key]||'0000'}" id="pin-input-${key}"
-          style="width:80px;margin-top:4px;font-family:'DM Mono',monospace;font-size:14px;font-weight:600;letter-spacing:.2em;text-align:center;padding:5px 8px;border:1px solid var(--bd);border-radius:6px;background:var(--sf);color:var(--t1)"
-          oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)"
-          onchange="savePinChange('${key}',this.value)">
-      </div>
-      <button onclick="savePinChange('${key}',document.getElementById('pin-input-${key}').value)" style="border:none;background:var(--lt);color:var(--tl);border-radius:6px;padding:5px 9px;cursor:pointer;font-size:11px;font-weight:600;font-family:inherit">Saxla</button>
-    </div>`
-  ).join('');
-}
-
-function savePinChange(deptKey, val){
-  if(val.length!==4){ toast('⚠ PIN 4 rəqəm olmalıdır'); return; }
-  const pins = getDeptPins();
-  pins[deptKey] = val;
-  saveDeptPins(pins);
-  toast('✓ '+DEPT_INFO[deptKey].name+' PIN dəyişdirildi: '+val);
-}
-
-// INIT
-renderAdmin();renderModelAdmin();renderPinAdmin();
-document.getElementById('m-dead').value=new Date(Date.now()+7*86400000).toISOString().split('T')[0];
+  const nb=document.getElementById('bnav-dash');
+  if(nb&&activeScreen==='dash')renderDash();
+},30000);
 </script>
 </body>
 </html>
