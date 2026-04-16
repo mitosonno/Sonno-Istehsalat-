@@ -353,7 +353,7 @@ textarea{resize:vertical;min-height:80px}
         <div class="card" id="late-card"></div>
         <div class="slbl">Bütün sifarişlər</div>
         <div class="tbl-wrap">
-          <table><thead><tr><th>Sifariş</th><th>Müştəri</th><th>Model</th><th>Ədəd</th><th>Mərhələ</th><th>Deadline</th><th>Status</th></tr></thead>
+          <table><thead><tr><th>Sifariş</th><th>Müştəri</th><th>Model</th><th>Ədəd</th><th>Mərhələ</th><th>Məbləğ</th><th>Deadline</th><th>Status</th></tr></thead>
           <tbody id="orders-tbody"></tbody></table>
         </div>
       </div>
@@ -375,10 +375,26 @@ textarea{resize:vertical;min-height:80px}
               <div class="fg2">
                 <div class="fg"><label>Müştəri şirkəti</label><input id="o-client" placeholder="Kapital Bank"></div>
                 <div class="fg"><label>Material</label><select id="o-fabric"><option>Parça A — Velvet (bej)</option><option>Parça B — Dəri (qara)</option><option>Parça C — Linen (boz)</option></select></div>
+                <div class="fg"><label>Rəng</label><input id="o-color" placeholder="Məs: Bej, Qara, Göy..."></div>
+                <div class="fg"><label>Ölçü</label><input id="o-size" placeholder="Məs: 220x90, Standart..."></div>
                 <div class="fg"><label>Ayaq rəngi</label><select id="o-legs"><option>Qara — Pantone Black 6C</option><option>Ağ — White</option><option>Gümüşü</option></select></div>
                 <div class="fg"><label>Deadline</label><input id="o-dead" type="date"></div>
-                <div class="fg full"><label>Qeydlər</label><input id="o-notes" placeholder="Xüsusi tələblər..."></div>
               </div>
+
+              <!-- Qiymət bölməsi -->
+              <div id="price-section" style="display:none;background:rgba(17,24,32,.03);border-radius:var(--r);padding:14px;margin-bottom:14px">
+                <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:10px">Qiymət məlumatı</div>
+                <div class="fg2">
+                  <div class="fg"><label>Satış qiyməti (₼)</label><input id="o-price" type="number" min="0" step="0.01" placeholder="0.00" oninput="calcFinal()" readonly style="background:rgba(0,117,101,.06);font-weight:600;color:var(--tl)"></div>
+                  <div class="fg"><label>Endirim (%)</label><input id="o-discount" type="number" min="0" max="100" step="1" placeholder="0" value="0" oninput="calcFinal()"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--lt);border-radius:var(--r);margin-top:4px">
+                  <span style="font-size:13px;color:var(--dp)">Yekun məbləğ (${qty||1} ədəd)</span>
+                  <span style="font-size:18px;font-weight:700;color:var(--tl)" id="o-final">0.00 ₼</span>
+                </div>
+              </div>
+
+              <div class="fg"><label>Qeydlər</label><input id="o-notes" placeholder="Xüsusi tələblər..."></div>
               <div id="eta-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:11px 14px;margin-bottom:12px;font-size:13px"><span style="color:var(--tl);font-weight:600" id="eta-txt">—</span></div>
               <button class="btn btn-t btn-full btn-lg" onclick="createOrder()">Sifariş Yarat — Pipeline Avtomatik Başlasın</button>
             </div>
@@ -421,6 +437,11 @@ textarea{resize:vertical;min-height:80px}
               <div id="dt-name" style="font-size:14px;font-weight:600;color:#fff"></div>
             </div>
             <div style="text-align:right"><div style="font-size:10px;color:rgba(255,255,255,.4)">AKTİV İŞ</div><div id="dt-cnt" style="font-size:26px;font-weight:700;color:var(--or)">0</div></div>
+          </div>
+          <!-- TABS -->
+          <div style="display:flex;gap:4px;margin-bottom:14px;background:rgba(17,24,32,.05);border-radius:var(--r);padding:4px">
+            <button id="dept-tab-active" onclick="switchDeptTab('active')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:var(--sf);color:var(--tl);box-shadow:0 1px 4px rgba(0,0,0,.08)">▶ Aktiv tapşırıqlar</button>
+            <button id="dept-tab-done" onclick="switchDeptTab('done')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2)">✓ Tamamlananlar</button>
           </div>
           <div id="dept-task-list"></div>
         </div>
@@ -533,6 +554,19 @@ textarea{resize:vertical;min-height:80px}
     <div class="fg2">
       <div class="fg"><label>Model adı</label><input id="am-name" placeholder="Model X — Divan"></div>
       <div class="fg"><label>Qısa məlumat</label><input id="am-desc" placeholder="3+2 oturacaq"></div>
+    </div>
+    <!-- Qiymət -->
+    <div class="fg2">
+      <div class="fg">
+        <label>Satış qiyməti (₼) <span style="color:#E24B4A">*</span></label>
+        <input id="am-sale-price" type="number" min="0" step="0.01" placeholder="0.00" style="font-weight:600">
+        <span style="font-size:11px;color:var(--t3);margin-top:3px">Bu qiymət sifarişdə dəyişdirilmir</span>
+      </div>
+      <div class="fg">
+        <label>Maya dəyəri (₼)</label>
+        <input id="am-cost-price" type="number" min="0" step="0.01" placeholder="0.00">
+        <span style="font-size:11px;color:var(--t3);margin-top:3px">Daxili qeyd üçün</span>
+      </div>
     </div>
     <div class="fg">
       <label>Şəkil / Emoji</label>
@@ -776,6 +810,7 @@ async function renderDash(){
         <td>${m.emoji} ${m.name.split('—')[0].trim()}</td>
         <td style="font-weight:600">${o.qty}</td>
         <td><span style="font-size:12px;color:var(--t2)">${stageName}</span></td>
+        <td style="font-weight:600;color:var(--tl)">${o.final_price?o.final_price+' ₼':'—'}${o.discount>0?`<span style="font-size:10px;color:var(--or);margin-left:4px">-${o.discount}%</span>`:''}</td>
         <td style="${o.status==='late'?'color:#E24B4A;font-weight:600':''}">${o.deadline||'—'}</td>
         <td><span class="badge ${st.c}">${st.t}</span></td>
       </tr>`;
@@ -854,6 +889,7 @@ function renderOrderForm(){
         <div class="pcard-name">${m.name.split('—')[0].trim()}</div>
         <div class="pcard-info">${m.description||''}</div>
         <div class="pcard-h">${(m.stages||[]).length} mərhələ · ${m.total_hours}s</div>
+        ${m.sale_price?`<div style="font-size:13px;font-weight:700;color:var(--tl);margin-top:4px">${m.sale_price} ₼</div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -876,6 +912,15 @@ function selProd(id){
   const m=appModels.find(x=>x.id===id);if(!m)return;
   const qb=document.getElementById('qty-bar');qb.style.display='flex';
   document.getElementById('qty-name').textContent=m.name;
+  // Show price section with model price
+  const ps=document.getElementById('price-section');
+  if(ps){
+    ps.style.display='block';
+    const priceInput=document.getElementById('o-price');
+    if(priceInput){priceInput.value=m.sale_price||0;}
+    document.getElementById('o-discount').value=0;
+    calcFinal();
+  }
   updateEta(m);
   renderPipePrev(m);
 }
@@ -884,6 +929,17 @@ function chQty(d){
   qty=Math.max(1,qty+d);
   document.getElementById('qty-num').textContent=qty;
   const m=appModels.find(x=>x.id===selModel);if(m)updateEta(m);
+  calcFinal();
+}
+
+function calcFinal(){
+  const price=parseFloat(document.getElementById('o-price')?.value)||0;
+  const disc=parseFloat(document.getElementById('o-discount')?.value)||0;
+  const discAmt=price*(disc/100);
+  const unit=price-discAmt;
+  const total=(unit*qty).toFixed(2);
+  const el=document.getElementById('o-final');
+  if(el)el.textContent=total+' ₼'+(disc>0?` (-${disc}%)`:``);
 }
 
 function updateEta(m){
@@ -914,24 +970,36 @@ async function createOrder(){
   if(!selModel){toast('⚠ Məhsul seçin');return;}
   const client=document.getElementById('o-client').value.trim();
   if(!client){toast('⚠ Müştəri adını yazın');return;}
+  const price=parseFloat(document.getElementById('o-price')?.value)||0;
+  const disc=parseFloat(document.getElementById('o-discount')?.value)||0;
+  const unit=price*(1-disc/100);
+  const total=parseFloat((unit*qty).toFixed(2));
   showLoader();
   const num='SON-'+(Date.now()%100000);
   const{error}=await sb.from('orders').insert({
     order_number:num,model_id:selModel,created_by:currentUser.id,
-    client,qty,fabric:document.getElementById('o-fabric').value,
+    client,qty,
+    fabric:document.getElementById('o-fabric').value,
     legs:document.getElementById('o-legs').value,
+    color:document.getElementById('o-color').value,
+    size:document.getElementById('o-size').value,
     notes:document.getElementById('o-notes').value,
     deadline:document.getElementById('o-dead').value||null,
     status:'created',current_stage:1,
+    sale_price:price,
+    discount:disc,
+    final_price:total,
   });
   hideLoader();
   if(error){toast('Xəta: '+error.message);return;}
-  toast('✓ '+num+' yaradıldı — pipeline başladı!');
-  document.getElementById('o-client').value='';document.getElementById('o-notes').value='';
+  toast(`✓ ${num} yaradıldı — ${total} ₼ · Pipeline başladı!`);
+  ['o-client','o-color','o-size','o-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  if(document.getElementById('o-discount'))document.getElementById('o-discount').value=0;
   selModel=null;qty=1;
   document.querySelectorAll('.pcard').forEach(c=>c.classList.remove('sel'));
   document.getElementById('qty-bar').style.display='none';
   document.getElementById('eta-bar').style.display='none';
+  const ps=document.getElementById('price-section');if(ps)ps.style.display='none';
   document.getElementById('pipe-preview').innerHTML='<div style="font-size:13px;color:var(--t3);padding:20px;text-align:center">Məhsul seçin</div>';
   goTo('dash');
 }
@@ -996,6 +1064,21 @@ async function showDeptTasks(dept){
   await renderDeptTasks(dept);
 }
 
+let curDeptTab = 'active';
+function switchDeptTab(tab){
+  curDeptTab = tab;
+  const ta=document.getElementById('dept-tab-active');
+  const td=document.getElementById('dept-tab-done');
+  if(tab==='active'){
+    ta.style.background='var(--sf)';ta.style.color='var(--tl)';ta.style.boxShadow='0 1px 4px rgba(0,0,0,.08)';
+    td.style.background='transparent';td.style.color='var(--t2)';td.style.boxShadow='none';
+  }else{
+    td.style.background='var(--sf)';td.style.color='var(--tl)';td.style.boxShadow='0 1px 4px rgba(0,0,0,.08)';
+    ta.style.background='transparent';ta.style.color='var(--t2)';ta.style.boxShadow='none';
+  }
+  if(pinDept) renderDeptTasks(pinDept);
+}
+
 function lockDept(){
   if(pinDept)pinUnlocked[pinDept]=false;
   pinDept=null;pinBuf='';
@@ -1011,62 +1094,122 @@ function showDV(v){
 
 async function renderDeptTasks(dept){
   showLoader();
-  const{data:orders}=await sb.from('orders').select('*').in('status',['in_progress','created','late']);
+  // Aktiv tab: cari mərhələsi bu şöbəyə aid olan sifarişlər
+  // Tamamlananlar tab: bu şöbənin tapşırığını tamamlamış sifarişlər (current_stage bu şöbənin mərhələsindən böyükdür)
+  const{data:allOrders}=await sb.from('orders').select('*').order('created_at',{ascending:false});
   hideLoader();
-  const tasks=[];
-  (orders||[]).forEach(o=>{
-    const m=appModels.find(x=>x.id===o.model_id);if(!m)return;
-    const stages=m.stages||[];const si=o.current_stage-1;
-    if(si>=0&&si<stages.length&&stages[si].dept===dept)
-      tasks.push({o,m,s:stages[si],si:o.current_stage});
-  });
-  document.getElementById('dt-cnt').textContent=tasks.length;
-  const tl=document.getElementById('dept-task-list');
-  if(!tasks.length){
-    tl.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:48px;margin-bottom:12px">✅</div><div style="font-weight:600;color:var(--tl);font-size:16px">Bu şöbədə aktiv iş yoxdur</div><div style="font-size:13px;margin-top:6px">Növbəti tapşırıq gəldikdə avtomatik görünəcək</div></div>`;
-    return;
-  }
+
+  const orders=allOrders||[];
   const dws=appWorkers.filter(w=>w.dept_key===dept);
-  tl.innerHTML=tasks.map(({o,m,s,si})=>{
-    const key=`ts_${o.id}_${si}`;
-    const started=localStorage.getItem(key+'_s');
-    const done=localStorage.getItem(key+'_d');
-    const startTime=localStorage.getItem(key+'_t');
-    const dots=(m.stages||[]).map((_,i)=>`<div class="sdot${i+1<si?' done':i+1===si?' cur':''}"></div>`).join('');
-    let stCls='ts-idle',stTxt='Başlamaq üçün "Başla" basın';
-    if(done){
+
+  if(curDeptTab==='active'){
+    // Aktiv: bu şöbənin cari tapşırığı var
+    const tasks=[];
+    orders.filter(o=>['in_progress','created','late'].includes(o.status)).forEach(o=>{
+      const m=appModels.find(x=>x.id===o.model_id);if(!m)return;
+      const stages=m.stages||[];
+      const si=o.current_stage-1;
+      if(si>=0&&si<stages.length&&stages[si].dept===dept)
+        tasks.push({o,m,s:stages[si],si:o.current_stage});
+    });
+    document.getElementById('dt-cnt').textContent=tasks.length;
+    const tl=document.getElementById('dept-task-list');
+    if(!tasks.length){
+      tl.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:48px;margin-bottom:12px">✅</div><div style="font-weight:600;color:var(--tl);font-size:16px">Bu şöbədə aktiv iş yoxdur</div><div style="font-size:13px;margin-top:6px">Növbəti tapşırıq gəldikdə avtomatik görünəcək</div></div>`;
+      return;
+    }
+    tl.innerHTML=tasks.map(({o,m,s,si})=>{
+      const key=`ts_${o.id}_${si}`;
+      const started=localStorage.getItem(key+'_s');
+      const done=localStorage.getItem(key+'_d');
+      const startTime=localStorage.getItem(key+'_t');
+      const dots=(m.stages||[]).map((_,i)=>`<div class="sdot${i+1<si?' done':i+1===si?' cur':''}"></div>`).join('');
+      let stCls='ts-idle',stTxt='Başlamaq üçün "Başla" basın';
+      if(done){
+        const doneTime=localStorage.getItem(key+'_dt');
+        const durMin=startTime&&doneTime?Math.round((new Date(doneTime)-new Date(startTime))/60000):null;
+        stCls='ts-done';stTxt='✓ Tamamlandı'+(durMin?' ('+fmtTime(durMin)+')':'');
+      }else if(started){stCls='ts-go';stTxt='⏱ İcra olunur...';}
+      const isLate=o.status==='late';
+      const wHtml=dws.length?`<div class="wchips">${dws.map(w=>{
+        const ini=w.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+        return`<div class="wchip"><div class="wchip-av">${ini}</div><span>${w.name.split(' ')[0]}</span></div>`;
+      }).join('')}</div>`:'';
+      return`<div class="task-card">
+        <div class="task-card-top${isLate?' late':''}">
+          <div><div style="font-size:15px;font-weight:700">${s.name}</div><div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${m.name.split('—')[0].trim()}</div></div>
+          <span class="badge ${isLate?'bR':'bO'}">${isLate?'GECİKMİŞ':'Aktiv'}</span>
+        </div>
+        <div class="task-card-body">
+          <div class="stage-dots">${dots}</div>
+          <div style="font-size:11px;color:var(--t2);margin-bottom:8px">${si}/${(m.stages||[]).length} mərhələ</div>
+          <div class="task-meta">
+            <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v">${o.client}</div></div>
+            <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-size:20px;font-weight:700">${o.qty}</div></div>
+            <div class="tm-i"><div class="tm-k">Müddət (plan)</div><div class="tm-v">${s.hours} saat</div></div>
+            <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v" style="${isLate?'color:#E24B4A':''};font-size:13px">${o.deadline||'—'}</div></div>
+          </div>
+          ${o.color||o.size?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+            ${o.color?`<span class="badge bG">🎨 ${o.color}</span>`:''}
+            ${o.size?`<span class="badge bG">📐 ${o.size}</span>`:''}
+          </div>`:''}
+          ${wHtml}
+          <div class="ts-box ${stCls}" id="ts-${o.id}">${stTxt}</div>
+          <div class="task-btns">
+            <button class="btn btn-o btn-lg" ${started||done?'disabled':''} onclick="dStart('${o.id}','${si}','${key}','${dept}')">▶ Başla</button>
+            <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${(m.stages||[]).length}')">✓ Tamamla</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+  } else {
+    // TAMAMLANANLAR: bu şöbənin mərhələsini keçmiş sifarişlər
+    const done=[];
+    orders.forEach(o=>{
+      const m=appModels.find(x=>x.id===o.model_id);if(!m)return;
+      const stages=m.stages||[];
+      // Check if any past stage belongs to this dept (already passed)
+      stages.forEach((s,i)=>{
+        const stageNum=i+1;
+        if(s.dept===dept && o.current_stage>stageNum){
+          done.push({o,m,s,stageNum});
+        }
+      });
+    });
+
+    document.getElementById('dt-cnt').textContent=done.length;
+    const tl=document.getElementById('dept-task-list');
+    if(!done.length){
+      tl.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:14px">Hələ tamamlanan iş yoxdur</div></div>`;
+      return;
+    }
+    tl.innerHTML=done.map(({o,m,s,stageNum})=>{
+      const key=`ts_${o.id}_${stageNum}`;
+      const startTime=localStorage.getItem(key+'_t');
       const doneTime=localStorage.getItem(key+'_dt');
       const durMin=startTime&&doneTime?Math.round((new Date(doneTime)-new Date(startTime))/60000):null;
-      stCls='ts-done';stTxt='✓ Tamamlandı'+(durMin?' ('+fmtTime(durMin)+')':'');
-    }else if(started){stCls='ts-go';stTxt='⏱ İcra olunur...';}
-    const isLate=o.status==='late';
-    const wHtml=dws.length?`<div class="wchips">${dws.map(w=>{
-      const ini=w.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
-      return`<div class="wchip"><div class="wchip-av">${ini}</div><span>${w.name.split(' ')[0]}</span></div>`;
-    }).join('')}</div>`:'';
-    return`<div class="task-card">
-      <div class="task-card-top${isLate?' late':''}">
-        <div><div style="font-size:15px;font-weight:700">${s.name}</div><div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${m.name.split('—')[0].trim()}</div></div>
-        <span class="badge ${isLate?'bR':'bO'}">${isLate?'GECİKMİŞ':'Aktiv'}</span>
-      </div>
-      <div class="task-card-body">
-        <div class="stage-dots">${dots}</div>
-        <div style="font-size:11px;color:var(--t2);margin-bottom:8px">${si}/${(m.stages||[]).length} mərhələ</div>
-        <div class="task-meta">
-          <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v">${o.client}</div></div>
-          <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-size:20px;font-weight:700">${o.qty}</div></div>
-          <div class="tm-i"><div class="tm-k">Müddət (plan)</div><div class="tm-v">${s.hours} saat</div></div>
-          <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v" style="${isLate?'color:#E24B4A':''};font-size:13px">${o.deadline||'—'}</div></div>
+      const st=ST[o.status]||ST.created;
+      return`<div class="task-card">
+        <div class="task-card-top" style="background:var(--lt)">
+          <div>
+            <div style="font-size:15px;font-weight:700">✓ ${s.name}</div>
+            <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${o.client}</div>
+          </div>
+          <span class="badge ${st.c}">${st.t}</span>
         </div>
-        ${wHtml}
-        <div class="ts-box ${stCls}" id="ts-${o.id}">${stTxt}</div>
-        <div class="task-btns">
-          <button class="btn btn-o btn-lg" ${started||done?'disabled':''} onclick="dStart('${o.id}','${si}','${key}','${dept}')">▶ Başla</button>
-          <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${(m.stages||[]).length}')">✓ Tamamla</button>
+        <div class="task-card-body">
+          <div class="task-meta">
+            <div class="tm-i"><div class="tm-k">Model</div><div class="tm-v" style="font-size:13px">${m.name.split('—')[0].trim()}</div></div>
+            <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div>
+            <div class="tm-i"><div class="tm-k">İcra vaxtı</div><div class="tm-v" style="color:var(--tl)">${durMin?fmtTime(durMin):s.hours+'s (plan)'}</div></div>
+            <div class="tm-i"><div class="tm-k">Sifariş mərhələsi</div><div class="tm-v" style="font-size:13px">${o.current_stage}/${m.stages.length}</div></div>
+          </div>
+          ${doneTime?`<div style="font-size:11px;color:var(--t3);margin-top:6px">Tamamlandı: ${new Date(doneTime).toLocaleString('az-AZ')}</div>`:''}
         </div>
-      </div>
-    </div>`;
-  }).join('');
+      </div>`;
+    }).join('');
+  }
 }
 
 function dStart(oid,si,key,dept){
@@ -1430,6 +1573,8 @@ function openAddModel(){
   document.getElementById('am-title').textContent='Yeni model';
   document.getElementById('am-name').value='';
   document.getElementById('am-desc').value='';
+  document.getElementById('am-sale-price').value='';
+  document.getElementById('am-cost-price').value='';
   document.getElementById('am-prev').innerHTML='🛋️';
   renderDeptChecklist([]);
   openSheet('add-model');
@@ -1443,6 +1588,8 @@ async function editModel(id){
   document.getElementById('am-title').textContent='Modeli düzəlt';
   document.getElementById('am-name').value=m.name;
   document.getElementById('am-desc').value=m.description||'';
+  document.getElementById('am-sale-price').value=m.sale_price||'';
+  document.getElementById('am-cost-price').value=m.cost_price||'';
   const prev=document.getElementById('am-prev');
   if(m.img_url)prev.innerHTML=`<img src="${m.img_url}" style="width:80px;height:64px;object-fit:cover;border-radius:var(--r)">`;
   else prev.innerHTML=m.emoji||'🛋️';
@@ -1525,21 +1672,23 @@ async function saveModel(){
   if(!name){toast('⚠ Model adını yazın');return;}
   const keys=getSelDeptKeys();
   if(!keys.length){toast('⚠ Ən azı bir şöbə seçin');return;}
+  const salePrice=parseFloat(document.getElementById('am-sale-price').value)||0;
+  if(!salePrice){toast('⚠ Satış qiymətini yazın');return;}
+  const costPrice=parseFloat(document.getElementById('am-cost-price').value)||0;
   const stages=keys.map(k=>{const d=DEPT_INFO[k];return{name:d.name,dept:k,hours:d.hours};});
   const totalHours=stages.reduce((s,x)=>s+x.hours,0);
   showLoader();
   if(editingModelId){
-    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours};
+    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice};
     if(modelImgData&&modelImgData.startsWith('data:'))upd.img_url=modelImgData;
     await sb.from('models').update(upd).eq('id',editingModelId);
     toast('✓ Model yeniləndi: '+name);
   }else{
-    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:modelImgData&&modelImgData.startsWith('data:')?modelImgData:null,stages,total_hours:totalHours,is_active:true});
+    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:modelImgData&&modelImgData.startsWith('data:')?modelImgData:null,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,is_active:true});
     toast('✓ Model əlavə edildi: '+name);
   }
   hideLoader();
   closeSheet('add-model');
-  // Refresh models
   const{data}=await sb.from('models').select('*').eq('is_active',true);
   appModels=data||[];
   adminSec('models');
