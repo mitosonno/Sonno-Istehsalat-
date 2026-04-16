@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#111820">
 <title>Sonno MES</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -18,11 +17,12 @@
   --r:12px;--rl:16px;
   --safe-top:env(safe-area-inset-top,0px);
   --safe-bot:env(safe-area-inset-bottom,0px);
+  --sidebar:240px;
 }
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;min-height:100dvh;font-size:15px;overflow-x:hidden}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;font-size:15px;overflow-x:hidden}
 
-/* LOGIN */
-#login-screen{position:fixed;inset:0;background:var(--dk);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px calc(32px + var(--safe-bot));z-index:1000;transition:opacity .3s,transform .3s}
+/* ── LOGIN ── */
+#login-screen{position:fixed;inset:0;background:var(--dk);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;z-index:1000;transition:opacity .3s,transform .3s}
 #login-screen.out{opacity:0;transform:translateY(-20px);pointer-events:none}
 .login-logo{margin-bottom:40px;text-align:center}
 .login-logo svg{width:52px;height:38px;margin-bottom:12px}
@@ -36,28 +36,40 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-h
 .lf input:focus{border-color:var(--or)}
 .login-err{font-size:12px;color:#F09595;text-align:center;min-height:18px;margin:8px 0}
 .login-btn{width:100%;padding:14px;background:var(--or);border:none;border-radius:var(--r);color:#fff;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .15s;margin-top:4px}
-.login-btn:active{transform:scale(.97);background:#e07820}
 .login-btn:disabled{opacity:.6;cursor:not-allowed}
 
-/* APP SHELL */
-#app{display:none;flex-direction:column;min-height:100vh;min-height:100dvh}
-#app.visible{display:flex}
+/* ── PC LAYOUT ── */
+#app{display:none;min-height:100vh}
+#app.visible{display:flex;flex-direction:column}
+
+/* PC: sidebar + content */
+.app-body{display:flex;flex:1;min-height:0}
+
+/* SIDEBAR (PC only) */
+.sidebar{width:var(--sidebar);background:var(--dk);flex-shrink:0;display:flex;flex-direction:column;padding:20px 12px;gap:4px;position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto}
+.sidebar-section{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3);padding:8px 12px 4px;margin-top:8px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);cursor:pointer;transition:all .15s;border:none;background:transparent;color:rgba(255,255,255,.5);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;width:100%;text-align:left}
+.sidebar-item:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.8)}
+.sidebar-item.on{background:rgba(255,255,255,.12);color:#fff}
+.sidebar-item .si-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-item .si-badge{margin-left:auto;background:var(--or);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px}
 
 /* TOP BAR */
-.topbar{background:var(--dk);padding:calc(10px + var(--safe-top)) 16px 10px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;flex-shrink:0}
-.topbar-logo{display:flex;align-items:center;gap:7px}
+.topbar{background:var(--dk);height:52px;display:flex;align-items:center;padding:0 20px;gap:12px;position:sticky;top:0;z-index:200;flex-shrink:0}
+.topbar-logo{display:flex;align-items:center;gap:8px;margin-right:8px}
 .topbar-logo span{font-size:14px;font-weight:700;color:#fff;letter-spacing:.05em}
 .topbar-logo em{font-size:10px;color:var(--or);font-family:'DM Mono',monospace;font-style:normal}
-.topbar-title{flex:1;font-size:14px;font-weight:600;color:#fff;text-align:center}
-.topbar-av{width:30px;height:30px;border-radius:50%;background:var(--or);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
-.topbar-role{font-size:10px;color:rgba(255,255,255,.4);text-align:right;line-height:1.3}
+.topbar-title{flex:1;font-size:14px;font-weight:600;color:#fff}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.topbar-av{width:30px;height:30px;border-radius:50%;background:var(--or);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.topbar-role{font-size:11px;color:rgba(255,255,255,.4)}
 
-/* MAIN */
-#main-content{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px 16px calc(80px + var(--safe-bot));-webkit-overflow-scrolling:touch}
+/* MAIN CONTENT */
+#main-content{flex:1;overflow-y:auto;padding:24px;min-width:0}
 
-/* BOTTOM NAV */
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--sf);border-top:1px solid var(--bd);padding:8px 0 calc(8px + var(--safe-bot));display:flex;z-index:100}
-.bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:6px 4px;border:none;background:none;transition:all .15s;min-width:0}
+/* BOTTOM NAV (mobile only) */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--sf);border-top:1px solid var(--bd);padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));z-index:100}
+.bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:6px 4px;border:none;background:none;min-width:0}
 .bni{font-size:20px;position:relative}
 .bnav-label{font-size:10px;font-weight:500;color:var(--t3);white-space:nowrap}
 .bnav-item.on .bnav-label{color:var(--tl)}
@@ -66,21 +78,32 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-h
 /* SCREENS */
 .sc{display:none}.sc.on{display:block}
 
-/* COMMON */
-.pg-hd{font-size:18px;font-weight:700;margin-bottom:14px}
+/* COMMON UI */
+.pg-hd{font-size:20px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pg-hd small{font-size:13px;font-weight:400;color:var(--t2)}
 .slbl{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--t3);margin:16px 0 8px}
 .card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden}
-.card-pad{padding:14px 16px}
+.card-pad{padding:16px 18px}
 
 /* KPI */
-.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-.kpi{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:14px;position:relative;overflow:hidden}
+.kgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.kpi{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:16px;position:relative;overflow:hidden}
 .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
 .kpi.kT::before{background:var(--tl)}.kpi.kO::before{background:var(--or)}
 .kpi.kR::before{background:#E24B4A}.kpi.kD::before{background:var(--dk)}
 .kl{font-size:10px;color:var(--t3);font-weight:600;letter-spacing:.04em;margin-bottom:4px}
 .kv{font-size:28px;font-weight:700;line-height:1}
 .ks{font-size:11px;color:var(--t3);margin-top:3px}
+
+/* TABLE */
+.tbl-wrap{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead th{padding:10px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--t3);background:rgba(17,24,32,.03);border-bottom:1px solid var(--bd)}
+tbody td{padding:12px 14px;border-bottom:1px solid rgba(17,24,32,.05);font-size:13px;color:var(--t1)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{cursor:pointer;transition:background .1s}
+tbody tr:hover td{background:rgba(0,117,101,.03)}
+.mono{font-family:'DM Mono',monospace;font-size:12px;color:var(--tl);font-weight:500}
 
 /* LIST */
 .list-item{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid rgba(17,24,32,.05);cursor:pointer;transition:background .1s;background:var(--sf)}
@@ -100,32 +123,52 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-h
 .bGN{background:#ECFDF5;color:#065F46}
 
 /* BUTTONS */
-.btn{padding:12px 20px;border-radius:var(--r);border:none;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.btn{padding:10px 18px;border-radius:var(--r);border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .btn:active{transform:scale(.97)}.btn:disabled{opacity:.35;pointer-events:none}
 .btn-t{background:var(--tl);color:#fff}.btn-t:active{background:var(--dp)}
 .btn-o{background:var(--or);color:#fff}.btn-o:active{background:#e07820}
 .btn-ln{background:transparent;border:1px solid var(--bd);color:var(--t2)}
-.btn-full{width:100%}.btn-lg{padding:15px 20px;font-size:15px;border-radius:14px}
+.btn-full{width:100%}.btn-lg{padding:13px 20px;font-size:14px;border-radius:14px}
 
 /* FORM */
 .fg{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg.full{grid-column:1/-1}
 label{font-size:12px;font-weight:600;color:var(--t2);letter-spacing:.02em}
-input,select,textarea{padding:12px 13px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:15px;background:var(--sf);color:var(--t1);outline:none;transition:border-color .15s;width:100%;-webkit-appearance:none}
-input:focus,select:focus{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,101,.08)}
+input,select,textarea{padding:10px 12px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;background:var(--sf);color:var(--t1);outline:none;transition:border-color .15s;width:100%;-webkit-appearance:none}
+input:focus,select:focus,textarea:focus{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,101,.08)}
+textarea{resize:vertical;min-height:80px}
 
 /* PRODUCT CARDS */
-.pcard{background:var(--sf);border:2px solid var(--bd);border-radius:var(--rl);overflow:hidden;cursor:pointer;transition:all .18s;position:relative;-webkit-tap-highlight-color:transparent}
-.pcard:active{transform:scale(.97)}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+.pcard{background:var(--sf);border:2px solid var(--bd);border-radius:var(--rl);overflow:hidden;cursor:pointer;transition:all .18s;position:relative}
+.pcard:hover{border-color:rgba(0,117,101,.4);transform:translateY(-2px)}
 .pcard.sel{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,101,.12)}
 .pcard-chk{position:absolute;top:8px;right:8px;width:22px;height:22px;background:var(--tl);color:#fff;border-radius:50%;font-size:11px;font-weight:700;display:none;align-items:center;justify-content:center}
 .pcard.sel .pcard-chk{display:flex}
-.pcard-img{width:100%;height:90px;display:flex;align-items:center;justify-content:center;font-size:40px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee)}
-.pcard-body{padding:9px 11px}
+.pcard-img{width:100%;height:100px;display:flex;align-items:center;justify-content:center;font-size:44px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee)}
+.pcard-body{padding:10px 12px}
 .pcard-name{font-weight:600;font-size:13px}
 .pcard-info{font-size:11px;color:var(--t2);margin-top:2px}
-.pcard-h{font-size:10px;font-family:'DM Mono',monospace;color:var(--tl);margin-top:3px}
+.pcard-h{font-size:10px;font-family:'DM Mono',monospace;color:var(--tl);margin-top:4px}
 .qb{width:34px;height:34px;border-radius:8px;border:1px solid rgba(0,117,101,.3);background:#fff;font-size:20px;cursor:pointer;color:var(--tl);font-weight:300;transition:all .12s;display:flex;align-items:center;justify-content:center}
 .qb:active{background:var(--tl);color:#fff}
+
+/* DEPT CHECKBOXES */
+.dept-check-list{display:flex;flex-direction:column;gap:3px}
+.dept-check-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);cursor:pointer;transition:all .12s;border:1px solid transparent}
+.dept-check-item:hover{background:rgba(0,117,101,.04)}
+.dept-check-item.checked{background:rgba(0,117,101,.05);border-color:rgba(0,117,101,.15)}
+.dept-check-item input[type=checkbox]{width:16px;height:16px;accent-color:var(--tl);cursor:pointer;flex-shrink:0}
+.dept-check-num{width:20px;height:20px;border-radius:50%;background:var(--tl);color:#fff;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center;flex-shrink:0}
+.dept-check-item.checked .dept-check-num{display:flex}
+
+/* STAGE ORDER */
+.stage-order-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:4px}
+.so-num{width:22px;height:22px;border-radius:50%;background:var(--tl);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.so-move{border:none;background:none;cursor:pointer;font-size:14px;color:var(--t2);padding:2px 6px;border-radius:4px}
+.so-move:hover{background:var(--lt);color:var(--tl)}
+.so-move:disabled{opacity:.2;cursor:not-allowed}
 
 /* PIN */
 .pin-dots{display:flex;justify-content:center;gap:14px;margin:24px 0}
@@ -160,10 +203,46 @@ input:focus,select:focus{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,
 .wchip-av{width:20px;height:20px;border-radius:50%;background:var(--tl);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center}
 .wchip span{font-size:12px;color:var(--dp);font-weight:500}
 
+/* AI SECTION */
+.ai-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);margin-bottom:12px;overflow:hidden}
+.ai-card-head{padding:14px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.ai-card-head h3{font-size:14px;font-weight:600}
+.ai-tag{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:4px}
+.ai-tag.critical{background:#FCEBEB;color:#A32D2D}
+.ai-tag.warning{background:var(--lo);color:#854F0B}
+.ai-tag.info{background:var(--lt);color:var(--dp)}
+.ai-card-body{padding:14px 16px;font-size:13px;line-height:1.7;color:var(--t2)}
+.ai-card-body strong{color:var(--t1)}
+.ai-card-foot{padding:10px 16px;border-top:1px solid var(--bd);display:flex;gap:8px}
+.ai-chat-bubble{background:rgba(0,117,101,.06);border:1px solid rgba(0,117,101,.15);border-radius:var(--rl);padding:14px 16px;font-size:13px;line-height:1.7;color:var(--t1);white-space:pre-wrap;margin-bottom:10px}
+.ai-typing{display:flex;gap:4px;align-items:center;padding:12px 16px}
+.ai-typing span{width:6px;height:6px;border-radius:50%;background:var(--tl);animation:bounce .9s infinite}
+.ai-typing span:nth-child(2){animation-delay:.15s}
+.ai-typing span:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+
+/* STATS */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.stat-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:16px}
+.stat-label{font-size:11px;color:var(--t3);font-weight:600;letter-spacing:.04em;margin-bottom:6px}
+.stat-value{font-size:24px;font-weight:700;color:var(--t1)}
+.stat-sub{font-size:11px;color:var(--t2);margin-top:4px}
+.perf-bar-wrap{margin:8px 0}
+.perf-bar-label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;color:var(--t2)}
+.perf-bar-track{height:7px;background:rgba(17,24,32,.08);border-radius:4px;overflow:hidden}
+.perf-bar-fill{height:7px;border-radius:4px;transition:width .5s ease}
+.order-timeline{display:flex;flex-direction:column;gap:0}
+.ot-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(17,24,32,.05)}
+.ot-item:last-child{border-bottom:none}
+.ot-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.ot-body{flex:1}
+.ot-title{font-size:13px;font-weight:500}
+.ot-time{font-size:11px;color:var(--t3);font-family:'DM Mono',monospace;margin-top:2px}
+
 /* ADMIN */
-.admin-menu{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.admin-menu{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
 .ami{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:16px;cursor:pointer;transition:all .15s;text-align:center}
-.ami:active{transform:scale(.97);border-color:var(--tl)}
+.ami:hover{border-color:var(--tl);transform:translateY(-2px)}
 .ami-icon{font-size:28px;margin-bottom:8px}
 .ami-name{font-size:13px;font-weight:600}
 .ami-sub{font-size:11px;color:var(--t2);margin-top:3px}
@@ -175,7 +254,7 @@ input:focus,select:focus{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,
 .role-manager{background:var(--lo);color:#854F0B}
 .role-dept{background:var(--lt);color:var(--dp)}
 .role-logistics{background:#EAF3DE;color:#3B6D11}
-.perm-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid rgba(17,24,32,.05)}
+.perm-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(17,24,32,.05)}
 .perm-row:last-child{border-bottom:none}
 .perm-label{font-size:13px;font-weight:500}
 .perm-sub{font-size:11px;color:var(--t2);margin-top:2px}
@@ -184,22 +263,42 @@ input:focus,select:focus{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,
 .toggle::after{content:'';position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .toggle.off::after{left:3px}.toggle.on::after{left:21px}
 
-/* SHEET */
+/* SHEET (mobile modals, PC modals) */
 .sheet-overlay{position:fixed;inset:0;background:rgba(17,24,32,.55);z-index:400;display:none;opacity:0;transition:opacity .25s}
 .sheet-overlay.on{display:block;opacity:1}
-.sheet{position:fixed;bottom:0;left:0;right:0;background:var(--sf);border-radius:20px 20px 0 0;z-index:401;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);padding:0 0 calc(20px + var(--safe-bot));max-height:92dvh;overflow-y:auto}
-.sheet.on{transform:translateY(0)}
+.sheet{position:fixed;background:var(--sf);z-index:401;transition:transform .3s cubic-bezier(.32,.72,0,1);overflow-y:auto}
 .sheet-handle{width:36px;height:4px;background:var(--bd);border-radius:2px;margin:12px auto 0}
 .sheet-title{font-size:16px;font-weight:700;padding:16px 20px 12px;border-bottom:1px solid var(--bd)}
 .sheet-body{padding:16px 20px}
 
 /* TOAST & LOADER */
-#toast{position:fixed;bottom:calc(80px + var(--safe-bot) + 8px);left:16px;right:16px;background:var(--dk);color:#fff;padding:13px 16px;border-radius:var(--r);font-size:13px;font-weight:500;transform:translateY(20px);opacity:0;transition:all .28s;z-index:999;border-left:3px solid var(--or);text-align:center}
+#toast{position:fixed;bottom:24px;right:24px;background:var(--dk);color:#fff;padding:12px 18px;border-radius:var(--r);font-size:13px;font-weight:500;transform:translateY(20px);opacity:0;transition:all .28s;z-index:999;border-left:3px solid var(--or);max-width:320px}
 #toast.on{transform:translateY(0);opacity:1}
-#loader{position:fixed;inset:0;background:rgba(17,24,32,.6);z-index:2000;display:none;align-items:center;justify-content:center}
+#loader{position:fixed;inset:0;background:rgba(17,24,32,.5);z-index:2000;display:none;align-items:center;justify-content:center}
 #loader.on{display:flex}
 .spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:var(--or);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .bottom-nav{display:flex}
+  #main-content{padding:14px 14px calc(80px + env(safe-area-inset-bottom,0px))}
+  .kgrid{grid-template-columns:1fr 1fr}
+  .stat-grid{grid-template-columns:1fr 1fr}
+  .admin-menu{grid-template-columns:1fr 1fr}
+  .fg2{grid-template-columns:1fr}
+  .pg-hd{font-size:17px}
+  .sheet{bottom:0;left:0;right:0;border-radius:20px 20px 0 0;transform:translateY(100%);max-height:92dvh;padding-bottom:env(safe-area-inset-bottom,0px)}
+  .sheet.on{transform:translateY(0)}
+  #toast{bottom:calc(80px + env(safe-area-inset-bottom,0px) + 8px);left:14px;right:14px;max-width:none;text-align:center}
+}
+@media(min-width:769px){
+  .sheet{top:52px;right:0;width:480px;height:calc(100vh - 52px);border-radius:0;transform:translateX(100%)}
+  .sheet.on{transform:translateX(0)}
+  .sheet-handle{display:none}
+  #toast{bottom:24px;right:24px}
+}
 </style>
 </head>
 <body>
@@ -207,9 +306,7 @@ input:focus,select:focus{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-logo">
-    <svg viewBox="0 0 52 38" fill="none">
-      <path d="M6 19Q6 6 18 6Q26 6 26 14Q26 22 18 22Q26 22 26 30Q26 38 18 38Q6 38 6 26" stroke="#F78930" stroke-width="4" stroke-linecap="round" fill="none"/>
-    </svg>
+    <svg viewBox="0 0 52 38" fill="none"><path d="M6 19Q6 6 18 6Q26 6 26 14Q26 22 18 22Q26 22 26 30Q26 38 18 38Q6 38 6 26" stroke="#F78930" stroke-width="4" stroke-linecap="round" fill="none"/></svg>
     <h1>SONNO MES</h1>
     <p>İstehsal İdarəetmə Sistemi</p>
   </div>
@@ -223,121 +320,175 @@ input:focus,select:focus{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,
 
 <!-- APP -->
 <div id="app">
+  <!-- TOP BAR -->
   <div class="topbar">
     <div class="topbar-logo">
       <svg width="22" height="16" viewBox="0 0 22 16" fill="none"><path d="M2 8Q2 2 8 2Q12 2 12 6Q12 10 8 10Q12 10 12 14Q12 16 8 16Q2 16 2 12" stroke="#F78930" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
       <span>SONNO <em>MES</em></span>
     </div>
     <div class="topbar-title" id="topbar-title">Dashboard</div>
-    <div style="display:flex;align-items:center;gap:6px">
-      <div id="topbar-role" class="topbar-role"></div>
-      <div class="topbar-av" id="topbar-av" onclick="openUserSheet()">?</div>
+    <div class="topbar-right">
+      <span id="topbar-role" class="topbar-role"></span>
+      <div class="topbar-av" id="topbar-av" onclick="openSheet('user-sheet')">?</div>
     </div>
   </div>
 
-  <div id="main-content">
-    <!-- DASHBOARD -->
-    <div id="sc-dash" class="sc on">
-      <div class="kgrid">
-        <div class="kpi kT"><div class="kl">AKTİV</div><div class="kv" id="k-act">—</div><div class="ks">sifariş</div></div>
-        <div class="kpi kR"><div class="kl">GECİKƏN</div><div class="kv" id="k-lat" style="color:#E24B4A">—</div><div class="ks">təcili</div></div>
-        <div class="kpi kO"><div class="kl">HAZIR</div><div class="kv" id="k-rdy" style="color:var(--or)">—</div><div class="ks">çatdırılma</div></div>
-        <div class="kpi kD"><div class="kl">TƏSLİM</div><div class="kv" id="k-don">—</div><div class="ks">bu həftə</div></div>
-      </div>
-      <div class="slbl">Gecikən sifarişlər</div>
-      <div class="card" id="late-card"></div>
-      <div class="slbl">Bütün sifarişlər</div>
-      <div class="card" id="all-card"></div>
-    </div>
+  <div class="app-body">
+    <!-- SIDEBAR (PC) -->
+    <nav class="sidebar" id="sidebar"></nav>
 
-    <!-- SİFARİŞ -->
-    <div id="sc-order" class="sc">
-      <div class="slbl" style="margin-top:0">Məhsul seçin</div>
-      <div id="product-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px"></div>
-      <div id="qty-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:12px 14px;align-items:center;gap:12px;margin-bottom:14px">
-        <span id="qty-name" style="flex:1;font-size:13px;font-weight:600;color:var(--dp)">—</span>
-        <button class="qb" onclick="chQty(-1)">−</button>
-        <span id="qty-num" style="font-size:22px;font-weight:700;min-width:32px;text-align:center;color:var(--tl)">1</span>
-        <button class="qb" onclick="chQty(1)">+</button>
-      </div>
-      <div class="card card-pad" style="margin-bottom:14px">
-        <div class="fg"><label>Müştəri</label><input id="o-client" placeholder="Şirkət adı"></div>
-        <div class="fg"><label>Material</label>
-          <select id="o-fabric"><option>Parça A — Velvet (bej)</option><option>Parça B — Dəri (qara)</option><option>Parça C — Linen (boz)</option></select>
-        </div>
-        <div class="fg"><label>Ayaq rəngi</label>
-          <select id="o-legs"><option>Qara — Pantone Black 6C</option><option>Ağ — White</option><option>Gümüşü</option></select>
-        </div>
-        <div class="fg"><label>Deadline</label><input id="o-dead" type="date"></div>
-        <div class="fg"><label>Qeydlər</label><input id="o-notes" placeholder="Xüsusi tələblər..."></div>
-        <div id="eta-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:11px 13px;margin-bottom:12px;font-size:13px">
-          <span style="color:var(--tl);font-weight:600" id="eta-txt">—</span>
-        </div>
-        <button class="btn btn-t btn-full btn-lg" onclick="createOrder()">Sifariş Yarat</button>
-      </div>
-    </div>
+    <!-- MAIN CONTENT -->
+    <div id="main-content">
 
-    <!-- ŞÖBƏ -->
-    <div id="sc-dept" class="sc">
-      <div id="dept-pick">
-        <p style="font-size:13px;color:var(--t2);margin-bottom:14px">Şöbənizi seçin, PIN daxil edin</p>
-        <div id="dept-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
-      </div>
-      <div id="dept-pin" style="display:none;max-width:320px;margin:0 auto;padding:8px 0">
-        <button onclick="backDept()" style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--tl);padding:0;margin-bottom:20px;display:flex;align-items:center;gap:5px;font-family:inherit;font-weight:500">← Geri</button>
-        <div style="text-align:center;margin-bottom:20px">
-          <div id="pin-icon" style="font-size:44px;margin-bottom:8px"></div>
-          <div id="pin-dname" style="font-size:17px;font-weight:700"></div>
-          <div style="font-size:13px;color:var(--t2);margin-top:3px">PIN kodunu daxil edin</div>
+      <!-- DASHBOARD -->
+      <div id="sc-dash" class="sc on">
+        <div class="pg-hd">Dashboard <small id="dash-date"></small></div>
+        <div class="kgrid">
+          <div class="kpi kT"><div class="kl">AKTİV SİFARİŞ</div><div class="kv" id="k-act">—</div><div class="ks">istehsalda</div></div>
+          <div class="kpi kR"><div class="kl">GECİKƏN</div><div class="kv" id="k-lat" style="color:#E24B4A">—</div><div class="ks">təcili</div></div>
+          <div class="kpi kO"><div class="kl">HAZIR</div><div class="kv" id="k-rdy" style="color:var(--or)">—</div><div class="ks">çatdırılma</div></div>
+          <div class="kpi kD"><div class="kl">TƏSLİM</div><div class="kv" id="k-don">—</div><div class="ks">bu həftə</div></div>
         </div>
-        <div class="pin-dots"><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div></div>
-        <div id="pin-err" style="text-align:center;color:#E24B4A;font-size:13px;min-height:18px;margin-bottom:12px"></div>
-        <div class="pin-grid">
-          <button class="pk" onclick="pp('1')">1</button><button class="pk" onclick="pp('2')">2</button><button class="pk" onclick="pp('3')">3</button>
-          <button class="pk" onclick="pp('4')">4</button><button class="pk" onclick="pp('5')">5</button><button class="pk" onclick="pp('6')">6</button>
-          <button class="pk" onclick="pp('7')">7</button><button class="pk" onclick="pp('8')">8</button><button class="pk" onclick="pp('9')">9</button>
-          <button class="pk pk-ghost"></button><button class="pk" onclick="pp('0')">0</button><button class="pk" style="font-size:18px" onclick="pd()">⌫</button>
+        <div class="slbl">Gecikən sifarişlər</div>
+        <div class="card" id="late-card"></div>
+        <div class="slbl">Bütün sifarişlər</div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Sifariş</th><th>Müştəri</th><th>Model</th><th>Ədəd</th><th>Mərhələ</th><th>Deadline</th><th>Status</th></tr></thead>
+          <tbody id="orders-tbody"></tbody></table>
         </div>
       </div>
-      <div id="dept-tasks" style="display:none">
-        <div id="dept-hd" style="background:var(--dk);border-radius:var(--rl);padding:13px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
-          <button onclick="lockDept()" style="border:none;background:rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:600">🔒 Çıxış</button>
-          <div style="flex:1;text-align:center">
-            <div id="dt-icon" style="font-size:18px"></div>
-            <div id="dt-name" style="font-size:13px;font-weight:600;color:#fff"></div>
+
+      <!-- SİFARİŞ YARAT -->
+      <div id="sc-order" class="sc">
+        <div class="pg-hd">Yeni Sifariş</div>
+        <div style="display:grid;grid-template-columns:1fr 340px;gap:20px" id="order-layout">
+          <div>
+            <div class="slbl" style="margin-top:0">Məhsul seçin</div>
+            <div class="pgrid" id="product-grid"></div>
+            <div id="qty-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:12px 14px;align-items:center;gap:12px;margin-bottom:14px">
+              <span id="qty-name" style="flex:1;font-size:13px;font-weight:600;color:var(--dp)">—</span>
+              <button class="qb" onclick="chQty(-1)">−</button>
+              <span id="qty-num" style="font-size:22px;font-weight:700;min-width:32px;text-align:center;color:var(--tl)">1</span>
+              <button class="qb" onclick="chQty(1)">+</button>
+            </div>
+            <div class="card card-pad">
+              <div class="fg2">
+                <div class="fg"><label>Müştəri şirkəti</label><input id="o-client" placeholder="Kapital Bank"></div>
+                <div class="fg"><label>Material</label><select id="o-fabric"><option>Parça A — Velvet (bej)</option><option>Parça B — Dəri (qara)</option><option>Parça C — Linen (boz)</option></select></div>
+                <div class="fg"><label>Ayaq rəngi</label><select id="o-legs"><option>Qara — Pantone Black 6C</option><option>Ağ — White</option><option>Gümüşü</option></select></div>
+                <div class="fg"><label>Deadline</label><input id="o-dead" type="date"></div>
+                <div class="fg full"><label>Qeydlər</label><input id="o-notes" placeholder="Xüsusi tələblər..."></div>
+              </div>
+              <div id="eta-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:11px 14px;margin-bottom:12px;font-size:13px"><span style="color:var(--tl);font-weight:600" id="eta-txt">—</span></div>
+              <button class="btn btn-t btn-full btn-lg" onclick="createOrder()">Sifariş Yarat — Pipeline Avtomatik Başlasın</button>
+            </div>
           </div>
-          <div style="text-align:right"><div style="font-size:10px;color:rgba(255,255,255,.4)">İŞ</div><div id="dt-cnt" style="font-size:22px;font-weight:700;color:var(--or)">0</div></div>
+          <div id="pipe-preview-wrap">
+            <div class="slbl" style="margin-top:0">Pipeline önizləmə</div>
+            <div id="pipe-preview" style="font-size:13px;color:var(--t3);padding:20px;text-align:center;background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl)">Məhsul seçin</div>
+          </div>
         </div>
-        <div id="dept-task-list"></div>
       </div>
-    </div>
 
-    <!-- LOGİSTİKA -->
-    <div id="sc-logi" class="sc">
-      <div class="kgrid" style="grid-template-columns:repeat(3,1fr)">
-        <div class="kpi kT"><div class="kl">HAZIR</div><div class="kv" id="l-rdy" style="color:var(--tl)">—</div></div>
-        <div class="kpi kO"><div class="kl">YOLDA</div><div class="kv" id="l-tr" style="color:var(--or)">—</div></div>
-        <div class="kpi kD"><div class="kl">TƏSLİM</div><div class="kv" id="l-dv">—</div></div>
+      <!-- ŞÖBƏ EKRANI -->
+      <div id="sc-dept" class="sc">
+        <div id="dept-pick">
+          <div class="pg-hd">Şöbə Ekranı</div>
+          <p style="font-size:13px;color:var(--t2);margin-bottom:16px">Şöbənizi seçin, PIN daxil edin</p>
+          <div id="dept-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px"></div>
+        </div>
+        <div id="dept-pin" style="display:none;max-width:320px;margin:40px auto 0">
+          <button onclick="showDV('dept-pick')" style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--tl);padding:0;margin-bottom:20px;display:flex;align-items:center;gap:5px;font-family:inherit;font-weight:500">← Geri</button>
+          <div style="text-align:center;margin-bottom:20px">
+            <div id="pin-icon" style="font-size:44px;margin-bottom:8px"></div>
+            <div id="pin-dname" style="font-size:17px;font-weight:700"></div>
+            <div style="font-size:13px;color:var(--t2);margin-top:3px">PIN kodunu daxil edin</div>
+          </div>
+          <div class="pin-dots"><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div></div>
+          <div id="pin-err" style="text-align:center;color:#E24B4A;font-size:13px;min-height:18px;margin-bottom:12px"></div>
+          <div class="pin-grid">
+            <button class="pk" onclick="pp('1')">1</button><button class="pk" onclick="pp('2')">2</button><button class="pk" onclick="pp('3')">3</button>
+            <button class="pk" onclick="pp('4')">4</button><button class="pk" onclick="pp('5')">5</button><button class="pk" onclick="pp('6')">6</button>
+            <button class="pk" onclick="pp('7')">7</button><button class="pk" onclick="pp('8')">8</button><button class="pk" onclick="pp('9')">9</button>
+            <button class="pk pk-ghost"></button><button class="pk" onclick="pp('0')">0</button><button class="pk" style="font-size:18px" onclick="pd()">⌫</button>
+          </div>
+        </div>
+        <div id="dept-tasks" style="display:none">
+          <div id="dept-hd" style="background:var(--dk);border-radius:var(--rl);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+            <button onclick="lockDept()" style="border:none;background:rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:7px 12px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:600">🔒 Çıxış</button>
+            <div style="flex:1;text-align:center">
+              <div id="dt-icon" style="font-size:20px"></div>
+              <div id="dt-name" style="font-size:14px;font-weight:600;color:#fff"></div>
+            </div>
+            <div style="text-align:right"><div style="font-size:10px;color:rgba(255,255,255,.4)">AKTİV İŞ</div><div id="dt-cnt" style="font-size:26px;font-weight:700;color:var(--or)">0</div></div>
+          </div>
+          <div id="dept-task-list"></div>
+        </div>
       </div>
-      <div class="card" id="logi-list"></div>
-    </div>
 
-    <!-- ADMİN -->
-    <div id="sc-admin" class="sc">
-      <div class="admin-menu">
-        <div class="ami" onclick="adminSec('users')"><div class="ami-icon">👥</div><div class="ami-name">İstifadəçilər</div><div class="ami-sub" id="ami-u">—</div></div>
-        <div class="ami" onclick="adminSec('pins')"><div class="ami-icon">🔑</div><div class="ami-name">PIN Kodlar</div><div class="ami-sub">Şöbə girişi</div></div>
-        <div class="ami" onclick="adminSec('models')"><div class="ami-icon">🛋️</div><div class="ami-name">Modellər</div><div class="ami-sub" id="ami-m">—</div></div>
-        <div class="ami" onclick="adminSec('workers')"><div class="ami-icon">🧑‍🔧</div><div class="ami-name">İşçilər</div><div class="ami-sub" id="ami-w">—</div></div>
+      <!-- LOGİSTİKA -->
+      <div id="sc-logi" class="sc">
+        <div class="pg-hd">Logistika</div>
+        <div class="kgrid" style="grid-template-columns:repeat(3,1fr)">
+          <div class="kpi kT"><div class="kl">HAZIR</div><div class="kv" id="l-rdy" style="color:var(--tl)">—</div><div class="ks">gözləyir</div></div>
+          <div class="kpi kO"><div class="kl">YOLDA</div><div class="kv" id="l-tr" style="color:var(--or)">—</div></div>
+          <div class="kpi kD"><div class="kl">TƏSLİM</div><div class="kv" id="l-dv">—</div><div class="ks">bu həftə</div></div>
+        </div>
+        <div class="slbl">Sifarişlər</div>
+        <div class="card" id="logi-list"></div>
       </div>
-      <div id="admin-sec-content"></div>
-    </div>
-  </div>
 
+      <!-- AI ANALİZ -->
+      <div id="sc-ai" class="sc">
+        <div class="pg-hd">AI Analiz <small>GPT-4o-mini ilə</small></div>
+
+        <!-- Stats -->
+        <div class="stat-grid" id="stat-grid"></div>
+
+        <!-- AI Chat -->
+        <div class="slbl">AI ilə söhbət</div>
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div id="ai-chat-history" style="max-height:340px;overflow-y:auto;margin-bottom:12px"></div>
+          <div style="display:flex;gap:8px">
+            <input id="ai-input" placeholder="Sual verin: hansı şöbə gecikir? ən yavaş sifariş hansıdır?..." style="flex:1" onkeydown="if(event.key==='Enter')sendAI()">
+            <button class="btn btn-t" onclick="sendAI()" id="ai-send-btn">Göndər</button>
+          </div>
+        </div>
+
+        <!-- Auto insights -->
+        <div class="slbl">Avtomatik analiz</div>
+        <div id="ai-insights"></div>
+
+        <!-- Order stats -->
+        <div class="slbl">Sifariş statistikası</div>
+        <div class="card" id="order-stats"></div>
+
+        <!-- Dept performance -->
+        <div class="slbl">Şöbə performansı</div>
+        <div class="card card-pad" id="dept-perf"></div>
+      </div>
+
+      <!-- ADMİN -->
+      <div id="sc-admin" class="sc">
+        <div class="pg-hd">Admin Panel</div>
+        <div class="admin-menu">
+          <div class="ami" onclick="adminSec('users')"><div class="ami-icon">👥</div><div class="ami-name">İstifadəçilər</div><div class="ami-sub" id="ami-u">—</div></div>
+          <div class="ami" onclick="adminSec('pins')"><div class="ami-icon">🔑</div><div class="ami-name">PIN Kodlar</div><div class="ami-sub">Şöbə girişi</div></div>
+          <div class="ami" onclick="adminSec('models')"><div class="ami-icon">🛋️</div><div class="ami-name">Modellər</div><div class="ami-sub" id="ami-m">—</div></div>
+          <div class="ami" onclick="adminSec('workers')"><div class="ami-icon">🧑‍🔧</div><div class="ami-name">İşçilər</div><div class="ami-sub" id="ami-w">—</div></div>
+        </div>
+        <div id="admin-sec"></div>
+      </div>
+
+    </div><!-- /main-content -->
+  </div><!-- /app-body -->
+
+  <!-- BOTTOM NAV (mobile) -->
   <nav class="bottom-nav" id="bottom-nav"></nav>
-</div>
+</div><!-- /app -->
 
-<!-- USER SHEET -->
+<!-- SHEETS -->
+<!-- User sheet -->
 <div class="sheet-overlay" id="user-sheet-ov" onclick="closeSheet('user-sheet')"></div>
 <div class="sheet" id="user-sheet">
   <div class="sheet-handle"></div>
@@ -350,7 +501,7 @@ input:focus,select:focus{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,
   </div>
 </div>
 
-<!-- ADD USER SHEET -->
+<!-- Add user sheet -->
 <div class="sheet-overlay" id="add-user-ov" onclick="closeSheet('add-user')"></div>
 <div class="sheet" id="add-user-sheet">
   <div class="sheet-handle"></div>
@@ -373,7 +524,47 @@ input:focus,select:focus{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,
   </div>
 </div>
 
-<!-- ORDER DETAIL SHEET -->
+<!-- Add model sheet -->
+<div class="sheet-overlay" id="add-model-ov" onclick="closeSheet('add-model')"></div>
+<div class="sheet" id="add-model-sheet" style="display:flex;flex-direction:column">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="am-title">Yeni model</div>
+  <div class="sheet-body" style="flex:1;overflow-y:auto">
+    <div class="fg2">
+      <div class="fg"><label>Model adı</label><input id="am-name" placeholder="Model X — Divan"></div>
+      <div class="fg"><label>Qısa məlumat</label><input id="am-desc" placeholder="3+2 oturacaq"></div>
+    </div>
+    <div class="fg">
+      <label>Şəkil / Emoji</label>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div id="am-prev" style="width:80px;height:64px;border-radius:var(--r);border:1px solid var(--bd);background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:30px;overflow:hidden">🛋️</div>
+        <div style="flex:1">
+          <label style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;font-size:13px;font-weight:500;color:var(--t1)">
+            📷 Şəkil seç <input type="file" accept="image/*" style="display:none" onchange="previewImg(this)">
+          </label>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <span style="cursor:pointer;font-size:20px;padding:2px" onclick="setEmoji('🛋️')">🛋️</span>
+            <span style="cursor:pointer;font-size:20px;padding:2px" onclick="setEmoji('🪑')">🪑</span>
+            <span style="cursor:pointer;font-size:20px;padding:2px" onclick="setEmoji('🛏️')">🛏️</span>
+            <span style="cursor:pointer;font-size:20px;padding:2px" onclick="setEmoji('🪚')">🪚</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slbl">İstehsal mərhələləri — şöbələri seçin</div>
+    <div class="dept-check-list" id="dept-check-list"></div>
+    <div id="stage-order-wrap" style="display:none;margin-top:14px">
+      <div class="slbl" style="margin-top:0">Ardıcıllıq (↑↓ ilə dəyişin)</div>
+      <div id="stage-order-list"></div>
+    </div>
+  </div>
+  <div style="padding:14px 20px;border-top:1px solid var(--bd);display:flex;gap:8px;flex-shrink:0;background:var(--sf)">
+    <button class="btn btn-ln" style="flex:1" onclick="closeSheet('add-model')">Ləğv et</button>
+    <button class="btn btn-t" style="flex:2" onclick="saveModel()">💾 Yadda saxla</button>
+  </div>
+</div>
+
+<!-- Order detail sheet -->
 <div class="sheet-overlay" id="order-detail-ov" onclick="closeSheet('order-detail')"></div>
 <div class="sheet" id="order-detail-sheet">
   <div class="sheet-handle"></div>
@@ -385,36 +576,38 @@ input:focus,select:focus{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,
 <div id="loader"><div class="spinner"></div></div>
 
 <script>
-// ═══════════════════════════ SUPABASE ═══════════════════════════
+// ═══════════ CONFIG ═══════════
 const SUPA_URL = 'https://vtnsamrkmnvbqecvcwrp.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0bnNhbXJrbW52YnFlY3Zjd3JwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMDUzNzIsImV4cCI6MjA5MTg4MTM3Mn0.rYZc1Pl64NwlduQSgXM79Fulr_V5BhwE-eQ_rQAZ4Eo';
+const OPENAI_KEY = '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';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
-// ═══════════════════════════ CONSTANTS ═══════════════════════════
+// ═══════════ CONSTANTS ═══════════
 const DEPT_INFO = {
-  hazirlik:    {name:'Hazırlıq — Kəsmə',      icon:'✂️'},
-  bez_kesim:   {name:'Bez kəsim şöbəsi',       icon:'🧶'},
-  karkaz:      {name:'Karkaz yığım şöbəsi',    icon:'🪵'},
-  shkurka:     {name:'Şkurka şöbəsi',          icon:'🔩'},
-  masa_karkaz: {name:'Masa karkaz şöbəsi',     icon:'🪚'},
-  masa_rengle: {name:'Masa rəngləmə şöbəsi',   icon:'🎨'},
-  yastiqlama:  {name:'Yastıqlama / Döşəmə',    icon:'🛋️'},
-  tikiş:       {name:'Tikiş şöbəsi',           icon:'🧵'},
-  qa:          {name:'Keyfiyyət yoxlama',       icon:'✅'},
-  logistics:   {name:'Logistika / Çatdırılma', icon:'🚛'},
+  hazirlik:    {name:'Hazırlıq — Kəsmə',      icon:'✂️', hours:2},
+  bez_kesim:   {name:'Bez kəsim şöbəsi',       icon:'🧶', hours:2},
+  karkaz:      {name:'Karkaz yığım şöbəsi',    icon:'🪵', hours:4},
+  shkurka:     {name:'Şkurka şöbəsi',          icon:'🔩', hours:1.5},
+  masa_karkaz: {name:'Masa karkaz şöbəsi',     icon:'🪚', hours:3},
+  masa_rengle: {name:'Masa rəngləmə şöbəsi',   icon:'🎨', hours:2},
+  yastiqlama:  {name:'Yastıqlama / Döşəmə',    icon:'🛋️', hours:4},
+  tikiş:       {name:'Tikiş şöbəsi',           icon:'🧵', hours:3},
+  qa:          {name:'Keyfiyyət yoxlama',       icon:'✅', hours:1},
+  logistics:   {name:'Logistika / Çatdırılma', icon:'🚛', hours:1},
 };
 
 const ALL_PERMS = [
-  {key:'dashboard',    label:'Dashboard',        sub:'KPI və statistika'},
-  {key:'orders_view',  label:'Sifarişlərə baxış',sub:'Siyahı görüntüsü'},
-  {key:'orders_create',label:'Sifariş yarat',    sub:'Yeni sifariş'},
-  {key:'dept_screen',  label:'Şöbə ekranı',      sub:'PIN ilə giriş'},
-  {key:'logistics',    label:'Logistika',         sub:'Çatdırılma'},
-  {key:'admin',        label:'Admin panel',       sub:'Tam idarəetmə'},
+  {key:'dashboard',    label:'Dashboard',         sub:'KPI və statistika'},
+  {key:'orders_view',  label:'Sifarişlərə baxış', sub:'Siyahı görüntüsü'},
+  {key:'orders_create',label:'Sifariş yarat',     sub:'Yeni sifariş'},
+  {key:'dept_screen',  label:'Şöbə ekranı',       sub:'PIN ilə giriş'},
+  {key:'logistics',    label:'Logistika',          sub:'Çatdırılma'},
+  {key:'ai',           label:'AI Analiz',          sub:'GPT analiz'},
+  {key:'admin',        label:'Admin panel',        sub:'Tam idarəetmə'},
 ];
 
 const ROLE_PERMS = {
-  admin:     ['dashboard','orders_view','orders_create','dept_screen','logistics','admin'],
+  admin:     ['dashboard','orders_view','orders_create','dept_screen','logistics','ai','admin'],
   manager:   ['dashboard','orders_view','orders_create'],
   logistics: ['logistics'],
   dept:      ['dept_screen'],
@@ -434,37 +627,47 @@ const NAV_ITEMS = [
   {key:'order', icon:'➕',label:'Sifariş',    perm:'orders_create',sc:'sc-order'},
   {key:'dept',  icon:'🏭',label:'Şöbə',       perm:'dept_screen',  sc:'sc-dept'},
   {key:'logi',  icon:'🚛',label:'Logistika',  perm:'logistics',    sc:'sc-logi'},
+  {key:'ai',    icon:'🤖',label:'AI Analiz',  perm:'ai',           sc:'sc-ai'},
   {key:'admin', icon:'⚙️',label:'Admin',      perm:'admin',        sc:'sc-admin'},
 ];
 
-// ═══════════════════════════ STATE ═══════════════════════════
+// ═══════════ STATE ═══════════
 let currentUser = null;
-let appModels = [];
-let appWorkers = [];
+let appModels = [], appWorkers = [];
 let selModel = null, qty = 1;
-let pinDept = null, pinBuf = '', pinUnlocked = {};
-let editingUserId = null;
+let pinDept = null, pinBuf = '', pinUnlocked = {}, curPinCode = '';
+let editingUserId = null, editingModelId = null;
+let modelEmoji = '🛋️', modelImgData = null;
+let aiHistory = [];
 
-// ═══════════════════════════ LOADER ═══════════════════════════
-function showLoader(){document.getElementById('loader').classList.add('on')}
-function hideLoader(){document.getElementById('loader').classList.remove('on')}
+// ═══════════ HELPERS ═══════════
+const showLoader = () => document.getElementById('loader').classList.add('on');
+const hideLoader = () => document.getElementById('loader').classList.remove('on');
+function toast(msg, dur=3500){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('on');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('on'),dur);
+}
+function hasPerm(k){return currentUser?.perms?.includes(k)}
+function fmtTime(mins){
+  if(!mins) return '—';
+  if(mins<60) return Math.round(mins)+'dəq';
+  return (mins/60).toFixed(1)+'saat';
+}
+function fmtDate(d){return d?new Date(d).toLocaleDateString('az-AZ',{day:'2-digit',month:'short',year:'numeric'}):'—'}
 
-// ═══════════════════════════ AUTH ═══════════════════════════
+// ═══════════ AUTH ═══════════
 async function doLogin(){
-  const username = document.getElementById('l-user').value.trim();
-  const password = document.getElementById('l-pass').value;
+  const username=document.getElementById('l-user').value.trim();
+  const password=document.getElementById('l-pass').value;
   if(!username||!password){document.getElementById('l-err').textContent='Boş sahə var';return;}
-  const btn = document.getElementById('login-btn');
-  btn.disabled = true; btn.textContent = 'Yoxlanır...';
+  const btn=document.getElementById('login-btn');
+  btn.disabled=true; btn.textContent='Yoxlanır...';
   showLoader();
-  try {
-    const {data,error} = await sb.from('users')
-      .select('*').eq('username',username).eq('password_hash',password).eq('is_active',true).single();
-    if(error||!data){
-      document.getElementById('l-err').textContent='İstifadəçi adı və ya şifrə yanlışdır';
-      return;
-    }
-    currentUser = data;
+  try{
+    const {data,error}=await sb.from('users').select('*').eq('username',username).eq('password_hash',password).eq('is_active',true).single();
+    if(error||!data){document.getElementById('l-err').textContent='İstifadəçi adı və ya şifrə yanlışdır';return;}
+    currentUser=data;
     document.getElementById('l-err').textContent='';
     document.getElementById('login-screen').classList.add('out');
     setTimeout(async()=>{
@@ -472,50 +675,52 @@ async function doLogin(){
       document.getElementById('app').classList.add('visible');
       await initApp();
     },300);
-  } catch(e){
-    document.getElementById('l-err').textContent='Xəta baş verdi: '+e.message;
-  } finally {
-    hideLoader();
-    btn.disabled=false;btn.textContent='Daxil ol';
-  }
+  }catch(e){document.getElementById('l-err').textContent='Xəta: '+e.message;}
+  finally{hideLoader();btn.disabled=false;btn.textContent='Daxil ol';}
 }
-
 document.getElementById('l-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 document.getElementById('l-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('l-pass').focus()});
 
 function doLogout(){
-  currentUser=null;selModel=null;qty=1;pinUnlocked={};
+  currentUser=null; appModels=[]; appWorkers=[];
+  selModel=null; qty=1; pinUnlocked={}; aiHistory=[];
   closeSheet('user-sheet');
   document.getElementById('app').classList.remove('visible');
   const ls=document.getElementById('login-screen');
-  ls.style.display='flex';ls.classList.remove('out');
+  ls.style.display='flex'; ls.classList.remove('out');
   document.getElementById('l-user').value='';
   document.getElementById('l-pass').value='';
 }
 
-function hasPerm(key){return currentUser&&currentUser.perms&&currentUser.perms.includes(key)}
-
-// ═══════════════════════════ INIT ═══════════════════════════
+// ═══════════ INIT ═══════════
 async function initApp(){
   showLoader();
-  try {
-    const [modRes, wrkRes] = await Promise.all([
+  try{
+    const[mr,wr]=await Promise.all([
       sb.from('models').select('*').eq('is_active',true),
       sb.from('workers').select('*').eq('status','active'),
     ]);
-    appModels = modRes.data||[];
-    appWorkers = wrkRes.data||[];
-  } catch(e){console.error(e);}
+    appModels=mr.data||[];
+    appWorkers=wr.data||[];
+  }catch(e){console.error(e);}
   hideLoader();
 
-  const u = currentUser;
-  const ini = u.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
-  document.getElementById('topbar-av').textContent = ini;
-  const rL = {admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
-  document.getElementById('topbar-role').textContent = rL[u.role]||u.role;
+  const u=currentUser;
+  const ini=u.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('topbar-av').textContent=ini;
+  const rL={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
+  document.getElementById('topbar-role').textContent=rL[u.role]||u.role;
+  document.getElementById('dash-date').textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
 
-  const visible = NAV_ITEMS.filter(n=>hasPerm(n.perm));
-  document.getElementById('bottom-nav').innerHTML = visible.map(n=>
+  // Build nav
+  const visible=NAV_ITEMS.filter(n=>hasPerm(n.perm));
+  // Sidebar (PC)
+  document.getElementById('sidebar').innerHTML=`
+    <div style="font-size:13px;font-weight:600;color:rgba(255,255,255,.3);padding:0 12px;margin-bottom:8px;letter-spacing:.05em">${u.name}</div>
+    ${visible.map(n=>`<button class="sidebar-item" id="sbi-${n.key}" onclick="goTo('${n.key}')">`+
+      `<span class="si-icon">${n.icon}</span>${n.label}</button>`).join('')}`;
+  // Bottom nav (mobile)
+  document.getElementById('bottom-nav').innerHTML=visible.map(n=>
     `<button class="bnav-item" id="bnav-${n.key}" onclick="goTo('${n.key}')">
       <div class="bni">${n.icon}</div>
       <span class="bnav-label">${n.label}</span>
@@ -524,101 +729,127 @@ async function initApp(){
   if(visible.length) goTo(visible[0].key);
 }
 
-// ═══════════════════════════ NAVIGATION ═══════════════════════════
+// ═══════════ NAVIGATION ═══════════
 async function goTo(key){
-  const item = NAV_ITEMS.find(n=>n.key===key);
+  const item=NAV_ITEMS.find(n=>n.key===key);
   if(!item||!hasPerm(item.perm)) return;
   document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.sidebar-item').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('.bnav-item').forEach(b=>b.classList.remove('on'));
   document.getElementById(item.sc).classList.add('on');
+  const sb2=document.getElementById('sbi-'+key);if(sb2)sb2.classList.add('on');
   const nb=document.getElementById('bnav-'+key);if(nb)nb.classList.add('on');
-  const titles={dash:'Dashboard',order:'Yeni Sifariş',dept:'Şöbə Ekranı',logi:'Logistika',admin:'Admin'};
+  const titles={dash:'Dashboard',order:'Yeni Sifariş',dept:'Şöbə Ekranı',logi:'Logistika',ai:'AI Analiz',admin:'Admin'};
   document.getElementById('topbar-title').textContent=titles[key]||'';
   document.getElementById('main-content').scrollTo(0,0);
   if(key==='dash') await renderDash();
   if(key==='order') renderOrderForm();
-  if(key==='dept') renderDeptPick();
+  if(key==='dept') await renderDeptPick();
   if(key==='logi') await renderLogi();
+  if(key==='ai') await renderAI();
   if(key==='admin') await renderAdmin();
 }
 
-// ═══════════════════════════ DASHBOARD ═══════════════════════════
+// ═══════════ DASHBOARD ═══════════
 async function renderDash(){
   showLoader();
-  try {
-    const {data:orders} = await sb.from('orders').select('*').order('created_at',{ascending:false});
-    const all = orders||[];
-    const act = all.filter(o=>['in_progress','created','late'].includes(o.status)).length;
-    const lat = all.filter(o=>o.status==='late').length;
-    const rdy = all.filter(o=>o.status==='ready').length;
-    const don = all.filter(o=>o.status==='delivered').length;
-    document.getElementById('k-act').textContent=act;
-    document.getElementById('k-lat').textContent=lat;
-    document.getElementById('k-rdy').textContent=rdy;
-    document.getElementById('k-don').textContent=don;
-    const lateOrd = all.filter(o=>o.status==='late');
-    document.getElementById('late-card').innerHTML = lateOrd.length
-      ? lateOrd.map(o=>orderItem(o)).join('')
-      : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Gecikən sifariş yoxdur ✓</div>';
-    document.getElementById('all-card').innerHTML = all.length
-      ? all.map(o=>orderItem(o)).join('')
-      : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Sifariş yoxdur</div>';
-  } catch(e){toast('Xəta: '+e.message);}
+  try{
+    const{data:orders}=await sb.from('orders').select('*').order('created_at',{ascending:false});
+    const all=orders||[];
+    document.getElementById('k-act').textContent=all.filter(o=>['in_progress','created','late'].includes(o.status)).length;
+    document.getElementById('k-lat').textContent=all.filter(o=>o.status==='late').length;
+    document.getElementById('k-rdy').textContent=all.filter(o=>o.status==='ready').length;
+    document.getElementById('k-don').textContent=all.filter(o=>o.status==='delivered').length;
+
+    const late=all.filter(o=>o.status==='late');
+    document.getElementById('late-card').innerHTML=late.length
+      ?late.map(o=>orderListItem(o)).join('')
+      :'<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Gecikən sifariş yoxdur ✓</div>';
+
+    document.getElementById('orders-tbody').innerHTML=all.map(o=>{
+      const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦',stages:[]};
+      const st=ST[o.status]||ST.created;
+      const stageName=m.stages&&m.stages[o.current_stage-1]?m.stages[o.current_stage-1].name:'—';
+      return`<tr onclick="showOD('${o.id}')">
+        <td><span class="mono">${o.order_number}</span></td>
+        <td>${o.client}</td>
+        <td>${m.emoji} ${m.name.split('—')[0].trim()}</td>
+        <td style="font-weight:600">${o.qty}</td>
+        <td><span style="font-size:12px;color:var(--t2)">${stageName}</span></td>
+        <td style="${o.status==='late'?'color:#E24B4A;font-weight:600':''}">${o.deadline||'—'}</td>
+        <td><span class="badge ${st.c}">${st.t}</span></td>
+      </tr>`;
+    }).join('');
+  }catch(e){toast('Xəta: '+e.message);}
   hideLoader();
 }
 
-function orderItem(o){
-  const m = appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
-  const st = ST[o.status]||ST.created;
-  const isLate = o.status==='late';
-  return`<div class="list-item" onclick="showOrderDetail('${o.id}')">
-    <div class="li-icon" style="background:${isLate?'#FCEBEB':'rgba(17,24,32,.04)'}">${m.emoji}</div>
+function orderListItem(o){
+  const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
+  const st=ST[o.status]||ST.created;
+  return`<div class="list-item" onclick="showOD('${o.id}')">
+    <div class="li-icon" style="background:${o.status==='late'?'#FCEBEB':'rgba(17,24,32,.04)'}">${m.emoji}</div>
     <div class="li-body">
-      <div class="li-title">${o.client} <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--tl)">${o.order_number}</span></div>
+      <div class="li-title">${o.client} <span class="mono">${o.order_number}</span></div>
       <div class="li-sub">${m.name.split('—')[0].trim()} · ${o.qty} ədəd · ${o.deadline||''}</div>
     </div>
     <div class="li-right"><span class="badge ${st.c}">${st.t}</span></div>
   </div>`;
 }
 
-async function showOrderDetail(id){
+async function showOD(id){
   showLoader();
-  const {data:o} = await sb.from('orders').select('*').eq('id',id).single();
+  const{data:o}=await sb.from('orders').select('*').eq('id',id).single();
+  const{data:logs}=await sb.from('task_logs').select('*').eq('order_id',id).order('created_at');
   hideLoader();
-  if(!o) return;
-  const m = appModels.find(x=>x.id===o.model_id)||{name:'?',stages:[]};
-  const st = ST[o.status]||ST.created;
+  if(!o)return;
+  const m=appModels.find(x=>x.id===o.model_id)||{name:'?',stages:[]};
+  const st=ST[o.status]||ST.created;
+  const logMap={};(logs||[]).forEach(l=>{logMap[l.stage_index]={started:l.started_at,completed:l.completed_at,dur:l.duration_minutes};});
   document.getElementById('od-title').textContent=o.order_number+' — '+o.client;
-  const stages = m.stages||[];
+  const stages=m.stages||[];
+  let totalMin=0;
   document.getElementById('od-body').innerHTML=`
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
       <span class="badge ${st.c}">${st.t}</span>
       <span class="badge bG">${o.qty} ədəd</span>
       <span class="badge bG">${o.fabric||''}</span>
     </div>
-    <div style="font-size:12px;color:var(--t2);margin-bottom:14px">Deadline: <b style="color:${o.status==='late'?'#E24B4A':'var(--t1)'}">${o.deadline||'—'}</b></div>
-    ${stages.map((s,i)=>{
-      const n=i+1,isDone=n<o.current_stage,isCur=n===o.current_stage;
-      const bg=isDone?'var(--lt)':isCur?'var(--lo)':'rgba(17,24,32,.03)';
-      const col=isDone?'var(--dp)':isCur?'#854F0B':'var(--t3)';
-      const icon=isDone?'✓':isCur?'▶':'○';
-      return`<div style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:var(--r);background:${bg};margin-bottom:4px">
-        <span style="font-size:12px;font-weight:700;color:${col};width:16px">${icon}</span>
-        <span style="flex:1;font-size:13px;color:${col}">${s.name}</span>
-        <span style="font-size:11px;color:var(--t3)">${s.hours}s</span>
-      </div>`;
-    }).join('')}`;
+    <div style="font-size:12px;color:var(--t2);margin-bottom:14px">
+      Deadline: <b style="color:${o.status==='late'?'#E24B4A':'var(--t1)'}">${o.deadline||'—'}</b>
+      · Başlanma: <b>${fmtDate(o.created_at)}</b>
+    </div>
+    <div class="slbl" style="margin-top:0">Mərhələlər və vaxtlar</div>
+    <div class="order-timeline">
+      ${stages.map((s,i)=>{
+        const n=i+1,isDone=n<o.current_stage,isCur=n===o.current_stage;
+        const log=logMap[n]||{};
+        const dotColor=isDone?'var(--tl)':isCur?'var(--or)':'rgba(17,24,32,.15)';
+        const dur=log.dur?fmtTime(log.dur):(isDone?fmtTime(s.hours*60):'—');
+        if(log.dur) totalMin+=log.dur;
+        return`<div class="ot-item">
+          <div class="ot-dot" style="background:${dotColor}"></div>
+          <div class="ot-body">
+            <div class="ot-title">${isDone?'✓ ':isCur?'▶ ':'○ '}${s.name}</div>
+            <div class="ot-time">
+              ${log.started?'Başlandı: '+fmtDate(log.started):''}
+              ${log.completed?' · Bitdi: '+fmtDate(log.completed):''}
+              ${dur!=='—'?' · '+dur:''}
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    ${totalMin>0?`<div style="margin-top:14px;padding:12px;background:var(--lt);border-radius:var(--r);font-size:13px"><b style="color:var(--tl)">Ümumi istehsal vaxtı: ${fmtTime(totalMin)}</b></div>`:''}`;
   openSheet('order-detail');
 }
 
-// ═══════════════════════════ ORDER CREATE ═══════════════════════════
+// ═══════════ ORDER CREATE ═══════════
 function renderOrderForm(){
-  document.getElementById('product-grid').innerHTML = appModels.map(m=>{
-    const imgPart = m.img_url
-      ? `<img src="${m.img_url}" style="width:100%;height:90px;object-fit:cover">`
-      : `<div class="pcard-img">${m.emoji}</div>`;
+  document.getElementById('product-grid').innerHTML=appModels.map(m=>{
+    const img=m.img_url?`<img src="${m.img_url}" style="width:100%;height:100px;object-fit:cover">`:`<div class="pcard-img">${m.emoji}</div>`;
     return`<div class="pcard" id="pc-${m.id}" onclick="selProd('${m.id}')">
-      <div class="pcard-chk">✓</div>${imgPart}
+      <div class="pcard-chk">✓</div>${img}
       <div class="pcard-body">
         <div class="pcard-name">${m.name.split('—')[0].trim()}</div>
         <div class="pcard-info">${m.description||''}</div>
@@ -629,6 +860,11 @@ function renderOrderForm(){
   if(!document.getElementById('o-dead').value){
     const d=new Date();d.setDate(d.getDate()+7);
     document.getElementById('o-dead').value=d.toISOString().split('T')[0];
+  }
+  // Mobile: stack layout
+  if(window.innerWidth<=768){
+    document.getElementById('order-layout').style.gridTemplateColumns='1fr';
+    document.getElementById('pipe-preview-wrap').style.display='none';
   }
 }
 
@@ -641,6 +877,7 @@ function selProd(id){
   const qb=document.getElementById('qty-bar');qb.style.display='flex';
   document.getElementById('qty-name').textContent=m.name;
   updateEta(m);
+  renderPipePrev(m);
 }
 
 function chQty(d){
@@ -661,82 +898,90 @@ function updateEta(m){
   document.getElementById('eta-txt').innerHTML=`${h} saat · ETA: ${eta}${ok}`;
 }
 
+function renderPipePrev(m){
+  document.getElementById('pipe-preview').innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:5px">
+      ${(m.stages||[]).map((s,i)=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(0,117,101,.04);border:1px solid rgba(0,117,101,.1);border-radius:var(--r)">
+          <span style="width:20px;height:20px;border-radius:50%;background:var(--tl);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
+          <span style="flex:1;font-size:13px;font-weight:500">${s.name}</span>
+          <span style="font-size:11px;color:var(--t2);font-family:'DM Mono',monospace">${s.hours}s</span>
+        </div>`).join('')}
+    </div>`;
+}
+
 async function createOrder(){
   if(!selModel){toast('⚠ Məhsul seçin');return;}
   const client=document.getElementById('o-client').value.trim();
   if(!client){toast('⚠ Müştəri adını yazın');return;}
   showLoader();
   const num='SON-'+(Date.now()%100000);
-  const {error}=await sb.from('orders').insert({
-    order_number:num, model_id:selModel, created_by:currentUser.id,
-    client, qty, fabric:document.getElementById('o-fabric').value,
+  const{error}=await sb.from('orders').insert({
+    order_number:num,model_id:selModel,created_by:currentUser.id,
+    client,qty,fabric:document.getElementById('o-fabric').value,
     legs:document.getElementById('o-legs').value,
     notes:document.getElementById('o-notes').value,
     deadline:document.getElementById('o-dead').value||null,
-    status:'created', current_stage:1,
+    status:'created',current_stage:1,
   });
   hideLoader();
   if(error){toast('Xəta: '+error.message);return;}
-  toast('✓ '+num+' yaradıldı!');
+  toast('✓ '+num+' yaradıldı — pipeline başladı!');
   document.getElementById('o-client').value='';document.getElementById('o-notes').value='';
   selModel=null;qty=1;
   document.querySelectorAll('.pcard').forEach(c=>c.classList.remove('sel'));
   document.getElementById('qty-bar').style.display='none';
   document.getElementById('eta-bar').style.display='none';
+  document.getElementById('pipe-preview').innerHTML='<div style="font-size:13px;color:var(--t3);padding:20px;text-align:center">Məhsul seçin</div>';
   goTo('dash');
 }
 
-// ═══════════════════════════ DEPT / PIN ═══════════════════════════
+// ═══════════ DEPT / PIN ═══════════
 async function renderDeptPick(){
-  const {data:orders}=await sb.from('orders').select('*');
+  const{data:orders}=await sb.from('orders').select('*').in('status',['in_progress','created','late']);
   const dCnt={};
   (orders||[]).forEach(o=>{
-    if(['in_progress','created','late'].includes(o.status)){
-      const m=appModels.find(x=>x.id===o.model_id);
-      if(!m||(m.stages||[]).length===0)return;
-      const si=o.current_stage-1;
-      if(si>=0&&si<m.stages.length){const d=m.stages[si].dept;dCnt[d]=(dCnt[d]||0)+1;}
-    }
+    const m=appModels.find(x=>x.id===o.model_id);if(!m)return;
+    const stages=m.stages||[];const si=o.current_stage-1;
+    if(si>=0&&si<stages.length){const d=stages[si].dept;dCnt[d]=(dCnt[d]||0)+1;}
   });
+  const{data:pins}=await sb.from('dept_pins').select('*');
+  const pinMap={};(pins||[]).forEach(p=>pinMap[p.dept_key]=p.pin_code);
   document.getElementById('dept-grid').innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
     const cnt=dCnt[key]||0,unl=pinUnlocked[key];
-    return`<div onclick="deptCard('${key}')" style="background:var(--sf);border:2px solid ${unl?'var(--tl)':'var(--bd)'};border-radius:var(--rl);padding:14px 10px;text-align:center;cursor:pointer;transition:all .15s;position:relative" ontouchstart="">
+    return`<div onclick="deptCard('${key}','${pinMap[key]||'1234'}')" style="background:var(--sf);border:2px solid ${unl?'var(--tl)':'var(--bd)'};border-radius:var(--rl);padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative">
       ${unl?'<div style="position:absolute;top:8px;right:8px;width:18px;height:18px;background:var(--tl);border-radius:50%;color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">✓</div>':''}
-      <div style="font-size:26px;margin-bottom:6px">${info.icon}</div>
-      <div style="font-size:12px;font-weight:600;line-height:1.3">${info.name}</div>
-      <div style="font-size:11px;margin-top:5px;color:${cnt>0?'var(--or)':'var(--t3)'};font-weight:${cnt>0?'600':'400'}">${cnt>0?cnt+' tapşırıq':'Boş'}</div>
+      <div style="font-size:28px;margin-bottom:8px">${info.icon}</div>
+      <div style="font-size:12px;font-weight:600;line-height:1.4">${info.name}</div>
+      <div style="font-size:11px;margin-top:6px;color:${cnt>0?'var(--or)':'var(--t3)'};font-weight:${cnt>0?'600':'400'}">${cnt>0?cnt+' tapşırıq':'Boş'}</div>
     </div>`;
   }).join('');
   showDV('dept-pick');
 }
 
-async function deptCard(dept){
+function deptCard(dept,pin){
   if(pinUnlocked[dept]){showDeptTasks(dept);}
-  else{
-    const {data:pin}=await sb.from('dept_pins').select('pin_code').eq('dept_key',dept).single();
-    openPin(dept, pin?pin.pin_code:'1234');
-  }
+  else{openPin(dept,pin);}
 }
 
-let currentPinCode='';
 function openPin(dept,code){
-  pinDept=dept;pinBuf='';currentPinCode=code;
+  pinDept=dept;pinBuf='';curPinCode=code;
   const info=DEPT_INFO[dept];
   document.getElementById('pin-icon').textContent=info.icon;
   document.getElementById('pin-dname').textContent=info.name;
   document.getElementById('pin-err').textContent='';
   updDots();showDV('dept-pin');
 }
-function backDept(){showDV('dept-pick');}
+
 function pp(d){if(pinBuf.length>=4)return;pinBuf+=d;updDots();if(pinBuf.length===4)setTimeout(chkPin,120);}
 function pd(){pinBuf=pinBuf.slice(0,-1);updDots();document.getElementById('pin-err').textContent='';}
 function updDots(){document.querySelectorAll('.pdot').forEach((dot,i)=>{dot.classList.remove('filled','err');if(i<pinBuf.length)dot.classList.add('filled');});}
 function chkPin(){
-  if(pinBuf===currentPinCode){
+  if(pinBuf===curPinCode){
     pinUnlocked[pinDept]=true;
     document.querySelectorAll('.pdot').forEach(d=>d.classList.add('filled'));
     setTimeout(()=>showDeptTasks(pinDept),200);
-  } else {
+  }else{
     document.querySelectorAll('.pdot').forEach(d=>d.classList.add('err'));
     document.getElementById('pin-err').textContent='PIN yanlışdır';
     setTimeout(()=>{pinBuf='';updDots();},700);
@@ -754,7 +999,7 @@ async function showDeptTasks(dept){
 function lockDept(){
   if(pinDept)pinUnlocked[pinDept]=false;
   pinDept=null;pinBuf='';
-  showDV('dept-pick');renderDeptPick();
+  renderDeptPick();
 }
 
 function showDV(v){
@@ -766,30 +1011,34 @@ function showDV(v){
 
 async function renderDeptTasks(dept){
   showLoader();
-  const {data:orders}=await sb.from('orders').select('*').in('status',['in_progress','created','late']);
+  const{data:orders}=await sb.from('orders').select('*').in('status',['in_progress','created','late']);
   hideLoader();
   const tasks=[];
   (orders||[]).forEach(o=>{
     const m=appModels.find(x=>x.id===o.model_id);if(!m)return;
-    const stages=m.stages||[];
-    const si=o.current_stage-1;
+    const stages=m.stages||[];const si=o.current_stage-1;
     if(si>=0&&si<stages.length&&stages[si].dept===dept)
       tasks.push({o,m,s:stages[si],si:o.current_stage});
   });
   document.getElementById('dt-cnt').textContent=tasks.length;
   const tl=document.getElementById('dept-task-list');
   if(!tasks.length){
-    tl.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3)"><div style="font-size:44px;margin-bottom:10px">✅</div><div style="font-weight:600;color:var(--tl)">Bu şöbədə aktiv iş yoxdur</div></div>`;
+    tl.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:48px;margin-bottom:12px">✅</div><div style="font-weight:600;color:var(--tl);font-size:16px">Bu şöbədə aktiv iş yoxdur</div><div style="font-size:13px;margin-top:6px">Növbəti tapşırıq gəldikdə avtomatik görünəcək</div></div>`;
     return;
   }
   const dws=appWorkers.filter(w=>w.dept_key===dept);
   tl.innerHTML=tasks.map(({o,m,s,si})=>{
     const key=`ts_${o.id}_${si}`;
-    const started=localStorage.getItem(key+'_s'),done=localStorage.getItem(key+'_d');
+    const started=localStorage.getItem(key+'_s');
+    const done=localStorage.getItem(key+'_d');
+    const startTime=localStorage.getItem(key+'_t');
     const dots=(m.stages||[]).map((_,i)=>`<div class="sdot${i+1<si?' done':i+1===si?' cur':''}"></div>`).join('');
     let stCls='ts-idle',stTxt='Başlamaq üçün "Başla" basın';
-    if(done){stCls='ts-done';stTxt='✓ Tamamlandı';}
-    else if(started){stCls='ts-go';stTxt='⏱ İcra olunur...';}
+    if(done){
+      const doneTime=localStorage.getItem(key+'_dt');
+      const durMin=startTime&&doneTime?Math.round((new Date(doneTime)-new Date(startTime))/60000):null;
+      stCls='ts-done';stTxt='✓ Tamamlandı'+(durMin?' ('+fmtTime(durMin)+')':'');
+    }else if(started){stCls='ts-go';stTxt='⏱ İcra olunur...';}
     const isLate=o.status==='late';
     const wHtml=dws.length?`<div class="wchips">${dws.map(w=>{
       const ini=w.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
@@ -806,7 +1055,7 @@ async function renderDeptTasks(dept){
         <div class="task-meta">
           <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v">${o.client}</div></div>
           <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-size:20px;font-weight:700">${o.qty}</div></div>
-          <div class="tm-i"><div class="tm-k">Müddət</div><div class="tm-v">${s.hours} saat</div></div>
+          <div class="tm-i"><div class="tm-k">Müddət (plan)</div><div class="tm-v">${s.hours} saat</div></div>
           <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v" style="${isLate?'color:#E24B4A':''};font-size:13px">${o.deadline||'—'}</div></div>
         </div>
         ${wHtml}
@@ -821,31 +1070,41 @@ async function renderDeptTasks(dept){
 }
 
 function dStart(oid,si,key,dept){
+  const now=new Date().toISOString();
   localStorage.setItem(key+'_s','1');
+  localStorage.setItem(key+'_t',now);
   const el=document.getElementById('ts-'+oid);
   if(el){el.className='ts-box ts-go';el.textContent='⏱ İcra olunur...';}
   document.querySelectorAll(`[onclick*="dStart('${oid}"]`).forEach(b=>b.disabled=true);
   const db=document.getElementById('td-'+oid);if(db)db.disabled=false;
-  toast('▶ Başladı');
+  // Log to Supabase
+  sb.from('task_logs').insert({order_id:oid,stage_index:parseInt(si),worker_id:currentUser.id,action:'started',started_at:now}).then();
+  toast('▶ Başladı — vaxt sayılır');
 }
 
 async function dDone(oid,si,key,dept,totalStages){
+  const now=new Date().toISOString();
+  const startTime=localStorage.getItem(key+'_t');
+  const durMin=startTime?Math.round((new Date(now)-new Date(startTime))/60000):null;
   localStorage.setItem(key+'_d','1');
+  localStorage.setItem(key+'_dt',now);
   const newStage=parseInt(si)+1;
   const newStatus=newStage>parseInt(totalStages)?'ready':'in_progress';
-  await sb.from('orders').update({current_stage:newStage,status:newStatus}).eq('id',oid);
-  await sb.from('task_logs').insert({order_id:oid,stage_index:parseInt(si),worker_id:currentUser.id,action:'completed'});
+  await Promise.all([
+    sb.from('orders').update({current_stage:newStage,status:newStatus}).eq('id',oid),
+    sb.from('task_logs').upsert({order_id:oid,stage_index:parseInt(si),worker_id:currentUser.id,action:'completed',completed_at:now,duration_minutes:durMin},{onConflict:'order_id,stage_index'}),
+  ]);
   const el=document.getElementById('ts-'+oid);
-  if(el){el.className='ts-box ts-done';el.textContent='✓ Tamamlandı!';}
+  if(el){el.className='ts-box ts-done';el.textContent='✓ Tamamlandı'+(durMin?' ('+fmtTime(durMin)+')':'');}
   const db=document.getElementById('td-'+oid);if(db)db.disabled=true;
   toast('✅ Tamamlandı!');
   setTimeout(()=>renderDeptTasks(dept),900);
 }
 
-// ═══════════════════════════ LOGISTICS ═══════════════════════════
+// ═══════════ LOGISTICS ═══════════
 async function renderLogi(){
   showLoader();
-  const {data:orders}=await sb.from('orders').select('*').in('status',['ready','delivering','delivered']);
+  const{data:orders}=await sb.from('orders').select('*').in('status',['ready','delivering','delivered']);
   hideLoader();
   const all=orders||[];
   document.getElementById('l-rdy').textContent=all.filter(o=>o.status==='ready').length;
@@ -853,14 +1112,14 @@ async function renderLogi(){
   document.getElementById('l-dv').textContent=all.filter(o=>o.status==='delivered').length;
   const items=all.filter(o=>['ready','delivering'].includes(o.status));
   const el=document.getElementById('logi-list');
-  if(!items.length){el.innerHTML='<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Hazır sifariş yoxdur</div>';return;}
+  if(!items.length){el.innerHTML='<div style="padding:24px;text-align:center;color:var(--t3)">Hazır sifariş yoxdur</div>';return;}
   el.innerHTML=items.map(o=>{
     const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
     const isTr=o.status==='delivering';
     return`<div class="list-item">
       <div class="li-icon" style="background:${isTr?'var(--lo)':'var(--lt)'}">${isTr?'🚛':'📦'}</div>
       <div class="li-body">
-        <div class="li-title">${o.client} <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--tl)">${o.order_number}</span></div>
+        <div class="li-title">${o.client} <span class="mono">${o.order_number}</span></div>
         <div class="li-sub">${m.name.split('—')[0].trim()} · ${o.qty} ədəd · ${o.deadline||''}</div>
       </div>
       <div class="li-right">
@@ -881,20 +1140,189 @@ async function markDel(id){
   toast('✅ Təslim edildi!');renderLogi();
 }
 
-// ═══════════════════════════ ADMIN ═══════════════════════════
-async function renderAdmin(){
-  const [{data:users},{data:models},{data:workers}] = await Promise.all([
-    sb.from('users').select('*'),
-    sb.from('models').select('*'),
-    sb.from('workers').select('*'),
+// ═══════════ AI ANALİZ ═══════════
+async function renderAI(){
+  showLoader();
+  const [{data:orders},{data:logs}]=await Promise.all([
+    sb.from('orders').select('*').order('created_at',{ascending:false}),
+    sb.from('task_logs').select('*'),
   ]);
-  const au=document.getElementById('ami-u');if(au)au.textContent=(users||[]).length+' nəfər';
-  const am=document.getElementById('ami-m');if(am)am.textContent=(models||[]).length+' model';
-  const aw=document.getElementById('ami-w');if(aw)aw.textContent=(workers||[]).length+' işçi';
+  hideLoader();
+  const all=orders||[];
+  const allLogs=logs||[];
+
+  // Stats
+  const delivered=all.filter(o=>o.status==='delivered');
+  const avgHours=delivered.length?
+    (allLogs.filter(l=>l.duration_minutes).reduce((s,l)=>s+l.duration_minutes,0)/60/Math.max(delivered.length,1)).toFixed(1):0;
+  const late=all.filter(o=>o.status==='late').length;
+  document.getElementById('stat-grid').innerHTML=`
+    <div class="stat-card"><div class="stat-label">ÜMUMI SİFARİŞ</div><div class="stat-value">${all.length}</div><div class="stat-sub">bütün vaxt</div></div>
+    <div class="stat-card"><div class="stat-label">ORT. İSTEHSAL</div><div class="stat-value">${avgHours}s</div><div class="stat-sub">hər sifariş üçün</div></div>
+    <div class="stat-card"><div class="stat-label">GECİKMƏ FAIZI</div><div class="stat-value" style="color:${late>0?'#E24B4A':'var(--tl)'}">${all.length?Math.round(late/all.length*100):0}%</div><div class="stat-sub">${late} sifariş gecikir</div></div>`;
+
+  // Dept performance from logs
+  const deptStats={};
+  allLogs.filter(l=>l.duration_minutes).forEach(l=>{
+    // find dept from order
+    const o=all.find(x=>x.id===l.order_id);
+    if(!o)return;
+    const m=appModels.find(x=>x.id===o.model_id);
+    if(!m||!m.stages)return;
+    const stage=m.stages[l.stage_index-1];
+    if(!stage)return;
+    const d=stage.dept;
+    if(!deptStats[d])deptStats[d]={total:0,count:0,planned:0};
+    deptStats[d].total+=l.duration_minutes;
+    deptStats[d].count++;
+    deptStats[d].planned+=stage.hours*60;
+  });
+  const perfHtml=Object.entries(deptStats).map(([dept,stats])=>{
+    const info=DEPT_INFO[dept]||{name:dept,icon:'🔧'};
+    const avg=stats.count?stats.total/stats.count:0;
+    const planned=stats.count?stats.planned/stats.count:0;
+    const eff=planned?Math.round(planned/Math.max(avg,1)*100):100;
+    const color=eff>=90?'var(--tl)':eff>=70?'var(--or)':'#E24B4A';
+    return`<div class="perf-bar-wrap">
+      <div class="perf-bar-label">
+        <span>${info.icon} ${info.name} <span style="color:var(--t3);font-size:11px">(${stats.count} tapşırıq)</span></span>
+        <span style="font-weight:600;color:${color}">${eff}% effektiv · ort. ${fmtTime(avg)}</span>
+      </div>
+      <div class="perf-bar-track"><div class="perf-bar-fill" style="width:${Math.min(eff,100)}%;background:${color}"></div></div>
+    </div>`;
+  }).join('');
+  document.getElementById('dept-perf').innerHTML=perfHtml||'<div style="padding:16px;color:var(--t3);font-size:13px">Məlumat yoxdur — tapşırıqlar tamamlandıqca statistika görünəcək</div>';
+
+  // Order stats table
+  const sortedOrders=all.filter(o=>o.status==='delivered').slice(0,10);
+  const orderLogsMap={};
+  allLogs.forEach(l=>{
+    if(!orderLogsMap[l.order_id])orderLogsMap[l.order_id]=0;
+    if(l.duration_minutes)orderLogsMap[l.order_id]+=l.duration_minutes;
+  });
+  document.getElementById('order-stats').innerHTML=sortedOrders.length?`
+    <table><thead><tr><th>Sifariş</th><th>Müştəri</th><th>Model</th><th>Ümumi vaxt</th><th>Status</th></tr></thead>
+    <tbody>${sortedOrders.map(o=>{
+      const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
+      const dur=orderLogsMap[o.id];
+      return`<tr><td><span class="mono">${o.order_number}</span></td><td>${o.client}</td><td>${m.emoji} ${m.name.split('—')[0].trim()}</td><td style="font-weight:600;color:var(--tl)">${dur?fmtTime(dur):'—'}</td><td><span class="badge bGN">Təslim</span></td></tr>`;
+    }).join('')}</tbody></table>`
+    :'<div style="padding:16px;color:var(--t3);font-size:13px">Hələ tamamlanmış sifariş yoxdur</div>';
+
+  // Auto insights
+  generateInsights(all,allLogs,deptStats);
+
+  // Init chat
+  if(!aiHistory.length){
+    document.getElementById('ai-chat-history').innerHTML='<div style="font-size:13px;color:var(--t3);text-align:center;padding:20px">Sual verin — AI analiz edəcək</div>';
+  }
+}
+
+function generateInsights(orders,logs,deptStats){
+  const insights=[];
+  const late=orders.filter(o=>o.status==='late');
+  if(late.length>0){
+    insights.push({type:'critical',title:`${late.length} sifariş gecikir`,body:`${late.map(o=>o.order_number).join(', ')} — dərhal müdaxilə tələb olunur.`});
+  }
+  // Find slowest dept
+  let slowest=null,slowestRatio=0;
+  Object.entries(deptStats).forEach(([dept,s])=>{
+    if(s.count<2)return;
+    const avg=s.total/s.count,plan=s.planned/s.count;
+    const ratio=avg/Math.max(plan,1);
+    if(ratio>slowestRatio){slowestRatio=ratio;slowest={dept,avg,plan,ratio};}
+  });
+  if(slowest&&slowest.ratio>1.2){
+    const info=DEPT_INFO[slowest.dept]||{name:slowest.dept,icon:'🔧'};
+    insights.push({type:'warning',title:`${info.icon} ${info.name} — ləngimə var`,body:`Planlaşdırılan: ${fmtTime(slowest.plan)}, Ortalama real: ${fmtTime(slowest.avg)}. ${Math.round((slowest.ratio-1)*100)}% gecikmə.`});
+  }
+  const inProgress=orders.filter(o=>o.status==='in_progress').length;
+  if(inProgress>5){
+    insights.push({type:'info',title:`${inProgress} sifariş eyni anda istehsalda`,body:'Yük artıqdır. Yeni sifariş qəbulunu gecikdirmək tövsiyə olunur.'});
+  }
+  if(!insights.length){
+    insights.push({type:'info',title:'Sistem normal işləyir',body:'Kritik problem aşkar edilmədi. Performans göstəriciləri qənaətbəxşdir.'});
+  }
+  document.getElementById('ai-insights').innerHTML=insights.map(ins=>`
+    <div class="ai-card">
+      <div class="ai-card-head">
+        <h3>${ins.title}</h3>
+        <span class="ai-tag ${ins.type}">${ins.type==='critical'?'KRİTİK':ins.type==='warning'?'XƏBƏRDARLIQ':'MƏLUMAT'}</span>
+      </div>
+      <div class="ai-card-body">${ins.body}</div>
+    </div>`).join('');
+}
+
+async function sendAI(){
+  const input=document.getElementById('ai-input');
+  const msg=input.value.trim();
+  if(!msg)return;
+  input.value='';
+  const btn=document.getElementById('ai-send-btn');
+  btn.disabled=true;
+
+  // Add user message
+  aiHistory.push({role:'user',content:msg});
+  const hist=document.getElementById('ai-chat-history');
+  hist.innerHTML+=`<div style="background:var(--lt);border-radius:var(--rl);padding:10px 14px;font-size:13px;margin-bottom:8px;color:var(--dp)"><b>Siz:</b> ${msg}</div>`;
+  hist.innerHTML+=`<div class="ai-typing" id="ai-typing"><span></span><span></span><span></span></div>`;
+  hist.scrollTop=hist.scrollHeight;
+
+  // Get context
+  const{data:orders}=await sb.from('orders').select('*');
+  const{data:logs}=await sb.from('task_logs').select('*');
+  const all=orders||[];
+  const context=`Sonno mebel fabriki istehsal sistemi məlumatları:
+Cari sifarişlər: ${all.length} ədəd
+Aktiv: ${all.filter(o=>['in_progress','created'].includes(o.status)).length}
+Gecikən: ${all.filter(o=>o.status==='late').length}
+Hazır (çatdırılmağa): ${all.filter(o=>o.status==='ready').length}
+Tamamlanan: ${all.filter(o=>o.status==='delivered').length}
+Task logları: ${(logs||[]).length} ədəd
+Mövcud modellər: ${appModels.map(m=>m.name).join(', ')}
+Gecikən sifarişlər: ${all.filter(o=>o.status==='late').map(o=>o.order_number+' ('+o.client+')').join(', ')||'yoxdur'}`;
+
+  try{
+    const res=await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+OPENAI_KEY},
+      body:JSON.stringify({
+        model:'gpt-4o-mini',
+        max_tokens:500,
+        messages:[
+          {role:'system',content:'Sən Sonno mebel fabrikinin istehsal analitiki köməkçisisən. Azərbaycan dilində qısa, praktik cavablar ver. Məlumatları analiz edib konkret tövsiyələr ver.'},
+          {role:'user',content:context+'\n\nSual: '+msg},
+          ...aiHistory.slice(-4),
+        ],
+      }),
+    });
+    const data=await res.json();
+    const reply=data.choices?.[0]?.message?.content||'Cavab alınmadı';
+    aiHistory.push({role:'assistant',content:reply});
+    document.getElementById('ai-typing').remove();
+    hist.innerHTML+=`<div class="ai-chat-bubble"><b style="color:var(--tl)">AI:</b> ${reply}</div>`;
+    hist.scrollTop=hist.scrollHeight;
+  }catch(e){
+    document.getElementById('ai-typing')?.remove();
+    hist.innerHTML+=`<div style="color:#E24B4A;font-size:13px;padding:8px">Xəta: ${e.message}</div>`;
+  }
+  btn.disabled=false;input.focus();
+}
+
+// ═══════════ ADMIN ═══════════
+async function renderAdmin(){
+  const[{data:users},{data:models},{data:workers}]=await Promise.all([
+    sb.from('users').select('count'),
+    sb.from('models').select('count'),
+    sb.from('workers').select('count'),
+  ]);
+  const uc=document.getElementById('ami-u');if(uc)uc.textContent=(users?.length||0)+' nəfər';
+  const mc=document.getElementById('ami-m');if(mc)mc.textContent=(models?.length||0)+' model';
+  const wc=document.getElementById('ami-w');if(wc)wc.textContent=(workers?.length||0)+' işçi';
 }
 
 async function adminSec(sec){
-  const el=document.getElementById('admin-sec-content');
+  const el=document.getElementById('admin-sec');
   if(sec==='users') await renderUsersSection(el);
   if(sec==='pins') await renderPinsSection(el);
   if(sec==='models') await renderModelsSection(el);
@@ -903,7 +1331,7 @@ async function adminSec(sec){
 
 async function renderUsersSection(el){
   showLoader();
-  const {data:users}=await sb.from('users').select('*').order('created_at');
+  const{data:users}=await sb.from('users').select('*').order('created_at');
   hideLoader();
   const rL={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
   const rC={admin:'role-admin',manager:'role-manager',logistics:'role-logistics',dept:'role-dept'};
@@ -929,8 +1357,8 @@ async function renderUsersSection(el){
 }
 
 async function renderPinsSection(el){
-  const {data:pins}=await sb.from('dept_pins').select('*');
-  const pinMap={};(pins||[]).forEach(p=>pinMap[p.dept_key]=p.pin_code);
+  const{data:pins}=await sb.from('dept_pins').select('*');
+  const pm={};(pins||[]).forEach(p=>pm[p.dept_key]=p.pin_code);
   el.innerHTML=`
     <div class="slbl">Şöbə PIN kodları</div>
     <div class="sec-card card-pad">
@@ -939,7 +1367,7 @@ async function renderPinsSection(el){
         <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(17,24,32,.06)">
           <span style="font-size:18px">${info.icon}</span>
           <span style="flex:1;font-size:13px;font-weight:500">${info.name}</span>
-          <input type="text" maxlength="4" value="${pinMap[key]||'1234'}" id="pi-${key}"
+          <input type="text" maxlength="4" value="${pm[key]||'1234'}" id="pi-${key}"
             style="width:72px;font-family:'DM Mono',monospace;font-size:16px;font-weight:700;letter-spacing:.2em;text-align:center;padding:6px 4px;border:1px solid var(--bd);border-radius:8px"
             oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)">
           <button onclick="savePinChg('${key}')" style="border:none;background:var(--lt);color:var(--tl);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit">Saxla</button>
@@ -951,23 +1379,32 @@ async function savePinChg(key){
   const v=document.getElementById('pi-'+key).value;
   if(v.length!==4){toast('⚠ 4 rəqəm lazımdır');return;}
   await sb.from('dept_pins').upsert({dept_key:key,pin_code:v,updated_at:new Date().toISOString()});
-  toast('✓ PIN dəyişdirildi: '+DEPT_INFO[key].name);
+  toast('✓ PIN dəyişdirildi');
 }
 
 async function renderModelsSection(el){
-  const {data:models}=await sb.from('models').select('*');
+  const{data:models}=await sb.from('models').select('*');
   el.innerHTML=`
-    <div class="slbl">Modellər</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="slbl" style="margin:0">Modellər</div>
+      <button class="btn btn-t" style="font-size:12px;padding:8px 14px" onclick="openAddModel()">+ Yeni model</button>
+    </div>
     <div class="sec-card">${(models||[]).map(m=>`
       <div class="list-item">
         <div class="li-icon" style="background:var(--lt);font-size:22px">${m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:10px">`:m.emoji}</div>
-        <div class="li-body"><div class="li-title">${m.name}</div><div class="li-sub">${(m.stages||[]).length} mərhələ · ${m.total_hours}s</div></div>
+        <div class="li-body">
+          <div class="li-title">${m.name}</div>
+          <div class="li-sub">${(m.stages||[]).length} mərhələ · ${m.total_hours}s · ${m.description||''}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="editModel('${m.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:var(--tl);font-family:inherit;padding:3px 8px;border-radius:6px">Düzəlt</button>
+        </div>
       </div>`).join('')}
     </div>`;
 }
 
 async function renderWorkersSection(el){
-  const {data:workers}=await sb.from('workers').select('*');
+  const{data:workers}=await sb.from('workers').select('*');
   const byDept={};
   (workers||[]).forEach(w=>{if(!byDept[w.dept_key])byDept[w.dept_key]=[];byDept[w.dept_key].push(w);});
   el.innerHTML=`
@@ -987,7 +1424,128 @@ async function renderWorkersSection(el){
     }).join('')}`;
 }
 
-// ═══════════════════════════ USER MANAGEMENT ═══════════════════════════
+// ═══════════ MODEL MANAGEMENT ═══════════
+function openAddModel(){
+  editingModelId=null; modelEmoji='🛋️'; modelImgData=null;
+  document.getElementById('am-title').textContent='Yeni model';
+  document.getElementById('am-name').value='';
+  document.getElementById('am-desc').value='';
+  document.getElementById('am-prev').innerHTML='🛋️';
+  renderDeptChecklist([]);
+  openSheet('add-model');
+}
+
+async function editModel(id){
+  showLoader();
+  const{data:m}=await sb.from('models').select('*').eq('id',id).single();
+  hideLoader();if(!m)return;
+  editingModelId=id; modelEmoji=m.emoji||'🛋️'; modelImgData=m.img_url||null;
+  document.getElementById('am-title').textContent='Modeli düzəlt';
+  document.getElementById('am-name').value=m.name;
+  document.getElementById('am-desc').value=m.description||'';
+  const prev=document.getElementById('am-prev');
+  if(m.img_url)prev.innerHTML=`<img src="${m.img_url}" style="width:80px;height:64px;object-fit:cover;border-radius:var(--r)">`;
+  else prev.innerHTML=m.emoji||'🛋️';
+  const selectedKeys=(m.stages||[]).map(s=>s.dept);
+  renderDeptChecklist(selectedKeys);
+  openSheet('add-model');
+}
+
+function setEmoji(e){
+  modelEmoji=e; modelImgData=null;
+  document.getElementById('am-prev').innerHTML=e;
+}
+
+function previewImg(input){
+  if(!input.files[0])return;
+  const r=new FileReader();
+  r.onload=e=>{
+    modelImgData=e.target.result;
+    document.getElementById('am-prev').innerHTML=`<img src="${modelImgData}" style="width:80px;height:64px;object-fit:cover;border-radius:var(--r)">`;
+  };
+  r.readAsDataURL(input.files[0]);
+}
+
+function renderDeptChecklist(selectedKeys){
+  const cl=document.getElementById('dept-check-list');
+  if(!cl)return;
+  cl.innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
+    const checked=selectedKeys.includes(key);
+    const idx=selectedKeys.indexOf(key);
+    return`<label class="dept-check-item${checked?' checked':''}" id="dci-${key}">
+      <input type="checkbox" data-key="${key}" ${checked?'checked':''} onchange="onDeptChk(this)">
+      <span style="font-size:16px">${info.icon}</span>
+      <span style="flex:1;font-size:13px;font-weight:${checked?'500':'400'}">${info.name}</span>
+      <span style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${info.hours}s</span>
+      <span class="dept-check-num">${checked?idx+1:''}</span>
+    </label>`;
+  }).join('');
+  updateStageOrder(selectedKeys);
+}
+
+function onDeptChk(cb){
+  const selected=getSelDeptKeys();
+  renderDeptChecklist(selected);
+}
+
+function getSelDeptKeys(){
+  return Array.from(document.querySelectorAll('#dept-check-list input:checked')).map(cb=>cb.dataset.key);
+}
+
+function updateStageOrder(keys){
+  const wrap=document.getElementById('stage-order-wrap');
+  const list=document.getElementById('stage-order-list');
+  if(!wrap||!list)return;
+  if(!keys.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  list.innerHTML=keys.map((k,i)=>{
+    const d=DEPT_INFO[k];if(!d)return'';
+    return`<div class="stage-order-item">
+      <span class="so-num">${i+1}</span>
+      <span style="font-size:14px">${d.icon}</span>
+      <span style="flex:1;font-size:13px;font-weight:500">${d.name}</span>
+      <span style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${d.hours}s</span>
+      <button class="so-move" onclick="moveStage('${k}',-1)" ${i===0?'disabled':''}>↑</button>
+      <button class="so-move" onclick="moveStage('${k}',1)" ${i===keys.length-1?'disabled':''}>↓</button>
+    </div>`;
+  }).join('');
+}
+
+function moveStage(key,dir){
+  const keys=getSelDeptKeys();
+  const i=keys.indexOf(key);if(i<0)return;
+  const ni=i+dir;if(ni<0||ni>=keys.length)return;
+  [keys[i],keys[ni]]=[keys[ni],keys[i]];
+  // Reorder checkboxes by unchecking all and re-rendering
+  renderDeptChecklist(keys);
+}
+
+async function saveModel(){
+  const name=document.getElementById('am-name').value.trim();
+  if(!name){toast('⚠ Model adını yazın');return;}
+  const keys=getSelDeptKeys();
+  if(!keys.length){toast('⚠ Ən azı bir şöbə seçin');return;}
+  const stages=keys.map(k=>{const d=DEPT_INFO[k];return{name:d.name,dept:k,hours:d.hours};});
+  const totalHours=stages.reduce((s,x)=>s+x.hours,0);
+  showLoader();
+  if(editingModelId){
+    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours};
+    if(modelImgData&&modelImgData.startsWith('data:'))upd.img_url=modelImgData;
+    await sb.from('models').update(upd).eq('id',editingModelId);
+    toast('✓ Model yeniləndi: '+name);
+  }else{
+    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:modelImgData&&modelImgData.startsWith('data:')?modelImgData:null,stages,total_hours:totalHours,is_active:true});
+    toast('✓ Model əlavə edildi: '+name);
+  }
+  hideLoader();
+  closeSheet('add-model');
+  // Refresh models
+  const{data}=await sb.from('models').select('*').eq('is_active',true);
+  appModels=data||[];
+  adminSec('models');
+}
+
+// ═══════════ USER MANAGEMENT ═══════════
 function openAddUser(){
   editingUserId=null;
   document.getElementById('au-title').textContent='Yeni istifadəçi';
@@ -1000,7 +1558,7 @@ function openAddUser(){
 
 async function editUser(id){
   showLoader();
-  const {data:u}=await sb.from('users').select('*').eq('id',id).single();
+  const{data:u}=await sb.from('users').select('*').eq('id',id).single();
   hideLoader();if(!u)return;
   editingUserId=id;
   document.getElementById('au-title').textContent='İstifadəçini düzəlt';
@@ -1025,21 +1583,19 @@ function updatePermUI(customPerms){
     const active=perms.includes(p.key);
     return`<div class="perm-row">
       <div><div class="perm-label">${p.label}</div><div class="perm-sub">${p.sub}</div></div>
-      <button class="toggle ${active?'on':'off'}" id="pt-${p.key}" onclick="tglPerm('${p.key}')"></button>
+      <button class="toggle ${active?'on':'off'}" id="pt-${p.key}" onclick="tglP('${p.key}')"></button>
     </div>`;
   }).join('');
 }
 
-function tglPerm(key){
-  const btn=document.getElementById('pt-'+key);
-  const isOn=btn.classList.contains('on');
-  btn.classList.toggle('on',!isOn);btn.classList.toggle('off',isOn);
+function tglP(key){
+  const b=document.getElementById('pt-'+key);
+  const on=b.classList.contains('on');
+  b.classList.toggle('on',!on);b.classList.toggle('off',on);
 }
 
 function getSelPerms(){
-  return ALL_PERMS.filter(p=>{
-    const b=document.getElementById('pt-'+p.key);return b&&b.classList.contains('on');
-  }).map(p=>p.key);
+  return ALL_PERMS.filter(p=>{const b=document.getElementById('pt-'+p.key);return b&&b.classList.contains('on');}).map(p=>p.key);
 }
 
 async function saveUser(){
@@ -1052,18 +1608,32 @@ async function saveUser(){
   showLoader();
   if(editingUserId){
     const upd={name,username,role,perms};
-    if(password&&password.length>=4) upd.password_hash=password;
+    if(password&&password.length>=4)upd.password_hash=password;
     await sb.from('users').update(upd).eq('id',editingUserId);
-    toast('✓ Yeniləndi: '+name);
-  } else {
-    if(password.length<4){hideLoader();toast('⚠ Şifrə minimum 4 simvol');return;}
+    toast('✓ Yeniləndi');
+  }else{
+    if(password.length<4){hideLoader();toast('⚠ Şifrə min 4 simvol');return;}
     await sb.from('users').insert({name,username,password_hash:password,role,perms,is_active:true});
     toast('✓ Əlavə edildi: '+name);
   }
   hideLoader();closeSheet('add-user');adminSec('users');
 }
 
-// ═══════════════════════════ USER SHEET ═══════════════════════════
+// ═══════════ SHEET ═══════════
+function openSheet(n){
+  const ov=document.getElementById(n+'-ov');
+  const sh=document.getElementById(n+'-sheet');
+  if(ov)ov.classList.add('on');
+  if(sh)setTimeout(()=>sh.classList.add('on'),10);
+}
+function closeSheet(n){
+  const ov=document.getElementById(n+'-ov');
+  const sh=document.getElementById(n+'-sheet');
+  if(sh)sh.classList.remove('on');
+  setTimeout(()=>{if(ov)ov.classList.remove('on');},300);
+}
+
+// User sheet trigger
 function openUserSheet(){
   if(!currentUser)return;
   document.getElementById('us-name').textContent=currentUser.name;
@@ -1073,28 +1643,6 @@ function openUserSheet(){
   const pL=Object.fromEntries(ALL_PERMS.map(p=>[p.key,p.label]));
   document.getElementById('us-perms').innerHTML=(currentUser.perms||[]).map(p=>`<div>✓ ${pL[p]||p}</div>`).join('');
   openSheet('user-sheet');
-}
-
-// ═══════════════════════════ SHEET ═══════════════════════════
-function openSheet(n){
-  const ov=document.getElementById(n+'-ov')||document.getElementById(n+'-sheet-ov');
-  const sh=document.getElementById(n+'-sheet');
-  if(ov)ov.classList.add('on');
-  if(sh)setTimeout(()=>sh.classList.add('on'),10);
-}
-function closeSheet(n){
-  const ov=document.getElementById(n+'-ov')||document.getElementById(n+'-sheet-ov');
-  const sh=document.getElementById(n+'-sheet');
-  if(sh)sh.classList.remove('on');
-  setTimeout(()=>{if(ov)ov.classList.remove('on');},300);
-}
-
-// ═══════════════════════════ TOAST ═══════════════════════════
-let tT;
-function toast(msg){
-  const el=document.getElementById('toast');
-  el.textContent=msg;el.classList.add('on');
-  clearTimeout(tT);tT=setTimeout(()=>el.classList.remove('on'),3200);
 }
 </script>
 </body>
