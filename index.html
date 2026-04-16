@@ -374,10 +374,11 @@ textarea{resize:vertical;min-height:80px}
             <div class="card card-pad">
               <div class="fg2">
                 <div class="fg"><label>Müştəri şirkəti</label><input id="o-client" placeholder="Kapital Bank"></div>
-                <div class="fg"><label>Material</label><select id="o-fabric"><option>Parça A — Velvet (bej)</option><option>Parça B — Dəri (qara)</option><option>Parça C — Linen (boz)</option></select></div>
+                <div class="fg"><label>Material adı</label><input id="o-fabric" placeholder="Məs: Velvet, Dəri, Linen..."></div>
+                <div class="fg"><label>Material satan şirkət</label><input id="o-fabric-co" placeholder="Məs: Azərtekstil MMC"></div>
                 <div class="fg"><label>Rəng</label><input id="o-color" placeholder="Məs: Bej, Qara, Göy..."></div>
+                <div class="fg"><label>Ayaq rəngi / növü</label><input id="o-legs" placeholder="Məs: Qara metal, Ağ taxta..."></div>
                 <div class="fg"><label>Ölçü</label><input id="o-size" placeholder="Məs: 220x90, Standart..."></div>
-                <div class="fg"><label>Ayaq rəngi</label><select id="o-legs"><option>Qara — Pantone Black 6C</option><option>Ağ — White</option><option>Gümüşü</option></select></div>
                 <div class="fg"><label>Deadline</label><input id="o-dead" type="date"></div>
               </div>
 
@@ -977,25 +978,26 @@ async function createOrder(){
   showLoader();
   const num='SON-'+(Date.now()%100000);
   const{error}=await sb.from('orders').insert({
-    order_number:num,model_id:selModel,created_by:currentUser.id,
-    client,qty,
+    order_number:num, model_id:selModel, created_by:currentUser.id,
+    client, qty,
     fabric:document.getElementById('o-fabric').value,
+    fabric_company:document.getElementById('o-fabric-co').value,
     legs:document.getElementById('o-legs').value,
     color:document.getElementById('o-color').value,
     size:document.getElementById('o-size').value,
     notes:document.getElementById('o-notes').value,
     deadline:document.getElementById('o-dead').value||null,
-    status:'created',current_stage:1,
-    sale_price:price,
-    discount:disc,
-    final_price:total,
+    status:'created', current_stage:1,
+    sale_price:price, discount:disc, final_price:total,
   });
   hideLoader();
   if(error){toast('Xəta: '+error.message);return;}
-  toast(`✓ ${num} yaradıldı — ${total} ₼ · Pipeline başladı!`);
-  ['o-client','o-color','o-size','o-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  toast(`✓ ${num} yaradıldı — ${total?total+' ₼ · ':''}Pipeline başladı!`);
+  ['o-client','o-fabric','o-fabric-co','o-color','o-legs','o-size','o-notes'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value='';
+  });
   if(document.getElementById('o-discount'))document.getElementById('o-discount').value=0;
-  selModel=null;qty=1;
+  selModel=null; qty=1;
   document.querySelectorAll('.pcard').forEach(c=>c.classList.remove('sel'));
   document.getElementById('qty-bar').style.display='none';
   document.getElementById('eta-bar').style.display='none';
@@ -1112,13 +1114,23 @@ async function renderDeptTasks(dept){
       if(si>=0&&si<stages.length&&stages[si].dept===dept)
         tasks.push({o,m,s:stages[si],si:o.current_stage});
     });
+
+    // FIFO: deadline-a görə sırala, yalnız ilk 5-i göstər
+    tasks.sort((a,b)=>{
+      if(a.o.deadline&&b.o.deadline) return new Date(a.o.deadline)-new Date(b.o.deadline);
+      if(a.o.deadline) return -1;
+      if(b.o.deadline) return 1;
+      return new Date(a.o.created_at)-new Date(b.o.created_at);
+    });
+    const visibleTasks=tasks.slice(0,5);
+    const hiddenCount=tasks.length-visibleTasks.length;
     document.getElementById('dt-cnt').textContent=tasks.length;
     const tl=document.getElementById('dept-task-list');
-    if(!tasks.length){
+    if(!visibleTasks.length){
       tl.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:48px;margin-bottom:12px">✅</div><div style="font-weight:600;color:var(--tl);font-size:16px">Bu şöbədə aktiv iş yoxdur</div><div style="font-size:13px;margin-top:6px">Növbəti tapşırıq gəldikdə avtomatik görünəcək</div></div>`;
       return;
     }
-    tl.innerHTML=tasks.map(({o,m,s,si})=>{
+    tl.innerHTML=visibleTasks.map(({o,m,s,si})=>{
       const key=`ts_${o.id}_${si}`;
       const started=localStorage.getItem(key+'_s');
       const done=localStorage.getItem(key+'_d');
@@ -1161,9 +1173,12 @@ async function renderDeptTasks(dept){
           </div>
         </div>
       </div>`;
-    }).join('');
-
-  } else {
+    }).join('') + (hiddenCount>0 ? `
+    <div style="text-align:center;padding:16px;background:var(--lo);border-radius:var(--rl);border:1px dashed rgba(247,137,48,.3)">
+      <div style="font-size:22px;font-weight:700;color:var(--or)">${hiddenCount}</div>
+      <div style="font-size:13px;color:#854F0B;margin-top:2px">sifariş növbədə gözləyir</div>
+      <div style="font-size:11px;color:#854F0B;margin-top:4px">Yuxarıdakı sifarişlər tamamlandıqca avtomatik görünəcək</div>
+    </div>` : '');
     // TAMAMLANANLAR: bu şöbənin mərhələsini keçmiş sifarişlər
     const done=[];
     orders.forEach(o=>{
@@ -1179,12 +1194,12 @@ async function renderDeptTasks(dept){
     });
 
     document.getElementById('dt-cnt').textContent=done.length;
-    const tl=document.getElementById('dept-task-list');
+    const tl2=document.getElementById('dept-task-list');
     if(!done.length){
-      tl.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:14px">Hələ tamamlanan iş yoxdur</div></div>`;
+      tl2.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:14px">Hələ tamamlanan iş yoxdur</div></div>`;
       return;
     }
-    tl.innerHTML=done.map(({o,m,s,stageNum})=>{
+    tl2.innerHTML=done.map(({o,m,s,stageNum})=>{
       const key=`ts_${o.id}_${stageNum}`;
       const startTime=localStorage.getItem(key+'_t');
       const doneTime=localStorage.getItem(key+'_dt');
