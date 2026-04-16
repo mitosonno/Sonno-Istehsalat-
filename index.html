@@ -493,7 +493,8 @@ textarea{resize:vertical;min-height:80px}
       <!-- ADMİN -->
       <div id="sc-admin" class="sc">
         <div class="pg-hd">Admin Panel</div>
-        <div class="admin-menu">
+        <div class="admin-menu" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr))">
+          <div class="ami" onclick="adminSec('stats')"><div class="ami-icon">📊</div><div class="ami-name">Statistika</div><div class="ami-sub">Analiz & sıralama</div></div>
           <div class="ami" onclick="adminSec('users')"><div class="ami-icon">👥</div><div class="ami-name">İstifadəçilər</div><div class="ami-sub" id="ami-u">—</div></div>
           <div class="ami" onclick="adminSec('pins')"><div class="ami-icon">🔑</div><div class="ami-name">PIN Kodlar</div><div class="ami-sub">Şöbə girişi</div></div>
           <div class="ami" onclick="adminSec('models')"><div class="ami-icon">🛋️</div><div class="ami-name">Modellər</div><div class="ami-sub" id="ami-m">—</div></div>
@@ -1235,8 +1236,11 @@ function dStart(oid,si,key,dept){
   if(el){el.className='ts-box ts-go';el.textContent='⏱ İcra olunur...';}
   document.querySelectorAll(`[onclick*="dStart('${oid}"]`).forEach(b=>b.disabled=true);
   const db=document.getElementById('td-'+oid);if(db)db.disabled=false;
-  // Log to Supabase
-  sb.from('task_logs').insert({order_id:oid,stage_index:parseInt(si),worker_id:currentUser.id,action:'started',started_at:now}).then();
+  sb.from('task_logs').insert({
+    order_id:oid, stage_index:parseInt(si),
+    worker_id:currentUser.id, worker_name:currentUser.name,
+    dept_key:dept, action:'started', started_at:now
+  }).then();
   toast('▶ Başladı — vaxt sayılır');
 }
 
@@ -1250,10 +1254,18 @@ async function dDone(oid,si,key,dept,totalStages){
   const newStatus=newStage>parseInt(totalStages)?'ready':'in_progress';
   await Promise.all([
     sb.from('orders').update({current_stage:newStage,status:newStatus}).eq('id',oid),
-    sb.from('task_logs').upsert({order_id:oid,stage_index:parseInt(si),worker_id:currentUser.id,action:'completed',completed_at:now,duration_minutes:durMin},{onConflict:'order_id,stage_index'}),
+    sb.from('task_logs').upsert({
+      order_id:oid, stage_index:parseInt(si),
+      worker_id:currentUser.id, worker_name:currentUser.name,
+      dept_key:dept, action:'completed',
+      completed_at:now, duration_minutes:durMin
+    },{onConflict:'order_id,stage_index'}),
   ]);
   const el=document.getElementById('ts-'+oid);
-  if(el){el.className='ts-box ts-done';el.textContent='✓ Tamamlandı'+(durMin?' ('+fmtTime(durMin)+')':'');}
+  if(el){
+    el.className='ts-box ts-done';
+    el.textContent='✓ Tamamlandı'+(durMin?' ('+fmtTime(durMin)+')':'');
+  }
   const db=document.getElementById('td-'+oid);if(db)db.disabled=true;
   toast('✅ Tamamlandı!');
   setTimeout(()=>renderDeptTasks(dept),900);
@@ -1481,10 +1493,171 @@ async function renderAdmin(){
 
 async function adminSec(sec){
   const el=document.getElementById('admin-sec');
+  if(sec==='stats') await renderStatsSection(el);
   if(sec==='users') await renderUsersSection(el);
   if(sec==='pins') await renderPinsSection(el);
   if(sec==='models') await renderModelsSection(el);
   if(sec==='workers') await renderWorkersSection(el);
+}
+
+async function renderStatsSection(el){
+  showLoader();
+  const [{data:orders},{data:logs},{data:users}] = await Promise.all([
+    sb.from('orders').select('*'),
+    sb.from('task_logs').select('*'),
+    sb.from('users').select('*'),
+  ]);
+  hideLoader();
+
+  const allOrders = orders||[];
+  const allLogs = logs||[];
+  const allUsers = users||[];
+
+  // ── 1. Ən çox satılan model ──
+  const modelSales={};
+  allOrders.forEach(o=>{
+    if(!o.model_id)return;
+    if(!modelSales[o.model_id])modelSales[o.model_id]={qty:0,revenue:0};
+    modelSales[o.model_id].qty+=o.qty||1;
+    modelSales[o.model_id].revenue+=(o.final_price||0);
+  });
+  const topModels=Object.entries(modelSales)
+    .map(([id,s])=>{const m=appModels.find(x=>x.id===id)||{name:'?',emoji:'📦'};return{...s,name:m.name,emoji:m.emoji};})
+    .sort((a,b)=>b.qty-a.qty).slice(0,5);
+
+  // ── 2. Ən uzun istehsal alan model ──
+  const modelTime={};
+  allLogs.filter(l=>l.duration_minutes).forEach(l=>{
+    const o=allOrders.find(x=>x.id===l.order_id);if(!o||!o.model_id)return;
+    if(!modelTime[o.model_id])modelTime[o.model_id]={total:0,count:0};
+    modelTime[o.model_id].total+=l.duration_minutes;
+    modelTime[o.model_id].count++;
+  });
+  const topSlowModels=Object.entries(modelTime)
+    .map(([id,s])=>{
+      const m=appModels.find(x=>x.id===id)||{name:'?',emoji:'📦'};
+      return{name:m.name,emoji:m.emoji,avg:s.count?s.total/s.count:0};
+    })
+    .sort((a,b)=>b.avg-a.avg).slice(0,5);
+
+  // ── 3. Şöbə performansı ──
+  const deptPerf={};
+  allLogs.filter(l=>l.duration_minutes&&l.dept_key).forEach(l=>{
+    const d=l.dept_key;
+    if(!deptPerf[d])deptPerf[d]={total:0,count:0,planned:0};
+    deptPerf[d].total+=l.duration_minutes;
+    deptPerf[d].count++;
+    // find planned hours from model stage
+    const o=allOrders.find(x=>x.id===l.order_id);
+    if(o){
+      const m=appModels.find(x=>x.id===o.model_id);
+      if(m&&m.stages){
+        const stage=m.stages[l.stage_index-1];
+        if(stage)deptPerf[d].planned+=stage.hours*60;
+      }
+    }
+  });
+  const topDepts=Object.entries(deptPerf)
+    .filter(([,s])=>s.count>=1)
+    .map(([dept,s])=>{
+      const info=DEPT_INFO[dept]||{name:dept,icon:'🔧'};
+      const avg=s.total/s.count;
+      const planned=s.planned/s.count||avg;
+      const eff=Math.round(planned/Math.max(avg,1)*100);
+      return{name:info.name,icon:info.icon,avg,eff,count:s.count};
+    })
+    .sort((a,b)=>b.eff-a.eff);
+
+  // ── 4. Ən çox satış edən menecer ──
+  const mgrSales={};
+  allOrders.forEach(o=>{
+    if(!o.created_by)return;
+    if(!mgrSales[o.created_by])mgrSales[o.created_by]={qty:0,revenue:0,count:0};
+    mgrSales[o.created_by].qty+=o.qty||1;
+    mgrSales[o.created_by].revenue+=(o.final_price||0);
+    mgrSales[o.created_by].count++;
+  });
+  const topMgrs=Object.entries(mgrSales)
+    .map(([id,s])=>{const u=allUsers.find(x=>x.id===id)||{name:'?'};return{...s,name:u.name};})
+    .sort((a,b)=>b.revenue-a.revenue).slice(0,5);
+
+  // ── 5. Ən çox sifariş verən müştəri ──
+  const clientStats={};
+  allOrders.forEach(o=>{
+    if(!o.client)return;
+    if(!clientStats[o.client])clientStats[o.client]={count:0,revenue:0,qty:0};
+    clientStats[o.client].count++;
+    clientStats[o.client].revenue+=(o.final_price||0);
+    clientStats[o.client].qty+=o.qty||1;
+  });
+  const topClients=Object.entries(clientStats)
+    .map(([name,s])=>({name,...s}))
+    .sort((a,b)=>b.count-a.count).slice(0,5);
+
+  // ── RENDER ──
+  const rankList=(items,fields)=>items.length
+    ? items.map((item,i)=>`
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid rgba(17,24,32,.05)">
+        <div style="width:24px;height:24px;border-radius:50%;background:${i===0?'var(--or)':i===1?'var(--tl)':'rgba(17,24,32,.08)'};color:${i<2?'#fff':'var(--t2)'};font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
+        ${item.emoji?`<span style="font-size:18px">${item.emoji}</span>`:''}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.name}</div>
+          <div style="font-size:11px;color:var(--t2)">${fields(item)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:15px;font-weight:700;color:var(--tl)">${item._main}</div>
+        </div>
+      </div>`).join('')
+    : '<div style="padding:16px;text-align:center;color:var(--t3);font-size:13px">Məlumat yoxdur</div>';
+
+  topModels.forEach(x=>x._main=x.qty+' ədəd');
+  topSlowModels.forEach(x=>x._main=fmtTime(x.avg));
+  topDepts.forEach(x=>x._main=x.eff+'%');
+  topMgrs.forEach(x=>x._main=x.revenue?x.revenue.toFixed(0)+' ₼':'—');
+  topClients.forEach(x=>x._main=x.count+' sifariş');
+
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+      <div class="sec-card">
+        <div class="sec-card-hd"><h3>🏆 Ən çox satılan model</h3></div>
+        ${rankList(topModels,x=>`${x.qty} ədəd · ${x.revenue?x.revenue.toFixed(0)+' ₼':''}`)}
+      </div>
+
+      <div class="sec-card">
+        <div class="sec-card-hd"><h3>⏱ Ən uzun istehsal alan model</h3></div>
+        ${rankList(topSlowModels,x=>`Ortalama: ${fmtTime(x.avg)}`)}
+      </div>
+
+      <div class="sec-card">
+        <div class="sec-card-hd"><h3>⚡ Şöbə performansı (sürətli → yavaş)</h3></div>
+        ${topDepts.length ? topDepts.map((d,i)=>{
+          const color=d.eff>=90?'var(--tl)':d.eff>=70?'var(--or)':'#E24B4A';
+          return`<div style="padding:10px 16px;border-bottom:1px solid rgba(17,24,32,.05)">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+              <span style="font-size:13px;font-weight:500">${d.icon} ${d.name}</span>
+              <span style="font-size:13px;font-weight:700;color:${color}">${d.eff}% · ${fmtTime(d.avg)}</span>
+            </div>
+            <div style="height:5px;background:rgba(17,24,32,.08);border-radius:3px;overflow:hidden">
+              <div style="height:5px;width:${Math.min(d.eff,100)}%;background:${color};border-radius:3px;transition:width .5s"></div>
+            </div>
+          </div>`;
+        }).join('') : '<div style="padding:16px;text-align:center;color:var(--t3);font-size:13px">Məlumat yoxdur — tapşırıqlar tamamlandıqca görünəcək</div>'}
+      </div>
+
+      <div class="sec-card">
+        <div class="sec-card-hd"><h3>👤 Ən çox satış edən menecer</h3></div>
+        ${rankList(topMgrs,x=>`${x.count} sifariş · ${x.qty} ədəd`)}
+      </div>
+
+      <div class="sec-card" style="grid-column:1/-1">
+        <div class="sec-card-hd"><h3>🤝 Ən çox sifariş verən müştəri/partner</h3></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr">
+          ${rankList(topClients,x=>`${x.qty} ədəd · ${x.revenue?x.revenue.toFixed(0)+' ₼':''}`)}
+        </div>
+      </div>
+
+    </div>`;
 }
 
 async function renderUsersSection(el){
