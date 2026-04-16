@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#111820">
 <title>Sonno MES</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -18,75 +19,55 @@
   --safe-top:env(safe-area-inset-top,0px);
   --safe-bot:env(safe-area-inset-bottom,0px);
 }
-
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;min-height:100dvh;font-size:15px;overflow-x:hidden}
 
-/* ── LOGIN SCREEN ── */
-#login-screen{
-  position:fixed;inset:0;background:var(--dk);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:32px 24px calc(32px + var(--safe-bot));z-index:1000;
-  transition:opacity .3s,transform .3s;
-}
+/* LOGIN */
+#login-screen{position:fixed;inset:0;background:var(--dk);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px calc(32px + var(--safe-bot));z-index:1000;transition:opacity .3s,transform .3s}
 #login-screen.out{opacity:0;transform:translateY(-20px);pointer-events:none}
 .login-logo{margin-bottom:40px;text-align:center}
 .login-logo svg{width:52px;height:38px;margin-bottom:12px}
 .login-logo h1{font-size:26px;font-weight:700;color:#fff;letter-spacing:.04em}
 .login-logo p{font-size:13px;color:rgba(255,255,255,.4);margin-top:4px}
 .login-card{width:100%;max-width:360px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:var(--rl);padding:24px}
-.login-field{margin-bottom:14px}
-.login-field label{display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,.5);letter-spacing:.05em;margin-bottom:6px;text-transform:uppercase}
-.login-field input{width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:var(--r);padding:13px 14px;font-family:'DM Sans',sans-serif;font-size:15px;color:#fff;outline:none;transition:border-color .15s}
-.login-field input::placeholder{color:rgba(255,255,255,.3)}
-.login-field input:focus{border-color:var(--or)}
+.lf{margin-bottom:14px}
+.lf label{display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,.5);letter-spacing:.05em;margin-bottom:6px;text-transform:uppercase}
+.lf input{width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:var(--r);padding:13px 14px;font-family:'DM Sans',sans-serif;font-size:15px;color:#fff;outline:none;transition:border-color .15s}
+.lf input::placeholder{color:rgba(255,255,255,.3)}
+.lf input:focus{border-color:var(--or)}
 .login-err{font-size:12px;color:#F09595;text-align:center;min-height:18px;margin:8px 0}
 .login-btn{width:100%;padding:14px;background:var(--or);border:none;border-radius:var(--r);color:#fff;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .15s;margin-top:4px}
 .login-btn:active{transform:scale(.97);background:#e07820}
+.login-btn:disabled{opacity:.6;cursor:not-allowed}
 
-/* ── APP SHELL ── */
+/* APP SHELL */
 #app{display:none;flex-direction:column;min-height:100vh;min-height:100dvh}
 #app.visible{display:flex}
 
 /* TOP BAR */
-.topbar{
-  background:var(--dk);
-  padding:calc(10px + var(--safe-top)) 16px 10px;
-  display:flex;align-items:center;gap:10px;
-  position:sticky;top:0;z-index:100;flex-shrink:0;
-}
+.topbar{background:var(--dk);padding:calc(10px + var(--safe-top)) 16px 10px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;flex-shrink:0}
 .topbar-logo{display:flex;align-items:center;gap:7px}
-.topbar-logo svg{width:22px;height:16px}
 .topbar-logo span{font-size:14px;font-weight:700;color:#fff;letter-spacing:.05em}
 .topbar-logo em{font-size:10px;color:var(--or);font-family:'DM Mono',monospace;font-style:normal}
 .topbar-title{flex:1;font-size:14px;font-weight:600;color:#fff;text-align:center}
-.topbar-user{display:flex;align-items:center;gap:8px}
-.topbar-avatar{width:30px;height:30px;border-radius:50%;background:var(--or);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
+.topbar-av{width:30px;height:30px;border-radius:50%;background:var(--or);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
 .topbar-role{font-size:10px;color:rgba(255,255,255,.4);text-align:right;line-height:1.3}
 
-/* MAIN CONTENT */
+/* MAIN */
 #main-content{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px 16px calc(80px + var(--safe-bot));-webkit-overflow-scrolling:touch}
 
 /* BOTTOM NAV */
-.bottom-nav{
-  position:fixed;bottom:0;left:0;right:0;
-  background:var(--sf);border-top:1px solid var(--bd);
-  padding:8px 0 calc(8px + var(--safe-bot));
-  display:flex;z-index:100;
-}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--sf);border-top:1px solid var(--bd);padding:8px 0 calc(8px + var(--safe-bot));display:flex;z-index:100}
 .bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:6px 4px;border:none;background:none;transition:all .15s;min-width:0}
-.bnav-item svg,.bnav-item .bni{width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:20px}
-.bnav-label{font-size:10px;font-weight:500;color:var(--t3);white-space:nowrap;overflow:hidden;max-width:100%;text-overflow:ellipsis}
+.bni{font-size:20px;position:relative}
+.bnav-label{font-size:10px;font-weight:500;color:var(--t3);white-space:nowrap}
 .bnav-item.on .bnav-label{color:var(--tl)}
-.bnav-item.on .bni{position:relative}
 .bnav-item.on .bni::after{content:'';position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--tl)}
-.bnav-badge{position:absolute;top:-4px;right:-6px;background:#E24B4A;color:#fff;font-size:9px;font-weight:700;border-radius:10px;padding:1px 4px;min-width:14px;text-align:center}
 
 /* SCREENS */
 .sc{display:none}.sc.on{display:block}
 
-/* CARDS & SECTIONS */
-.pg-hd{font-size:18px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
-.pg-hd small{font-size:12px;font-weight:400;color:var(--t2)}
+/* COMMON */
+.pg-hd{font-size:18px;font-weight:700;margin-bottom:14px}
 .slbl{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--t3);margin:16px 0 8px}
 .card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden}
 .card-pad{padding:14px 16px}
@@ -101,16 +82,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-h
 .kv{font-size:28px;font-weight:700;line-height:1}
 .ks{font-size:11px;color:var(--t3);margin-top:3px}
 
-/* LIST ITEMS */
+/* LIST */
 .list-item{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid rgba(17,24,32,.05);cursor:pointer;transition:background .1s;background:var(--sf)}
 .list-item:last-child{border-bottom:none}
 .list-item:active{background:rgba(0,117,101,.04)}
 .li-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
 .li-body{flex:1;min-width:0}
 .li-title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.li-sub{font-size:12px;color:var(--t2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li-sub{font-size:12px;color:var(--t2);margin-top:1px}
 .li-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
-.li-chevron{color:var(--t3);font-size:16px}
 
 /* BADGES */
 .badge{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
@@ -121,46 +101,42 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-h
 
 /* BUTTONS */
 .btn{padding:12px 20px;border-radius:var(--r);border:none;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:7px}
-.btn:active{transform:scale(.97)}
+.btn:active{transform:scale(.97)}.btn:disabled{opacity:.35;pointer-events:none}
 .btn-t{background:var(--tl);color:#fff}.btn-t:active{background:var(--dp)}
 .btn-o{background:var(--or);color:#fff}.btn-o:active{background:#e07820}
 .btn-ln{background:transparent;border:1px solid var(--bd);color:var(--t2)}
-.btn-ln:active{background:rgba(0,0,0,.04)}
-.btn:disabled{opacity:.35;pointer-events:none}
-.btn-full{width:100%}
-.btn-lg{padding:15px 20px;font-size:15px;border-radius:14px}
+.btn-full{width:100%}.btn-lg{padding:15px 20px;font-size:15px;border-radius:14px}
 
 /* FORM */
 .fg{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
 label{font-size:12px;font-weight:600;color:var(--t2);letter-spacing:.02em}
 input,select,textarea{padding:12px 13px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:15px;background:var(--sf);color:var(--t1);outline:none;transition:border-color .15s;width:100%;-webkit-appearance:none}
-input:focus,select:focus,textarea:focus{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,101,.08)}
+input:focus,select:focus{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,101,.08)}
 
-/* SECTION CARD */
-.sec-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);margin-bottom:12px;overflow:hidden}
-.sec-card-hd{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd);background:rgba(17,24,32,.02)}
-.sec-card-hd h3{font-size:14px;font-weight:600}
+/* PRODUCT CARDS */
+.pcard{background:var(--sf);border:2px solid var(--bd);border-radius:var(--rl);overflow:hidden;cursor:pointer;transition:all .18s;position:relative;-webkit-tap-highlight-color:transparent}
+.pcard:active{transform:scale(.97)}
+.pcard.sel{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,101,.12)}
+.pcard-chk{position:absolute;top:8px;right:8px;width:22px;height:22px;background:var(--tl);color:#fff;border-radius:50%;font-size:11px;font-weight:700;display:none;align-items:center;justify-content:center}
+.pcard.sel .pcard-chk{display:flex}
+.pcard-img{width:100%;height:90px;display:flex;align-items:center;justify-content:center;font-size:40px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee)}
+.pcard-body{padding:9px 11px}
+.pcard-name{font-weight:600;font-size:13px}
+.pcard-info{font-size:11px;color:var(--t2);margin-top:2px}
+.pcard-h{font-size:10px;font-family:'DM Mono',monospace;color:var(--tl);margin-top:3px}
+.qb{width:34px;height:34px;border-radius:8px;border:1px solid rgba(0,117,101,.3);background:#fff;font-size:20px;cursor:pointer;color:var(--tl);font-weight:300;transition:all .12s;display:flex;align-items:center;justify-content:center}
+.qb:active{background:var(--tl);color:#fff}
 
-/* BOTTOM SHEET */
-.sheet-overlay{position:fixed;inset:0;background:rgba(17,24,32,.55);z-index:400;display:none;opacity:0;transition:opacity .25s}
-.sheet-overlay.on{display:block;opacity:1}
-.sheet{position:fixed;bottom:0;left:0;right:0;background:var(--sf);border-radius:20px 20px 0 0;z-index:401;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);padding:0 0 calc(20px + var(--safe-bot));max-height:92dvh;overflow-y:auto}
-.sheet.on{transform:translateY(0)}
-.sheet-handle{width:36px;height:4px;background:var(--bd);border-radius:2px;margin:12px auto 0}
-.sheet-title{font-size:16px;font-weight:700;padding:16px 20px 12px;border-bottom:1px solid var(--bd)}
-.sheet-body{padding:16px 20px}
-
-/* PIN KEYBOARD */
+/* PIN */
 .pin-dots{display:flex;justify-content:center;gap:14px;margin:24px 0}
 .pdot{width:16px;height:16px;border-radius:50%;border:2px solid var(--bd);background:transparent;transition:all .15s}
 .pdot.filled{background:var(--dk);border-color:var(--dk)}
 .pdot.err{background:#E24B4A;border-color:#E24B4A;animation:shake .35s ease}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:280px;margin:0 auto}
-.pk{background:var(--sf);border:1px solid var(--bd);border-radius:16px;font-size:24px;font-weight:500;color:var(--t1);cursor:pointer;padding:0;height:70px;font-family:'DM Sans',sans-serif;transition:all .1s;-webkit-tap-highlight-color:transparent}
+.pk{background:var(--sf);border:1px solid var(--bd);border-radius:16px;font-size:24px;font-weight:500;color:var(--t1);cursor:pointer;padding:0;height:70px;font-family:'DM Sans',sans-serif;transition:all .1s}
 .pk:active{background:var(--tl);color:#fff;border-color:var(--tl);transform:scale(.93)}
 .pk-ghost{background:transparent;border:none;pointer-events:none}
-.pk-del{font-size:20px}
 
 /* TASK CARD */
 .task-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);margin-bottom:12px;overflow:hidden}
@@ -174,106 +150,93 @@ input:focus,select:focus,textarea:focus{border-color:var(--tl);box-shadow:0 0 0 
 .tm-i{background:rgba(17,24,32,.03);border-radius:var(--r);padding:9px 11px}
 .tm-k{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);font-weight:600;margin-bottom:2px}
 .tm-v{font-size:14px;font-weight:500}
-.ts{text-align:center;padding:11px;border-radius:var(--r);font-size:13px;font-weight:500;margin:10px 0;transition:all .3s}
+.ts-box{text-align:center;padding:11px;border-radius:var(--r);font-size:13px;font-weight:500;margin:10px 0;transition:all .3s}
 .ts-idle{background:rgba(17,24,32,.04);color:var(--t2)}
 .ts-go{background:var(--lo);color:#854F0B}
 .ts-done{background:var(--lt);color:var(--dp)}
 .task-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
-
-/* WORKERS CHIPS */
-.worker-chips{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.wchips{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
 .wchip{display:flex;align-items:center;gap:5px;padding:4px 10px;background:var(--lt);border-radius:20px}
 .wchip-av{width:20px;height:20px;border-radius:50%;background:var(--tl);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center}
 .wchip span{font-size:12px;color:var(--dp);font-weight:500}
 
-/* ADMIN SECTIONS */
+/* ADMIN */
 .admin-menu{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-.admin-menu-item{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:16px;cursor:pointer;transition:all .15s;text-align:center;-webkit-tap-highlight-color:transparent}
-.admin-menu-item:active{transform:scale(.97);border-color:var(--tl)}
+.ami{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:16px;cursor:pointer;transition:all .15s;text-align:center}
+.ami:active{transform:scale(.97);border-color:var(--tl)}
 .ami-icon{font-size:28px;margin-bottom:8px}
 .ami-name{font-size:13px;font-weight:600}
 .ami-sub{font-size:11px;color:var(--t2);margin-top:3px}
-
-/* USER ROLE BADGE */
+.sec-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);margin-bottom:12px;overflow:hidden}
+.sec-card-hd{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd);background:rgba(17,24,32,.02)}
+.sec-card-hd h3{font-size:14px;font-weight:600}
 .role-pill{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
 .role-admin{background:#EEEDFE;color:#3C3489}
 .role-manager{background:var(--lo);color:#854F0B}
 .role-dept{background:var(--lt);color:var(--dp)}
 .role-logistics{background:#EAF3DE;color:#3B6D11}
-
-/* PERMISSION TOGGLES */
 .perm-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid rgba(17,24,32,.05)}
 .perm-row:last-child{border-bottom:none}
 .perm-label{font-size:13px;font-weight:500}
 .perm-sub{font-size:11px;color:var(--t2);margin-top:2px}
 .toggle{width:44px;height:26px;border-radius:13px;border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
-.toggle.off{background:rgba(17,24,32,.15)}
-.toggle.on{background:var(--tl)}
+.toggle.off{background:rgba(17,24,32,.15)}.toggle.on{background:var(--tl)}
 .toggle::after{content:'';position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
-.toggle.off::after{left:3px}
-.toggle.on::after{left:21px}
+.toggle.off::after{left:3px}.toggle.on::after{left:21px}
 
-/* TOAST */
+/* SHEET */
+.sheet-overlay{position:fixed;inset:0;background:rgba(17,24,32,.55);z-index:400;display:none;opacity:0;transition:opacity .25s}
+.sheet-overlay.on{display:block;opacity:1}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:var(--sf);border-radius:20px 20px 0 0;z-index:401;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);padding:0 0 calc(20px + var(--safe-bot));max-height:92dvh;overflow-y:auto}
+.sheet.on{transform:translateY(0)}
+.sheet-handle{width:36px;height:4px;background:var(--bd);border-radius:2px;margin:12px auto 0}
+.sheet-title{font-size:16px;font-weight:700;padding:16px 20px 12px;border-bottom:1px solid var(--bd)}
+.sheet-body{padding:16px 20px}
+
+/* TOAST & LOADER */
 #toast{position:fixed;bottom:calc(80px + var(--safe-bot) + 8px);left:16px;right:16px;background:var(--dk);color:#fff;padding:13px 16px;border-radius:var(--r);font-size:13px;font-weight:500;transform:translateY(20px);opacity:0;transition:all .28s;z-index:999;border-left:3px solid var(--or);text-align:center}
 #toast.on{transform:translateY(0);opacity:1}
-
-/* PULL TO REFRESH indicator */
-.ptr{height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--t3);transition:height .2s}
+#loader{position:fixed;inset:0;background:rgba(17,24,32,.6);z-index:2000;display:none;align-items:center;justify-content:center}
+#loader.on{display:flex}
+.spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:var(--or);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 
-<!-- ══════════════════════════
-     LOGIN
-══════════════════════════ -->
+<!-- LOGIN -->
 <div id="login-screen">
   <div class="login-logo">
     <svg viewBox="0 0 52 38" fill="none">
       <path d="M6 19Q6 6 18 6Q26 6 26 14Q26 22 18 22Q26 22 26 30Q26 38 18 38Q6 38 6 26" stroke="#F78930" stroke-width="4" stroke-linecap="round" fill="none"/>
-      <path d="M32 19 L48 19" stroke="rgba(255,255,255,.25)" stroke-width="3" stroke-linecap="round"/>
     </svg>
     <h1>SONNO MES</h1>
     <p>İstehsal İdarəetmə Sistemi</p>
   </div>
   <div class="login-card">
-    <div class="login-field">
-      <label>İstifadəçi adı</label>
-      <input id="l-user" type="text" placeholder="admin" autocomplete="username" autocapitalize="none">
-    </div>
-    <div class="login-field">
-      <label>Şifrə</label>
-      <input id="l-pass" type="password" placeholder="••••••" autocomplete="current-password">
-    </div>
+    <div class="lf"><label>İstifadəçi adı</label><input id="l-user" type="text" placeholder="admin" autocomplete="username" autocapitalize="none"></div>
+    <div class="lf"><label>Şifrə</label><input id="l-pass" type="password" placeholder="••••••" autocomplete="current-password"></div>
     <div class="login-err" id="l-err"></div>
-    <button class="login-btn" onclick="doLogin()">Daxil ol</button>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Daxil ol</button>
   </div>
 </div>
 
-<!-- ══════════════════════════
-     APP SHELL
-══════════════════════════ -->
+<!-- APP -->
 <div id="app">
-  <!-- Top Bar -->
   <div class="topbar">
     <div class="topbar-logo">
-      <svg viewBox="0 0 22 16" fill="none">
-        <path d="M2 8Q2 2 8 2Q12 2 12 6Q12 10 8 10Q12 10 12 14Q12 16 8 16Q2 16 2 12" stroke="#F78930" stroke-width="2" stroke-linecap="round" fill="none"/>
-      </svg>
+      <svg width="22" height="16" viewBox="0 0 22 16" fill="none"><path d="M2 8Q2 2 8 2Q12 2 12 6Q12 10 8 10Q12 10 12 14Q12 16 8 16Q2 16 2 12" stroke="#F78930" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
       <span>SONNO <em>MES</em></span>
     </div>
     <div class="topbar-title" id="topbar-title">Dashboard</div>
-    <div class="topbar-user">
-      <div>
-        <div id="topbar-role" class="topbar-role">—</div>
-      </div>
-      <div class="topbar-avatar" id="topbar-av" onclick="openUserSheet()">?</div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <div id="topbar-role" class="topbar-role"></div>
+      <div class="topbar-av" id="topbar-av" onclick="openUserSheet()">?</div>
     </div>
   </div>
 
-  <!-- Content -->
   <div id="main-content">
-
-    <!-- DASHBOARD (Manager görür) -->
+    <!-- DASHBOARD -->
     <div id="sc-dash" class="sc on">
       <div class="kgrid">
         <div class="kpi kT"><div class="kl">AKTİV</div><div class="kv" id="k-act">—</div><div class="ks">sifariş</div></div>
@@ -281,75 +244,45 @@ input:focus,select:focus,textarea:focus{border-color:var(--tl);box-shadow:0 0 0 
         <div class="kpi kO"><div class="kl">HAZIR</div><div class="kv" id="k-rdy" style="color:var(--or)">—</div><div class="ks">çatdırılma</div></div>
         <div class="kpi kD"><div class="kl">TƏSLİM</div><div class="kv" id="k-don">—</div><div class="ks">bu həftə</div></div>
       </div>
-
       <div class="slbl">Gecikən sifarişlər</div>
-      <div class="sec-card" id="late-orders-card"></div>
-
+      <div class="card" id="late-card"></div>
       <div class="slbl">Bütün sifarişlər</div>
-      <div class="sec-card" id="all-orders-card"></div>
+      <div class="card" id="all-card"></div>
     </div>
 
-    <!-- SİFARİŞ YARAT (Manager) -->
+    <!-- SİFARİŞ -->
     <div id="sc-order" class="sc">
       <div class="slbl" style="margin-top:0">Məhsul seçin</div>
       <div id="product-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px"></div>
-
-      <div id="qty-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:12px 14px;display:none;align-items:center;gap:12px;margin-bottom:14px">
+      <div id="qty-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:12px 14px;align-items:center;gap:12px;margin-bottom:14px">
         <span id="qty-name" style="flex:1;font-size:13px;font-weight:600;color:var(--dp)">—</span>
         <button class="qb" onclick="chQty(-1)">−</button>
         <span id="qty-num" style="font-size:22px;font-weight:700;min-width:32px;text-align:center;color:var(--tl)">1</span>
         <button class="qb" onclick="chQty(1)">+</button>
       </div>
-
-      <style>
-        .qb{width:34px;height:34px;border-radius:8px;border:1px solid rgba(0,117,101,.3);background:#fff;font-size:20px;cursor:pointer;color:var(--tl);font-weight:300;transition:all .12s;display:flex;align-items:center;justify-content:center}
-        .qb:active{background:var(--tl);color:#fff}
-        .pcard{background:var(--sf);border:2px solid var(--bd);border-radius:var(--rl);overflow:hidden;cursor:pointer;transition:all .18s;position:relative;-webkit-tap-highlight-color:transparent}
-        .pcard:active{transform:scale(.97)}
-        .pcard.sel{border-color:var(--tl);box-shadow:0 0 0 3px rgba(0,117,101,.12)}
-        .pcard-chk{position:absolute;top:8px;right:8px;width:22px;height:22px;background:var(--tl);color:#fff;border-radius:50%;font-size:11px;font-weight:700;display:none;align-items:center;justify-content:center}
-        .pcard.sel .pcard-chk{display:flex}
-        .pcard-img{width:100%;height:90px;display:flex;align-items:center;justify-content:center;font-size:40px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee)}
-        .pcard-body{padding:9px 11px}
-        .pcard-name{font-weight:600;font-size:13px}
-        .pcard-info{font-size:11px;color:var(--t2);margin-top:2px}
-        .pcard-h{font-size:10px;font-family:'DM Mono',monospace;color:var(--tl);margin-top:3px}
-      </style>
-
-      <div class="sec-card card-pad" style="margin-bottom:14px">
+      <div class="card card-pad" style="margin-bottom:14px">
         <div class="fg"><label>Müştəri</label><input id="o-client" placeholder="Şirkət adı"></div>
         <div class="fg"><label>Material</label>
-          <select id="o-fabric">
-            <option>Parça A — Velvet (bej)</option>
-            <option>Parça B — Dəri (qara)</option>
-            <option>Parça C — Linen (boz)</option>
-          </select>
+          <select id="o-fabric"><option>Parça A — Velvet (bej)</option><option>Parça B — Dəri (qara)</option><option>Parça C — Linen (boz)</option></select>
         </div>
         <div class="fg"><label>Ayaq rəngi</label>
-          <select id="o-legs">
-            <option>Qara — Pantone Black 6C</option>
-            <option>Ağ — White</option>
-            <option>Gümüşü</option>
-          </select>
+          <select id="o-legs"><option>Qara — Pantone Black 6C</option><option>Ağ — White</option><option>Gümüşü</option></select>
         </div>
         <div class="fg"><label>Deadline</label><input id="o-dead" type="date"></div>
         <div class="fg"><label>Qeydlər</label><input id="o-notes" placeholder="Xüsusi tələblər..."></div>
-
         <div id="eta-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:11px 13px;margin-bottom:12px;font-size:13px">
           <span style="color:var(--tl);font-weight:600" id="eta-txt">—</span>
         </div>
-
         <button class="btn btn-t btn-full btn-lg" onclick="createOrder()">Sifariş Yarat</button>
       </div>
     </div>
 
-    <!-- ŞÖBƏ EKRANI -->
+    <!-- ŞÖBƏ -->
     <div id="sc-dept" class="sc">
       <div id="dept-pick">
-        <p style="font-size:13px;color:var(--t2);margin-bottom:14px">Şöbənizi seçin, sonra PIN daxil edin</p>
+        <p style="font-size:13px;color:var(--t2);margin-bottom:14px">Şöbənizi seçin, PIN daxil edin</p>
         <div id="dept-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
       </div>
-
       <div id="dept-pin" style="display:none;max-width:320px;margin:0 auto;padding:8px 0">
         <button onclick="backDept()" style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--tl);padding:0;margin-bottom:20px;display:flex;align-items:center;gap:5px;font-family:inherit;font-weight:500">← Geri</button>
         <div style="text-align:center;margin-bottom:20px">
@@ -363,18 +296,17 @@ input:focus,select:focus,textarea:focus{border-color:var(--tl);box-shadow:0 0 0 
           <button class="pk" onclick="pp('1')">1</button><button class="pk" onclick="pp('2')">2</button><button class="pk" onclick="pp('3')">3</button>
           <button class="pk" onclick="pp('4')">4</button><button class="pk" onclick="pp('5')">5</button><button class="pk" onclick="pp('6')">6</button>
           <button class="pk" onclick="pp('7')">7</button><button class="pk" onclick="pp('8')">8</button><button class="pk" onclick="pp('9')">9</button>
-          <button class="pk pk-ghost"></button><button class="pk" onclick="pp('0')">0</button><button class="pk pk-del" onclick="pd()">⌫</button>
+          <button class="pk pk-ghost"></button><button class="pk" onclick="pp('0')">0</button><button class="pk" style="font-size:18px" onclick="pd()">⌫</button>
         </div>
       </div>
-
       <div id="dept-tasks" style="display:none">
-        <div id="dept-tasks-hd" style="background:var(--dk);border-radius:var(--rl);padding:13px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+        <div id="dept-hd" style="background:var(--dk);border-radius:var(--rl);padding:13px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
           <button onclick="lockDept()" style="border:none;background:rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:600">🔒 Çıxış</button>
           <div style="flex:1;text-align:center">
             <div id="dt-icon" style="font-size:18px"></div>
             <div id="dt-name" style="font-size:13px;font-weight:600;color:#fff"></div>
           </div>
-          <div style="text-align:right"><div style="font-size:10px;color:rgba(255,255,255,.4)">İŞ</div><div id="dt-count" style="font-size:22px;font-weight:700;color:var(--or)">0</div></div>
+          <div style="text-align:right"><div style="font-size:10px;color:rgba(255,255,255,.4)">İŞ</div><div id="dt-cnt" style="font-size:22px;font-weight:700;color:var(--or)">0</div></div>
         </div>
         <div id="dept-task-list"></div>
       </div>
@@ -387,68 +319,46 @@ input:focus,select:focus,textarea:focus{border-color:var(--tl);box-shadow:0 0 0 
         <div class="kpi kO"><div class="kl">YOLDA</div><div class="kv" id="l-tr" style="color:var(--or)">—</div></div>
         <div class="kpi kD"><div class="kl">TƏSLİM</div><div class="kv" id="l-dv">—</div></div>
       </div>
-      <div class="sec-card" id="logi-list"></div>
+      <div class="card" id="logi-list"></div>
     </div>
 
     <!-- ADMİN -->
     <div id="sc-admin" class="sc">
       <div class="admin-menu">
-        <div class="admin-menu-item" onclick="openAdminSection('users')">
-          <div class="ami-icon">👥</div>
-          <div class="ami-name">İstifadəçilər</div>
-          <div class="ami-sub" id="ami-users-count">—</div>
-        </div>
-        <div class="admin-menu-item" onclick="openAdminSection('pins')">
-          <div class="ami-icon">🔑</div>
-          <div class="ami-name">PIN Kodlar</div>
-          <div class="ami-sub">Şöbə girişi</div>
-        </div>
-        <div class="admin-menu-item" onclick="openAdminSection('models')">
-          <div class="ami-icon">🛋️</div>
-          <div class="ami-name">Modellər</div>
-          <div class="ami-sub" id="ami-models-count">—</div>
-        </div>
-        <div class="admin-menu-item" onclick="openAdminSection('workers')">
-          <div class="ami-icon">🧑‍🔧</div>
-          <div class="ami-name">İşçilər</div>
-          <div class="ami-sub" id="ami-workers-count">—</div>
-        </div>
+        <div class="ami" onclick="adminSec('users')"><div class="ami-icon">👥</div><div class="ami-name">İstifadəçilər</div><div class="ami-sub" id="ami-u">—</div></div>
+        <div class="ami" onclick="adminSec('pins')"><div class="ami-icon">🔑</div><div class="ami-name">PIN Kodlar</div><div class="ami-sub">Şöbə girişi</div></div>
+        <div class="ami" onclick="adminSec('models')"><div class="ami-icon">🛋️</div><div class="ami-name">Modellər</div><div class="ami-sub" id="ami-m">—</div></div>
+        <div class="ami" onclick="adminSec('workers')"><div class="ami-icon">🧑‍🔧</div><div class="ami-name">İşçilər</div><div class="ami-sub" id="ami-w">—</div></div>
       </div>
-
-      <div id="admin-section-content"></div>
+      <div id="admin-sec-content"></div>
     </div>
+  </div>
 
-  </div><!-- /main-content -->
-
-  <!-- BOTTOM NAV -->
   <nav class="bottom-nav" id="bottom-nav"></nav>
-</div><!-- /app -->
+</div>
 
 <!-- USER SHEET -->
-<div class="sheet-overlay" id="user-sheet-ov" onclick="closeUserSheet()"></div>
+<div class="sheet-overlay" id="user-sheet-ov" onclick="closeSheet('user-sheet')"></div>
 <div class="sheet" id="user-sheet">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="us-name">—</div>
   <div class="sheet-body">
-    <div style="margin-bottom:16px">
-      <div style="font-size:12px;color:var(--t2);margin-bottom:4px">Rol</div>
-      <div id="us-role-badge"></div>
-    </div>
+    <div style="margin-bottom:14px"><div style="font-size:12px;color:var(--t2);margin-bottom:6px">Rol</div><div id="us-role"></div></div>
     <div style="font-size:12px;color:var(--t2);margin-bottom:8px">İcazələr</div>
-    <div id="us-perms" style="font-size:13px;color:var(--t1);display:flex;flex-direction:column;gap:4px;margin-bottom:20px"></div>
-    <button class="btn btn-ln btn-full" onclick="doLogout()">Çıxış</button>
+    <div id="us-perms" style="font-size:13px;display:flex;flex-direction:column;gap:4px;margin-bottom:20px"></div>
+    <button class="btn btn-ln btn-full" onclick="doLogout()">Çıxış et</button>
   </div>
 </div>
 
 <!-- ADD USER SHEET -->
-<div class="sheet-overlay" id="add-user-ov" onclick="closeAddUser()"></div>
+<div class="sheet-overlay" id="add-user-ov" onclick="closeSheet('add-user')"></div>
 <div class="sheet" id="add-user-sheet">
   <div class="sheet-handle"></div>
-  <div class="sheet-title" id="au-sheet-title">Yeni istifadəçi</div>
+  <div class="sheet-title" id="au-title">Yeni istifadəçi</div>
   <div class="sheet-body">
     <div class="fg"><label>Ad Soyad</label><input id="au-name" placeholder="Cavidan İsmayılov"></div>
-    <div class="fg"><label>İstifadəçi adı (login)</label><input id="au-user" placeholder="cavidan" autocapitalize="none"></div>
-    <div class="fg"><label>Şifrə</label><input id="au-pass" type="password" placeholder="min 4 simvol"></div>
+    <div class="fg"><label>İstifadəçi adı</label><input id="au-user" placeholder="cavidan" autocapitalize="none"></div>
+    <div class="fg"><label>Şifrə</label><input id="au-pass" type="password" placeholder="minimum 4 simvol"></div>
     <div class="fg"><label>Rol</label>
       <select id="au-role" onchange="updatePermUI()">
         <option value="manager">Manager</option>
@@ -463,32 +373,44 @@ input:focus,select:focus,textarea:focus{border-color:var(--tl);box-shadow:0 0 0 
   </div>
 </div>
 
+<!-- ORDER DETAIL SHEET -->
+<div class="sheet-overlay" id="order-detail-ov" onclick="closeSheet('order-detail')"></div>
+<div class="sheet" id="order-detail-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="od-title">—</div>
+  <div class="sheet-body" id="od-body"></div>
+</div>
+
 <div id="toast"></div>
+<div id="loader"><div class="spinner"></div></div>
 
 <script>
-// ════════════════════════════════════════
-// DATA
-// ════════════════════════════════════════
+// ═══════════════════════════ SUPABASE ═══════════════════════════
+const SUPA_URL = 'https://vtnsamrkmnvbqecvcwrp.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0bnNhbXJrbW52YnFlY3Zjd3JwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMDUzNzIsImV4cCI6MjA5MTg4MTM3Mn0.rYZc1Pl64NwlduQSgXM79Fulr_V5BhwE-eQ_rQAZ4Eo';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ═══════════════════════════ CONSTANTS ═══════════════════════════
 const DEPT_INFO = {
-  hazirlik:    {name:'Hazırlıq — Kəsmə',       icon:'✂️'},
-  bez_kesim:   {name:'Bez kəsim şöbəsi',        icon:'🧶'},
-  karkaz:      {name:'Karkaz yığım şöbəsi',     icon:'🪵'},
-  shkurka:     {name:'Şkurka şöbəsi',           icon:'🔩'},
-  masa_karkaz: {name:'Masa karkaz şöbəsi',      icon:'🪚'},
-  masa_rengle: {name:'Masa rəngləmə şöbəsi',    icon:'🎨'},
-  yastiqlama:  {name:'Yastıqlama / Döşəmə',     icon:'🛋️'},
-  tikiş:       {name:'Tikiş şöbəsi',            icon:'🧵'},
-  qa:          {name:'Keyfiyyət yoxlama',        icon:'✅'},
-  logistics:   {name:'Logistika / Çatdırılma',  icon:'🚛'},
+  hazirlik:    {name:'Hazırlıq — Kəsmə',      icon:'✂️'},
+  bez_kesim:   {name:'Bez kəsim şöbəsi',       icon:'🧶'},
+  karkaz:      {name:'Karkaz yığım şöbəsi',    icon:'🪵'},
+  shkurka:     {name:'Şkurka şöbəsi',          icon:'🔩'},
+  masa_karkaz: {name:'Masa karkaz şöbəsi',     icon:'🪚'},
+  masa_rengle: {name:'Masa rəngləmə şöbəsi',   icon:'🎨'},
+  yastiqlama:  {name:'Yastıqlama / Döşəmə',    icon:'🛋️'},
+  tikiş:       {name:'Tikiş şöbəsi',           icon:'🧵'},
+  qa:          {name:'Keyfiyyət yoxlama',       icon:'✅'},
+  logistics:   {name:'Logistika / Çatdırılma', icon:'🚛'},
 };
 
 const ALL_PERMS = [
-  {key:'dashboard',  label:'Dashboard / Ümumi görüntü',  sub:'KPI, statistika'},
-  {key:'orders_view',label:'Sifarişlərə baxış',           sub:'Bütün sifariş siyahısı'},
-  {key:'orders_create',label:'Sifariş yarat',             sub:'Yeni sifariş əlavə et'},
-  {key:'dept_screen',label:'Şöbə ekranı',                 sub:'PIN ilə şöbəyə giriş'},
-  {key:'logistics',  label:'Logistika',                   sub:'Çatdırılma idarəetməsi'},
-  {key:'admin',      label:'Admin panel',                 sub:'Tam idarəetmə'},
+  {key:'dashboard',    label:'Dashboard',        sub:'KPI və statistika'},
+  {key:'orders_view',  label:'Sifarişlərə baxış',sub:'Siyahı görüntüsü'},
+  {key:'orders_create',label:'Sifariş yarat',    sub:'Yeni sifariş'},
+  {key:'dept_screen',  label:'Şöbə ekranı',      sub:'PIN ilə giriş'},
+  {key:'logistics',    label:'Logistika',         sub:'Çatdırılma'},
+  {key:'admin',        label:'Admin panel',       sub:'Tam idarəetmə'},
 ];
 
 const ROLE_PERMS = {
@@ -498,263 +420,209 @@ const ROLE_PERMS = {
   dept:      ['dept_screen'],
 };
 
-const DEFAULT_USERS = [
-  {id:'u1',name:'Admin',username:'admin',password:'admin123',role:'admin',perms:ROLE_PERMS.admin},
-  {id:'u2',name:'Cavidan Mənəcər',username:'manager',password:'1234',role:'manager',perms:ROLE_PERMS.manager},
-  {id:'u3',name:'Elnur Logistika',username:'logist',password:'1234',role:'logistics',perms:ROLE_PERMS.logistics},
+const ST = {
+  created:    {t:'Yaradıldı', c:'bG'},
+  in_progress:{t:'İstehsalda',c:'bO'},
+  ready:      {t:'Hazır',     c:'bT'},
+  delivering: {t:'Yolda',     c:'bO'},
+  delivered:  {t:'Təslim',    c:'bGN'},
+  late:       {t:'GECİKMİŞ', c:'bR'},
+};
+
+const NAV_ITEMS = [
+  {key:'dash',  icon:'📊',label:'Dashboard',  perm:'dashboard',    sc:'sc-dash'},
+  {key:'order', icon:'➕',label:'Sifariş',    perm:'orders_create',sc:'sc-order'},
+  {key:'dept',  icon:'🏭',label:'Şöbə',       perm:'dept_screen',  sc:'sc-dept'},
+  {key:'logi',  icon:'🚛',label:'Logistika',  perm:'logistics',    sc:'sc-logi'},
+  {key:'admin', icon:'⚙️',label:'Admin',      perm:'admin',        sc:'sc-admin'},
 ];
 
-const DEFAULT_MODELS = [
-  {id:'modelx',name:'Model X — Divan',desc:'3+2 oturacaq',emoji:'🛋️',img:null,hours:17.5,stages:[
-    {name:'Hazırlıq — Kəsmə',dept:'hazirlik',hours:2},
-    {name:'Bez kəsim',dept:'bez_kesim',hours:2},
-    {name:'Karkaz yığım',dept:'karkaz',hours:4},
-    {name:'Şkurka',dept:'shkurka',hours:1.5},
-    {name:'Tikiş',dept:'tikiş',hours:3},
-    {name:'Yastıqlama',dept:'yastiqlama',hours:4},
-    {name:'Logistika',dept:'logistics',hours:1},
-  ]},
-  {id:'chairb',name:'Stul B — Kreslo',desc:'Tək oturacaq',emoji:'🪑',img:null,hours:9,stages:[
-    {name:'Hazırlıq — Kəsmə',dept:'hazirlik',hours:1.5},
-    {name:'Karkaz yığım',dept:'karkaz',hours:2.5},
-    {name:'Şkurka',dept:'shkurka',hours:1},
-    {name:'Yastıqlama',dept:'yastiqlama',hours:3},
-    {name:'Logistika',dept:'logistics',hours:1},
-  ]},
-  {id:'masa',name:'Masa — Stol',desc:'CNC, taxta',emoji:'🪑',img:null,hours:12,stages:[
-    {name:'Hazırlıq — Kəsmə',dept:'hazirlik',hours:2},
-    {name:'Masa karkaz',dept:'masa_karkaz',hours:4},
-    {name:'Şkurka',dept:'shkurka',hours:1.5},
-    {name:'Masa rəngləmə',dept:'masa_rengle',hours:3},
-    {name:'Keyfiyyət',dept:'qa',hours:0.5},
-    {name:'Logistika',dept:'logistics',hours:1},
-  ]},
-];
-
-const DEFAULT_WORKERS = [
-  {id:'w1',name:'Rauf Həsənov',dept:'hazirlik',role:'Lent kəsim operatoru',status:'active'},
-  {id:'w2',name:'Elşən Məmmədov',dept:'hazirlik',role:'Frez operatoru',status:'active'},
-  {id:'w3',name:'Tural Əliyev',dept:'bez_kesim',role:'Bez kəsim ustası',status:'active'},
-  {id:'w4',name:'Cavidan İsmayılov',dept:'karkaz',role:'CNC operatoru',status:'active'},
-  {id:'w5',name:'Orxan Babayev',dept:'karkaz',role:'Ayaq bağlayan',status:'active'},
-  {id:'w6',name:'Anar Quliyev',dept:'shkurka',role:'Şkurka ustası',status:'active'},
-  {id:'w7',name:'Samir Hüseynov',dept:'masa_karkaz',role:'Masa kəsim operatoru',status:'active'},
-  {id:'w8',name:'Vüsal Nəsirov',dept:'masa_rengle',role:'Rəngləmə ustası',status:'active'},
-  {id:'w9',name:'Aytən Sadıqova',dept:'tikiş',role:'Tikiş ustası',status:'active'},
-  {id:'w10',name:'Leyla Mustafayeva',dept:'yastiqlama',role:'Döşəmə ustası',status:'active'},
-  {id:'w11',name:'Murad Əliyev',dept:'qa',role:'Keyfiyyət nəzarətçisi',status:'active'},
-  {id:'w12',name:'Elnur Həsənli',dept:'logistics',role:'Sürücü',status:'active'},
-];
-
-const ST={created:{t:'Yaradıldı',c:'bG'},in_progress:{t:'İstehsalda',c:'bO'},ready:{t:'Hazır',c:'bT'},delivering:{t:'Yolda',c:'bO'},delivered:{t:'Təslim',c:'bGN'},late:{t:'GECİKMİŞ',c:'bR'}};
-
-function getUsers(){try{const s=localStorage.getItem('snno_users');return s?JSON.parse(s):DEFAULT_USERS}catch(e){return DEFAULT_USERS}}
-function saveUsers(u){localStorage.setItem('snno_users',JSON.stringify(u))}
-function getModels(){try{const s=localStorage.getItem('snno_models');return s?JSON.parse(s):DEFAULT_MODELS}catch(e){return DEFAULT_MODELS}}
-function saveModels(m){localStorage.setItem('snno_models',JSON.stringify(m))}
-function getWorkers(){try{const s=localStorage.getItem('snno_workers');return s?JSON.parse(s):DEFAULT_WORKERS}catch(e){return DEFAULT_WORKERS}}
-function saveWorkers(w){localStorage.setItem('snno_workers',JSON.stringify(w))}
-function getDeptPins(){
-  const s=localStorage.getItem('snno_pins');
-  if(s)return JSON.parse(s);
-  const d={};Object.keys(DEPT_INFO).forEach((k,i)=>{d[k]=String(1001+i*111).slice(0,4);});
-  localStorage.setItem('snno_pins',JSON.stringify(d));return d;
-}
-function saveDeptPins(p){localStorage.setItem('snno_pins',JSON.stringify(p))}
-function getOrders(){
-  try{const s=localStorage.getItem('snno_orders');if(s)return JSON.parse(s)}catch(e){}
-  const t=new Date(),fd=n=>{const d=new Date(t);d.setDate(d.getDate()+n);return d.toISOString().split('T')[0]};
-  const def=[
-    {id:'SON-2401',modelId:'modelx',qty:2,fabric:'Parça B — Dəri',client:'Kapital Bank',deadline:fd(3),status:'in_progress',stage:3,legs:'Qara',notes:''},
-    {id:'SON-2398',modelId:'modelx',qty:1,fabric:'Parça A — Velvet',client:'SOCAR HQ',deadline:fd(0),status:'late',stage:4,legs:'Ağ',notes:''},
-    {id:'SON-2395',modelId:'chairb',qty:4,fabric:'Parça C — Linen',client:'Pasha Bank',deadline:fd(5),status:'in_progress',stage:2,legs:'Gümüşü',notes:''},
-    {id:'SON-2390',modelId:'chairb',qty:2,fabric:'Parça B — Dəri',client:'Bakcell',deadline:fd(1),status:'ready',stage:5,legs:'Qara',notes:''},
-    {id:'SON-2382',modelId:'modelx',qty:3,fabric:'Parça C',client:'ABB Bank',deadline:fd(-2),status:'delivered',stage:7,legs:'Qara',notes:''},
-  ];
-  localStorage.setItem('snno_orders',JSON.stringify(def));return def;
-}
-function saveOrders(o){localStorage.setItem('snno_orders',JSON.stringify(o))}
-function wByDept(d){return getWorkers().filter(w=>w.dept===d&&w.status==='active')}
-
-// ════════════════════════════════════════
-// AUTH
-// ════════════════════════════════════════
+// ═══════════════════════════ STATE ═══════════════════════════
 let currentUser = null;
+let appModels = [];
+let appWorkers = [];
+let selModel = null, qty = 1;
+let pinDept = null, pinBuf = '', pinUnlocked = {};
+let editingUserId = null;
 
-function doLogin(){
-  const u=document.getElementById('l-user').value.trim();
-  const p=document.getElementById('l-pass').value;
-  const users=getUsers();
-  const found=users.find(x=>x.username===u&&x.password===p);
-  if(!found){
-    document.getElementById('l-err').textContent='İstifadəçi adı və ya şifrə yanlışdır';
-    document.getElementById('l-pass').value='';
-    return;
+// ═══════════════════════════ LOADER ═══════════════════════════
+function showLoader(){document.getElementById('loader').classList.add('on')}
+function hideLoader(){document.getElementById('loader').classList.remove('on')}
+
+// ═══════════════════════════ AUTH ═══════════════════════════
+async function doLogin(){
+  const username = document.getElementById('l-user').value.trim();
+  const password = document.getElementById('l-pass').value;
+  if(!username||!password){document.getElementById('l-err').textContent='Boş sahə var';return;}
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true; btn.textContent = 'Yoxlanır...';
+  showLoader();
+  try {
+    const {data,error} = await sb.from('users')
+      .select('*').eq('username',username).eq('password_hash',password).eq('is_active',true).single();
+    if(error||!data){
+      document.getElementById('l-err').textContent='İstifadəçi adı və ya şifrə yanlışdır';
+      return;
+    }
+    currentUser = data;
+    document.getElementById('l-err').textContent='';
+    document.getElementById('login-screen').classList.add('out');
+    setTimeout(async()=>{
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('app').classList.add('visible');
+      await initApp();
+    },300);
+  } catch(e){
+    document.getElementById('l-err').textContent='Xəta baş verdi: '+e.message;
+  } finally {
+    hideLoader();
+    btn.disabled=false;btn.textContent='Daxil ol';
   }
-  currentUser=found;
-  document.getElementById('l-err').textContent='';
-  document.getElementById('login-screen').classList.add('out');
-  setTimeout(()=>{
-    document.getElementById('login-screen').style.display='none';
-    document.getElementById('app').classList.add('visible');
-    initApp();
-  },300);
 }
 
 document.getElementById('l-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 document.getElementById('l-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('l-pass').focus()});
 
 function doLogout(){
-  currentUser=null;
-  closeUserSheet();
+  currentUser=null;selModel=null;qty=1;pinUnlocked={};
+  closeSheet('user-sheet');
   document.getElementById('app').classList.remove('visible');
   const ls=document.getElementById('login-screen');
-  ls.style.display='flex';
-  ls.classList.remove('out');
+  ls.style.display='flex';ls.classList.remove('out');
   document.getElementById('l-user').value='';
   document.getElementById('l-pass').value='';
-  document.getElementById('l-err').textContent='';
 }
 
 function hasPerm(key){return currentUser&&currentUser.perms&&currentUser.perms.includes(key)}
 
-// ════════════════════════════════════════
-// NAVIGATION
-// ════════════════════════════════════════
-const NAV_ITEMS = [
-  {key:'dash',    icon:'📊', label:'Dashboard', perm:'dashboard',   sc:'sc-dash'},
-  {key:'order',   icon:'➕', label:'Sifariş',   perm:'orders_create',sc:'sc-order'},
-  {key:'dept',    icon:'🏭', label:'Şöbə',      perm:'dept_screen', sc:'sc-dept'},
-  {key:'logi',    icon:'🚛', label:'Logistika', perm:'logistics',   sc:'sc-logi'},
-  {key:'admin',   icon:'⚙️', label:'Admin',     perm:'admin',       sc:'sc-admin'},
-];
+// ═══════════════════════════ INIT ═══════════════════════════
+async function initApp(){
+  showLoader();
+  try {
+    const [modRes, wrkRes] = await Promise.all([
+      sb.from('models').select('*').eq('is_active',true),
+      sb.from('workers').select('*').eq('status','active'),
+    ]);
+    appModels = modRes.data||[];
+    appWorkers = wrkRes.data||[];
+  } catch(e){console.error(e);}
+  hideLoader();
 
-let activeScreen = '';
+  const u = currentUser;
+  const ini = u.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('topbar-av').textContent = ini;
+  const rL = {admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
+  document.getElementById('topbar-role').textContent = rL[u.role]||u.role;
 
-function initApp(){
-  // Set topbar
-  const u=currentUser;
-  const ini=u.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
-  document.getElementById('topbar-av').textContent=ini;
-  const roleLabels={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
-  document.getElementById('topbar-role').textContent=roleLabels[u.role]||u.role;
-
-  // Build bottom nav
-  const nav=document.getElementById('bottom-nav');
-  const visible=NAV_ITEMS.filter(n=>hasPerm(n.perm));
-  nav.innerHTML=visible.map(n=>`
-    <button class="bnav-item" id="bnav-${n.key}" onclick="goTo('${n.key}')">
-      <div class="bni" style="position:relative">${n.icon}</div>
+  const visible = NAV_ITEMS.filter(n=>hasPerm(n.perm));
+  document.getElementById('bottom-nav').innerHTML = visible.map(n=>
+    `<button class="bnav-item" id="bnav-${n.key}" onclick="goTo('${n.key}')">
+      <div class="bni">${n.icon}</div>
       <span class="bnav-label">${n.label}</span>
     </button>`).join('');
 
-  // Go to first available screen
   if(visible.length) goTo(visible[0].key);
 }
 
-function goTo(key){
-  const item=NAV_ITEMS.find(n=>n.key===key);
+// ═══════════════════════════ NAVIGATION ═══════════════════════════
+async function goTo(key){
+  const item = NAV_ITEMS.find(n=>n.key===key);
   if(!item||!hasPerm(item.perm)) return;
   document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.bnav-item').forEach(b=>b.classList.remove('on'));
   document.getElementById(item.sc).classList.add('on');
-  const nb=document.getElementById('bnav-'+key);
-  if(nb) nb.classList.add('on');
-  document.getElementById('topbar-title').textContent=
-    {dash:'Dashboard',order:'Yeni Sifariş',dept:'Şöbə Ekranı',logi:'Logistika',admin:'Admin'}[key];
-  activeScreen=key;
-  if(key==='dash') renderDash();
+  const nb=document.getElementById('bnav-'+key);if(nb)nb.classList.add('on');
+  const titles={dash:'Dashboard',order:'Yeni Sifariş',dept:'Şöbə Ekranı',logi:'Logistika',admin:'Admin'};
+  document.getElementById('topbar-title').textContent=titles[key]||'';
+  document.getElementById('main-content').scrollTo(0,0);
+  if(key==='dash') await renderDash();
   if(key==='order') renderOrderForm();
   if(key==='dept') renderDeptPick();
-  if(key==='logi') renderLogi();
-  if(key==='admin') renderAdmin();
-  document.getElementById('main-content').scrollTo(0,0);
+  if(key==='logi') await renderLogi();
+  if(key==='admin') await renderAdmin();
 }
 
-// ════════════════════════════════════════
-// DASHBOARD
-// ════════════════════════════════════════
-function renderDash(){
-  const orders=getOrders(),models=getModels();
-  const act=orders.filter(o=>['in_progress','created','late'].includes(o.status)).length;
-  const lat=orders.filter(o=>o.status==='late').length;
-  const rdy=orders.filter(o=>o.status==='ready').length;
-  const don=orders.filter(o=>o.status==='delivered').length;
-  document.getElementById('k-act').textContent=act;
-  document.getElementById('k-lat').textContent=lat;
-  document.getElementById('k-rdy').textContent=rdy;
-  document.getElementById('k-don').textContent=don;
-
-  const late=orders.filter(o=>o.status==='late');
-  const lateCard=document.getElementById('late-orders-card');
-  lateCard.innerHTML=late.length
-    ? late.map(o=>orderListItem(o,models)).join('')
-    : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Gecikən sifariş yoxdur ✓</div>';
-
-  const allCard=document.getElementById('all-orders-card');
-  allCard.innerHTML=orders.map(o=>orderListItem(o,models)).join('');
+// ═══════════════════════════ DASHBOARD ═══════════════════════════
+async function renderDash(){
+  showLoader();
+  try {
+    const {data:orders} = await sb.from('orders').select('*').order('created_at',{ascending:false});
+    const all = orders||[];
+    const act = all.filter(o=>['in_progress','created','late'].includes(o.status)).length;
+    const lat = all.filter(o=>o.status==='late').length;
+    const rdy = all.filter(o=>o.status==='ready').length;
+    const don = all.filter(o=>o.status==='delivered').length;
+    document.getElementById('k-act').textContent=act;
+    document.getElementById('k-lat').textContent=lat;
+    document.getElementById('k-rdy').textContent=rdy;
+    document.getElementById('k-don').textContent=don;
+    const lateOrd = all.filter(o=>o.status==='late');
+    document.getElementById('late-card').innerHTML = lateOrd.length
+      ? lateOrd.map(o=>orderItem(o)).join('')
+      : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Gecikən sifariş yoxdur ✓</div>';
+    document.getElementById('all-card').innerHTML = all.length
+      ? all.map(o=>orderItem(o)).join('')
+      : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Sifariş yoxdur</div>';
+  } catch(e){toast('Xəta: '+e.message);}
+  hideLoader();
 }
 
-function orderListItem(o,models){
-  const m=models.find(x=>x.id===o.modelId)||{name:'?',emoji:'?'};
-  const st=ST[o.status]||ST.created;
-  const isLate=o.status==='late';
+function orderItem(o){
+  const m = appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
+  const st = ST[o.status]||ST.created;
+  const isLate = o.status==='late';
   return`<div class="list-item" onclick="showOrderDetail('${o.id}')">
     <div class="li-icon" style="background:${isLate?'#FCEBEB':'rgba(17,24,32,.04)'}">${m.emoji}</div>
     <div class="li-body">
-      <div class="li-title">${o.client} <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--tl);font-weight:400">${o.id}</span></div>
-      <div class="li-sub">${m.name.split('—')[0].trim()} · ${o.qty} ədəd · ${o.deadline}</div>
+      <div class="li-title">${o.client} <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--tl)">${o.order_number}</span></div>
+      <div class="li-sub">${m.name.split('—')[0].trim()} · ${o.qty} ədəd · ${o.deadline||''}</div>
     </div>
-    <div class="li-right">
-      <span class="badge ${st.c}">${st.t}</span>
-    </div>
+    <div class="li-right"><span class="badge ${st.c}">${st.t}</span></div>
   </div>`;
 }
 
-function showOrderDetail(id){
-  const orders=getOrders(),models=getModels();
-  const o=orders.find(x=>x.id===id);if(!o)return;
-  const m=models.find(x=>x.id===o.modelId)||{name:'?',stages:[]};
-  const st=ST[o.status]||ST.created;
-  openSheet('order-detail-sheet');
-  document.getElementById('ods-title').textContent=o.id+' — '+o.client;
-  document.getElementById('ods-body').innerHTML=`
+async function showOrderDetail(id){
+  showLoader();
+  const {data:o} = await sb.from('orders').select('*').eq('id',id).single();
+  hideLoader();
+  if(!o) return;
+  const m = appModels.find(x=>x.id===o.model_id)||{name:'?',stages:[]};
+  const st = ST[o.status]||ST.created;
+  document.getElementById('od-title').textContent=o.order_number+' — '+o.client;
+  const stages = m.stages||[];
+  document.getElementById('od-body').innerHTML=`
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
       <span class="badge ${st.c}">${st.t}</span>
       <span class="badge bG">${o.qty} ədəd</span>
-      <span class="badge bG">${o.fabric.split('—')[0].trim()}</span>
+      <span class="badge bG">${o.fabric||''}</span>
     </div>
-    <div style="font-size:12px;color:var(--t2);margin-bottom:12px">Deadline: <b style="color:${o.status==='late'?'#E24B4A':'var(--t1)'}">${o.deadline}</b></div>
-    <div style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Mərhələlər</div>
-    ${m.stages.map((s,i)=>{
-      const n=i+1,cls=n<o.stage?'s-done':n===o.stage?'s-cur':'s-lock';
-      const icon=n<o.stage?'✓':n===o.stage?'▶':'○';
-      const bg=n<o.stage?'var(--lt)':n===o.stage?'var(--lo)':'rgba(17,24,32,.03)';
-      const col=n<o.stage?'var(--dp)':n===o.stage?'#854F0B':'var(--t3)';
+    <div style="font-size:12px;color:var(--t2);margin-bottom:14px">Deadline: <b style="color:${o.status==='late'?'#E24B4A':'var(--t1)'}">${o.deadline||'—'}</b></div>
+    ${stages.map((s,i)=>{
+      const n=i+1,isDone=n<o.current_stage,isCur=n===o.current_stage;
+      const bg=isDone?'var(--lt)':isCur?'var(--lo)':'rgba(17,24,32,.03)';
+      const col=isDone?'var(--dp)':isCur?'#854F0B':'var(--t3)';
+      const icon=isDone?'✓':isCur?'▶':'○';
       return`<div style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:var(--r);background:${bg};margin-bottom:4px">
         <span style="font-size:12px;font-weight:700;color:${col};width:16px">${icon}</span>
-        <span style="flex:1;font-size:13px;font-weight:500;color:${col}">${s.name}</span>
+        <span style="flex:1;font-size:13px;color:${col}">${s.name}</span>
         <span style="font-size:11px;color:var(--t3)">${s.hours}s</span>
       </div>`;
     }).join('')}`;
+  openSheet('order-detail');
 }
 
-// ════════════════════════════════════════
-// ORDER CREATE
-// ════════════════════════════════════════
-let selModel=null,qty=1;
-
+// ═══════════════════════════ ORDER CREATE ═══════════════════════════
 function renderOrderForm(){
-  const models=getModels();
-  document.getElementById('product-grid').innerHTML=models.map(m=>{
-    const imgPart=m.img?`<img src="${m.img}" style="width:100%;height:90px;object-fit:cover">`
-      :`<div class="pcard-img">${m.emoji}</div>`;
+  document.getElementById('product-grid').innerHTML = appModels.map(m=>{
+    const imgPart = m.img_url
+      ? `<img src="${m.img_url}" style="width:100%;height:90px;object-fit:cover">`
+      : `<div class="pcard-img">${m.emoji}</div>`;
     return`<div class="pcard" id="pc-${m.id}" onclick="selProd('${m.id}')">
       <div class="pcard-chk">✓</div>${imgPart}
       <div class="pcard-body">
         <div class="pcard-name">${m.name.split('—')[0].trim()}</div>
-        <div class="pcard-info">${m.desc}</div>
-        <div class="pcard-h">${m.stages.length} mərhələ · ${m.hours}s</div>
+        <div class="pcard-info">${m.description||''}</div>
+        <div class="pcard-h">${(m.stages||[]).length} mərhələ · ${m.total_hours}s</div>
       </div>
     </div>`;
   }).join('');
@@ -765,13 +633,12 @@ function renderOrderForm(){
 }
 
 function selProd(id){
-  selModel=id; qty=1;
+  selModel=id;qty=1;
   document.getElementById('qty-num').textContent=1;
   document.querySelectorAll('.pcard').forEach(c=>c.classList.remove('sel'));
   const pc=document.getElementById('pc-'+id);if(pc)pc.classList.add('sel');
-  const models=getModels(),m=models.find(x=>x.id===id);if(!m)return;
-  const qb=document.getElementById('qty-bar');
-  qb.style.display='flex';
+  const m=appModels.find(x=>x.id===id);if(!m)return;
+  const qb=document.getElementById('qty-bar');qb.style.display='flex';
   document.getElementById('qty-name').textContent=m.name;
   updateEta(m);
 }
@@ -779,15 +646,13 @@ function selProd(id){
 function chQty(d){
   qty=Math.max(1,qty+d);
   document.getElementById('qty-num').textContent=qty;
-  const models=getModels(),m=models.find(x=>x.id===selModel);
-  if(m)updateEta(m);
+  const m=appModels.find(x=>x.id===selModel);if(m)updateEta(m);
 }
 
 function updateEta(m){
-  const bar=document.getElementById('eta-bar');
-  bar.style.display='block';
-  const h=(m.hours*qty).toFixed(1);
-  const days=Math.ceil(m.hours*qty/8);
+  const bar=document.getElementById('eta-bar');bar.style.display='block';
+  const h=(m.total_hours*qty).toFixed(1);
+  const days=Math.ceil(m.total_hours*qty/8);
   const d=new Date();d.setDate(d.getDate()+days);
   const eta=d.toLocaleDateString('az-AZ',{day:'2-digit',month:'long'});
   const dl=document.getElementById('o-dead').value;
@@ -796,20 +661,24 @@ function updateEta(m){
   document.getElementById('eta-txt').innerHTML=`${h} saat · ETA: ${eta}${ok}`;
 }
 
-function createOrder(){
+async function createOrder(){
   if(!selModel){toast('⚠ Məhsul seçin');return;}
   const client=document.getElementById('o-client').value.trim();
   if(!client){toast('⚠ Müştəri adını yazın');return;}
-  const orders=getOrders();
-  const newId='SON-'+(2410+Math.floor(Math.random()*90));
-  const dl=document.getElementById('o-dead').value||new Date(Date.now()+7*86400000).toISOString().split('T')[0];
-  orders.unshift({id:newId,modelId:selModel,qty,fabric:document.getElementById('o-fabric').value,
-    client,deadline:dl,status:'created',stage:1,legs:document.getElementById('o-legs').value,
-    notes:document.getElementById('o-notes').value});
-  saveOrders(orders);
-  toast(`✓ ${newId} yaradıldı — pipeline başladı!`);
-  document.getElementById('o-client').value='';
-  document.getElementById('o-notes').value='';
+  showLoader();
+  const num='SON-'+(Date.now()%100000);
+  const {error}=await sb.from('orders').insert({
+    order_number:num, model_id:selModel, created_by:currentUser.id,
+    client, qty, fabric:document.getElementById('o-fabric').value,
+    legs:document.getElementById('o-legs').value,
+    notes:document.getElementById('o-notes').value,
+    deadline:document.getElementById('o-dead').value||null,
+    status:'created', current_stage:1,
+  });
+  hideLoader();
+  if(error){toast('Xəta: '+error.message);return;}
+  toast('✓ '+num+' yaradıldı!');
+  document.getElementById('o-client').value='';document.getElementById('o-notes').value='';
   selModel=null;qty=1;
   document.querySelectorAll('.pcard').forEach(c=>c.classList.remove('sel'));
   document.getElementById('qty-bar').style.display='none';
@@ -817,55 +686,53 @@ function createOrder(){
   goTo('dash');
 }
 
-// ════════════════════════════════════════
-// DEPT / PIN
-// ════════════════════════════════════════
-let pinDept=null,pinBuf='',pinUnlocked={};
-
-function renderDeptPick(){
-  const orders=getOrders(),models=getModels(),pins=getDeptPins();
+// ═══════════════════════════ DEPT / PIN ═══════════════════════════
+async function renderDeptPick(){
+  const {data:orders}=await sb.from('orders').select('*');
   const dCnt={};
-  orders.forEach(o=>{
+  (orders||[]).forEach(o=>{
     if(['in_progress','created','late'].includes(o.status)){
-      const m=models.find(x=>x.id===o.modelId);if(!m||o.stage<1||o.stage>m.stages.length)return;
-      const d=m.stages[o.stage-1].dept;dCnt[d]=(dCnt[d]||0)+1;
+      const m=appModels.find(x=>x.id===o.model_id);
+      if(!m||(m.stages||[]).length===0)return;
+      const si=o.current_stage-1;
+      if(si>=0&&si<m.stages.length){const d=m.stages[si].dept;dCnt[d]=(dCnt[d]||0)+1;}
     }
   });
   document.getElementById('dept-grid').innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
     const cnt=dCnt[key]||0,unl=pinUnlocked[key];
-    return`<div onclick="deptCard('${key}')" style="background:var(--sf);border:2px solid ${unl?'var(--tl)':'var(--bd)'};border-radius:var(--rl);padding:14px 10px;text-align:center;cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent;position:relative" ontouchstart="" >
+    return`<div onclick="deptCard('${key}')" style="background:var(--sf);border:2px solid ${unl?'var(--tl)':'var(--bd)'};border-radius:var(--rl);padding:14px 10px;text-align:center;cursor:pointer;transition:all .15s;position:relative" ontouchstart="">
       ${unl?'<div style="position:absolute;top:8px;right:8px;width:18px;height:18px;background:var(--tl);border-radius:50%;color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">✓</div>':''}
       <div style="font-size:26px;margin-bottom:6px">${info.icon}</div>
       <div style="font-size:12px;font-weight:600;line-height:1.3">${info.name}</div>
       <div style="font-size:11px;margin-top:5px;color:${cnt>0?'var(--or)':'var(--t3)'};font-weight:${cnt>0?'600':'400'}">${cnt>0?cnt+' tapşırıq':'Boş'}</div>
     </div>`;
   }).join('');
-  showDeptView('dept-pick');
+  showDV('dept-pick');
 }
 
-function deptCard(dept){
+async function deptCard(dept){
   if(pinUnlocked[dept]){showDeptTasks(dept);}
-  else{openPin(dept);}
+  else{
+    const {data:pin}=await sb.from('dept_pins').select('pin_code').eq('dept_key',dept).single();
+    openPin(dept, pin?pin.pin_code:'1234');
+  }
 }
 
-function openPin(dept){
-  pinDept=dept;pinBuf='';
+let currentPinCode='';
+function openPin(dept,code){
+  pinDept=dept;pinBuf='';currentPinCode=code;
   const info=DEPT_INFO[dept];
   document.getElementById('pin-icon').textContent=info.icon;
   document.getElementById('pin-dname').textContent=info.name;
   document.getElementById('pin-err').textContent='';
-  updDots();showDeptView('dept-pin');
+  updDots();showDV('dept-pin');
 }
-
-function backDept(){showDeptView('dept-pick');}
-
+function backDept(){showDV('dept-pick');}
 function pp(d){if(pinBuf.length>=4)return;pinBuf+=d;updDots();if(pinBuf.length===4)setTimeout(chkPin,120);}
 function pd(){pinBuf=pinBuf.slice(0,-1);updDots();document.getElementById('pin-err').textContent='';}
 function updDots(){document.querySelectorAll('.pdot').forEach((dot,i)=>{dot.classList.remove('filled','err');if(i<pinBuf.length)dot.classList.add('filled');});}
-
 function chkPin(){
-  const pins=getDeptPins();
-  if(pinBuf===pins[pinDept]){
+  if(pinBuf===currentPinCode){
     pinUnlocked[pinDept]=true;
     document.querySelectorAll('.pdot').forEach(d=>d.classList.add('filled'));
     setTimeout(()=>showDeptTasks(pinDept),200);
@@ -876,79 +743,77 @@ function chkPin(){
   }
 }
 
-function showDeptTasks(dept){
-  const info=DEPT_INFO[dept];
-  pinDept=dept;
+async function showDeptTasks(dept){
+  const info=DEPT_INFO[dept];pinDept=dept;
   document.getElementById('dt-icon').textContent=info.icon;
   document.getElementById('dt-name').textContent=info.name;
-  showDeptView('dept-tasks');
-  renderDeptTasks(dept);
+  showDV('dept-tasks');
+  await renderDeptTasks(dept);
 }
 
 function lockDept(){
   if(pinDept)pinUnlocked[pinDept]=false;
   pinDept=null;pinBuf='';
-  showDeptView('dept-pick');
-  renderDeptPick();
+  showDV('dept-pick');renderDeptPick();
 }
 
-function showDeptView(v){
+function showDV(v){
   ['dept-pick','dept-pin','dept-tasks'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.style.display='none';
   });
   const el=document.getElementById(v);if(el)el.style.display='block';
 }
 
-function renderDeptTasks(dept){
-  const orders=getOrders(),models=getModels();
+async function renderDeptTasks(dept){
+  showLoader();
+  const {data:orders}=await sb.from('orders').select('*').in('status',['in_progress','created','late']);
+  hideLoader();
   const tasks=[];
-  orders.forEach(o=>{
-    if(['in_progress','created','late'].includes(o.status)){
-      const m=models.find(x=>x.id===o.modelId);if(!m)return;
-      if(o.stage>=1&&o.stage<=m.stages.length){
-        const s=m.stages[o.stage-1];
-        if(s.dept===dept)tasks.push({o,m,s,si:o.stage});
-      }
-    }
+  (orders||[]).forEach(o=>{
+    const m=appModels.find(x=>x.id===o.model_id);if(!m)return;
+    const stages=m.stages||[];
+    const si=o.current_stage-1;
+    if(si>=0&&si<stages.length&&stages[si].dept===dept)
+      tasks.push({o,m,s:stages[si],si:o.current_stage});
   });
-  document.getElementById('dt-count').textContent=tasks.length;
+  document.getElementById('dt-cnt').textContent=tasks.length;
   const tl=document.getElementById('dept-task-list');
   if(!tasks.length){
     tl.innerHTML=`<div style="text-align:center;padding:40px;color:var(--t3)"><div style="font-size:44px;margin-bottom:10px">✅</div><div style="font-weight:600;color:var(--tl)">Bu şöbədə aktiv iş yoxdur</div></div>`;
     return;
   }
+  const dws=appWorkers.filter(w=>w.dept_key===dept);
   tl.innerHTML=tasks.map(({o,m,s,si})=>{
     const key=`ts_${o.id}_${si}`;
     const started=localStorage.getItem(key+'_s'),done=localStorage.getItem(key+'_d');
-    const dots=m.stages.map((_,i)=>`<div class="sdot${i+1<si?' done':i+1===si?' cur':''}"></div>`).join('');
+    const dots=(m.stages||[]).map((_,i)=>`<div class="sdot${i+1<si?' done':i+1===si?' cur':''}"></div>`).join('');
     let stCls='ts-idle',stTxt='Başlamaq üçün "Başla" basın';
     if(done){stCls='ts-done';stTxt='✓ Tamamlandı';}
     else if(started){stCls='ts-go';stTxt='⏱ İcra olunur...';}
     const isLate=o.status==='late';
-    const dws=wByDept(s.dept);
-    const wHtml=dws.length?`<div class="worker-chips">${dws.map(w=>{
+    const wHtml=dws.length?`<div class="wchips">${dws.map(w=>{
       const ini=w.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
       return`<div class="wchip"><div class="wchip-av">${ini}</div><span>${w.name.split(' ')[0]}</span></div>`;
     }).join('')}</div>`:'';
     return`<div class="task-card">
       <div class="task-card-top${isLate?' late':''}">
-        <div><div style="font-size:15px;font-weight:700">${s.name}</div><div style="font-size:12px;color:var(--t2);margin-top:2px">${o.id} · ${m.name.split('—')[0].trim()}</div></div>
+        <div><div style="font-size:15px;font-weight:700">${s.name}</div><div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${m.name.split('—')[0].trim()}</div></div>
         <span class="badge ${isLate?'bR':'bO'}">${isLate?'GECİKMİŞ':'Aktiv'}</span>
       </div>
       <div class="task-card-body">
         <div class="stage-dots">${dots}</div>
-        <div style="font-size:11px;color:var(--t2);margin-bottom:8px">${si}/${m.stages.length} mərhələ</div>
+        <div style="font-size:11px;color:var(--t2);margin-bottom:8px">${si}/${(m.stages||[]).length} mərhələ</div>
         <div class="task-meta">
           <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v">${o.client}</div></div>
           <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-size:20px;font-weight:700">${o.qty}</div></div>
           <div class="tm-i"><div class="tm-k">Müddət</div><div class="tm-v">${s.hours} saat</div></div>
-          <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v" style="${isLate?'color:#E24B4A':''};font-size:13px">${o.deadline}</div></div>
+          <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v" style="${isLate?'color:#E24B4A':''};font-size:13px">${o.deadline||'—'}</div></div>
         </div>
         ${wHtml}
-        <div class="ts ${stCls}" id="ts-${o.id}">${stTxt}</div>
+        <div class="ts-box ${stCls}" id="ts-${o.id}">${stTxt}</div>
         <div class="task-btns">
           <button class="btn btn-o btn-lg" ${started||done?'disabled':''} onclick="dStart('${o.id}','${si}','${key}','${dept}')">▶ Başla</button>
-          <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}')">✓ Tamamla</button>
+          <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${(m.stages||[]).length}')">✓ Tamamla</button>
         </div>
       </div>
     </div>`;
@@ -958,51 +823,45 @@ function renderDeptTasks(dept){
 function dStart(oid,si,key,dept){
   localStorage.setItem(key+'_s','1');
   const el=document.getElementById('ts-'+oid);
-  if(el){el.className='ts ts-go';el.textContent='⏱ İcra olunur...';}
+  if(el){el.className='ts-box ts-go';el.textContent='⏱ İcra olunur...';}
   document.querySelectorAll(`[onclick*="dStart('${oid}"]`).forEach(b=>b.disabled=true);
   const db=document.getElementById('td-'+oid);if(db)db.disabled=false;
   toast('▶ Başladı');
 }
 
-function dDone(oid,si,key,dept){
+async function dDone(oid,si,key,dept,totalStages){
   localStorage.setItem(key+'_d','1');
-  const orders=getOrders(),models=getModels();
-  const o=orders.find(x=>x.id===oid);
-  if(o){
-    const m=models.find(x=>x.id===o.modelId);
-    o.stage++;
-    if(m&&o.stage>m.stages.length){o.status='ready';}else{o.status='in_progress';}
-    saveOrders(orders);
-  }
+  const newStage=parseInt(si)+1;
+  const newStatus=newStage>parseInt(totalStages)?'ready':'in_progress';
+  await sb.from('orders').update({current_stage:newStage,status:newStatus}).eq('id',oid);
+  await sb.from('task_logs').insert({order_id:oid,stage_index:parseInt(si),worker_id:currentUser.id,action:'completed'});
   const el=document.getElementById('ts-'+oid);
-  if(el){el.className='ts ts-done';el.textContent='✓ Tamamlandı — növbəti şöbəyə bildiriş!';}
+  if(el){el.className='ts-box ts-done';el.textContent='✓ Tamamlandı!';}
   const db=document.getElementById('td-'+oid);if(db)db.disabled=true;
   toast('✅ Tamamlandı!');
   setTimeout(()=>renderDeptTasks(dept),900);
 }
 
-// ════════════════════════════════════════
-// LOGISTICS
-// ════════════════════════════════════════
-function renderLogi(){
-  const orders=getOrders(),models=getModels();
-  const rdy=orders.filter(o=>o.status==='ready');
-  const tr=orders.filter(o=>o.status==='delivering');
-  const dv=orders.filter(o=>o.status==='delivered');
-  document.getElementById('l-rdy').textContent=rdy.length;
-  document.getElementById('l-tr').textContent=tr.length;
-  document.getElementById('l-dv').textContent=dv.length;
-  const items=[...rdy,...tr];
+// ═══════════════════════════ LOGISTICS ═══════════════════════════
+async function renderLogi(){
+  showLoader();
+  const {data:orders}=await sb.from('orders').select('*').in('status',['ready','delivering','delivered']);
+  hideLoader();
+  const all=orders||[];
+  document.getElementById('l-rdy').textContent=all.filter(o=>o.status==='ready').length;
+  document.getElementById('l-tr').textContent=all.filter(o=>o.status==='delivering').length;
+  document.getElementById('l-dv').textContent=all.filter(o=>o.status==='delivered').length;
+  const items=all.filter(o=>['ready','delivering'].includes(o.status));
   const el=document.getElementById('logi-list');
   if(!items.length){el.innerHTML='<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Hazır sifariş yoxdur</div>';return;}
   el.innerHTML=items.map(o=>{
-    const m=models.find(x=>x.id===o.modelId)||{name:'?',emoji:'📦'};
+    const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
     const isTr=o.status==='delivering';
     return`<div class="list-item">
       <div class="li-icon" style="background:${isTr?'var(--lo)':'var(--lt)'}">${isTr?'🚛':'📦'}</div>
       <div class="li-body">
-        <div class="li-title">${o.client} <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--tl);font-weight:400">${o.id}</span></div>
-        <div class="li-sub">${m.name.split('—')[0].trim()} · ${o.qty} ədəd · ${o.deadline}</div>
+        <div class="li-title">${o.client} <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--tl)">${o.order_number}</span></div>
+        <div class="li-sub">${m.name.split('—')[0].trim()} · ${o.qty} ədəd · ${o.deadline||''}</div>
       </div>
       <div class="li-right">
         ${isTr
@@ -1013,78 +872,74 @@ function renderLogi(){
   }).join('');
 }
 
-function startDel(id){
-  const o=getOrders(),ord=o.find(x=>x.id===id);
-  if(ord){ord.status='delivering';saveOrders(o);}
+async function startDel(id){
+  await sb.from('orders').update({status:'delivering'}).eq('id',id);
   toast('🚛 Yola çıxıldı');renderLogi();
 }
-function markDel(id){
-  const o=getOrders(),ord=o.find(x=>x.id===id);
-  if(ord){ord.status='delivered';saveOrders(o);}
-  toast('✅ Təslim edildi!');renderLogi();renderDash();
+async function markDel(id){
+  await sb.from('orders').update({status:'delivered'}).eq('id',id);
+  toast('✅ Təslim edildi!');renderLogi();
 }
 
-// ════════════════════════════════════════
-// ADMIN
-// ════════════════════════════════════════
-function renderAdmin(){
-  const users=getUsers(),models=getModels(),workers=getWorkers();
-  const amiu=document.getElementById('ami-users-count');if(amiu)amiu.textContent=users.length+' nəfər';
-  const amim=document.getElementById('ami-models-count');if(amim)amim.textContent=models.length+' model';
-  const amiw=document.getElementById('ami-workers-count');if(amiw)amiw.textContent=workers.length+' işçi';
+// ═══════════════════════════ ADMIN ═══════════════════════════
+async function renderAdmin(){
+  const [{data:users},{data:models},{data:workers}] = await Promise.all([
+    sb.from('users').select('*'),
+    sb.from('models').select('*'),
+    sb.from('workers').select('*'),
+  ]);
+  const au=document.getElementById('ami-u');if(au)au.textContent=(users||[]).length+' nəfər';
+  const am=document.getElementById('ami-m');if(am)am.textContent=(models||[]).length+' model';
+  const aw=document.getElementById('ami-w');if(aw)aw.textContent=(workers||[]).length+' işçi';
 }
 
-let adminSec='';
-function openAdminSection(sec){
-  adminSec=sec;
-  const el=document.getElementById('admin-section-content');
-  if(sec==='users') renderUsersSection(el);
-  if(sec==='pins') renderPinsSection(el);
-  if(sec==='models') renderModelsSection(el);
-  if(sec==='workers') renderWorkersSection(el);
+async function adminSec(sec){
+  const el=document.getElementById('admin-sec-content');
+  if(sec==='users') await renderUsersSection(el);
+  if(sec==='pins') await renderPinsSection(el);
+  if(sec==='models') await renderModelsSection(el);
+  if(sec==='workers') await renderWorkersSection(el);
 }
 
-function renderUsersSection(el){
-  const users=getUsers();
+async function renderUsersSection(el){
+  showLoader();
+  const {data:users}=await sb.from('users').select('*').order('created_at');
+  hideLoader();
+  const rL={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
+  const rC={admin:'role-admin',manager:'role-manager',logistics:'role-logistics',dept:'role-dept'};
   el.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <div class="slbl" style="margin:0">İstifadəçilər</div>
       <button class="btn btn-t" style="font-size:12px;padding:8px 14px" onclick="openAddUser()">+ Əlavə et</button>
     </div>
-    <div class="sec-card">
-      ${users.map(u=>{
-        const rLabels={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
-        const rCls={admin:'role-admin',manager:'role-manager',logistics:'role-logistics',dept:'role-dept'};
-        const ini=u.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
-        return`<div class="list-item">
-          <div class="li-icon" style="background:rgba(17,24,32,.06);font-size:14px;font-weight:700;color:var(--dk)">${ini}</div>
-          <div class="li-body">
-            <div class="li-title">${u.name}</div>
-            <div class="li-sub">@${u.username}</div>
+    <div class="sec-card">${(users||[]).map(u=>{
+      const ini=u.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+      return`<div class="list-item">
+        <div class="li-icon" style="background:rgba(17,24,32,.06);font-size:13px;font-weight:700;color:var(--dk)">${ini}</div>
+        <div class="li-body"><div class="li-title">${u.name}</div><div class="li-sub">@${u.username}</div></div>
+        <div class="li-right">
+          <span class="role-pill ${rC[u.role]||'role-dept'}">${rL[u.role]||u.role}</span>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button onclick="editUser('${u.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:var(--tl);font-family:inherit;padding:3px 6px;border-radius:6px">Düzəlt</button>
+            ${u.username!=='admin'?`<button onclick="delUser('${u.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:#E24B4A;font-family:inherit;padding:3px 6px;border-radius:6px">Sil</button>`:''}
           </div>
-          <div class="li-right">
-            <span class="role-pill ${rCls[u.role]||'role-dept'}">${rLabels[u.role]||u.role}</span>
-            <div style="display:flex;gap:6px;margin-top:4px">
-              <button onclick="editUser('${u.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:var(--tl);font-family:inherit;padding:3px 6px;border-radius:6px" onmouseenter="this.style.background='var(--lt)'" onmouseleave="this.style.background='none'">Düzəlt</button>
-              ${u.id!=='u1'?`<button onclick="delUser('${u.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:#E24B4A;font-family:inherit;padding:3px 6px;border-radius:6px">Sil</button>`:''}
-            </div>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`;
+        </div>
+      </div>`;
+    }).join('')}</div>`;
 }
 
-function renderPinsSection(el){
-  const pins=getDeptPins();
+async function renderPinsSection(el){
+  const {data:pins}=await sb.from('dept_pins').select('*');
+  const pinMap={};(pins||[]).forEach(p=>pinMap[p.dept_key]=p.pin_code);
   el.innerHTML=`
     <div class="slbl">Şöbə PIN kodları</div>
     <div class="sec-card card-pad">
-      <p style="font-size:13px;color:var(--t2);margin-bottom:14px">4 rəqəmli PIN — məsul şəxs öz şöbəsini açmaq üçün istifadə edir</p>
+      <p style="font-size:13px;color:var(--t2);margin-bottom:14px">4 rəqəmli PIN — hər şöbə üçün ayrıca</p>
       ${Object.entries(DEPT_INFO).map(([key,info])=>`
         <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(17,24,32,.06)">
           <span style="font-size:18px">${info.icon}</span>
           <span style="flex:1;font-size:13px;font-weight:500">${info.name}</span>
-          <input type="text" maxlength="4" value="${pins[key]||'0000'}" id="pi-${key}"
+          <input type="text" maxlength="4" value="${pinMap[key]||'1234'}" id="pi-${key}"
             style="width:72px;font-family:'DM Mono',monospace;font-size:16px;font-weight:700;letter-spacing:.2em;text-align:center;padding:6px 4px;border:1px solid var(--bd);border-radius:8px"
             oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)">
           <button onclick="savePinChg('${key}')" style="border:none;background:var(--lt);color:var(--tl);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit">Saxla</button>
@@ -1092,33 +947,29 @@ function renderPinsSection(el){
     </div>`;
 }
 
-function savePinChg(key){
+async function savePinChg(key){
   const v=document.getElementById('pi-'+key).value;
   if(v.length!==4){toast('⚠ 4 rəqəm lazımdır');return;}
-  const pins=getDeptPins();pins[key]=v;saveDeptPins(pins);
+  await sb.from('dept_pins').upsert({dept_key:key,pin_code:v,updated_at:new Date().toISOString()});
   toast('✓ PIN dəyişdirildi: '+DEPT_INFO[key].name);
 }
 
-function renderModelsSection(el){
-  const models=getModels();
+async function renderModelsSection(el){
+  const {data:models}=await sb.from('models').select('*');
   el.innerHTML=`
     <div class="slbl">Modellər</div>
-    <div class="sec-card">
-      ${models.map(m=>`<div class="list-item">
-        <div class="li-icon" style="background:var(--lt);font-size:22px">${m.img?`<img src="${m.img}" style="width:40px;height:40px;object-fit:cover;border-radius:10px">`:m.emoji}</div>
-        <div class="li-body">
-          <div class="li-title">${m.name}</div>
-          <div class="li-sub">${m.stages.length} mərhələ · ${m.hours}s · ${m.desc}</div>
-        </div>
-        <div class="li-chevron">›</div>
+    <div class="sec-card">${(models||[]).map(m=>`
+      <div class="list-item">
+        <div class="li-icon" style="background:var(--lt);font-size:22px">${m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:10px">`:m.emoji}</div>
+        <div class="li-body"><div class="li-title">${m.name}</div><div class="li-sub">${(m.stages||[]).length} mərhələ · ${m.total_hours}s</div></div>
       </div>`).join('')}
     </div>`;
 }
 
-function renderWorkersSection(el){
-  const workers=getWorkers();
+async function renderWorkersSection(el){
+  const {data:workers}=await sb.from('workers').select('*');
   const byDept={};
-  workers.forEach(w=>{if(!byDept[w.dept])byDept[w.dept]=[];byDept[w.dept].push(w);});
+  (workers||[]).forEach(w=>{if(!byDept[w.dept_key])byDept[w.dept_key]=[];byDept[w.dept_key].push(w);});
   el.innerHTML=`
     <div class="slbl">İşçilər — şöbə üzrə</div>
     ${Object.entries(byDept).map(([dept,ws])=>{
@@ -1127,156 +978,124 @@ function renderWorkersSection(el){
         <div class="sec-card-hd"><h3>${info.icon} ${info.name}</h3><span style="font-size:12px;color:var(--t2)">${ws.length} nəfər</span></div>
         ${ws.map(w=>{
           const ini=w.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
-          const sCls=w.status==='active'?'bGN':w.status==='away'?'bO':'bG';
-          const sTxt=w.status==='active'?'Aktiv':w.status==='away'?'Məzuniyyət':'Deaktiv';
           return`<div class="list-item">
             <div style="width:36px;height:36px;border-radius:50%;background:var(--lt);color:var(--dp);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini}</div>
-            <div class="li-body"><div class="li-title">${w.name}</div><div class="li-sub">${w.role}</div></div>
-            <span class="badge ${sCls}">${sTxt}</span>
+            <div class="li-body"><div class="li-title">${w.name}</div><div class="li-sub">${w.role_title||''}</div></div>
           </div>`;
         }).join('')}
       </div>`;
     }).join('')}`;
 }
 
-// ════════════════════════════════════════
-// USER MANAGEMENT
-// ════════════════════════════════════════
-let editingUserId=null;
-
+// ═══════════════════════════ USER MANAGEMENT ═══════════════════════════
 function openAddUser(){
   editingUserId=null;
-  document.getElementById('au-sheet-title').textContent='Yeni istifadəçi';
+  document.getElementById('au-title').textContent='Yeni istifadəçi';
   document.getElementById('au-name').value='';
   document.getElementById('au-user').value='';
   document.getElementById('au-pass').value='';
   document.getElementById('au-role').value='manager';
-  updatePermUI();
-  openSheet('add-user');
+  updatePermUI();openSheet('add-user');
 }
 
-function editUser(id){
-  const users=getUsers(),u=users.find(x=>x.id===id);if(!u)return;
+async function editUser(id){
+  showLoader();
+  const {data:u}=await sb.from('users').select('*').eq('id',id).single();
+  hideLoader();if(!u)return;
   editingUserId=id;
-  document.getElementById('au-sheet-title').textContent='İstifadəçini düzəlt';
+  document.getElementById('au-title').textContent='İstifadəçini düzəlt';
   document.getElementById('au-name').value=u.name;
   document.getElementById('au-user').value=u.username;
-  document.getElementById('au-pass').value=u.password;
+  document.getElementById('au-pass').value='';
   document.getElementById('au-role').value=u.role;
-  updatePermUI(u.perms);
+  updatePermUI(u.perms||[]);
   openSheet('add-user');
 }
 
-function delUser(id){
+async function delUser(id){
   if(!confirm('Silinsin?'))return;
-  const users=getUsers().filter(x=>x.id!==id);
-  saveUsers(users);
-  toast('Silindi');
-  openAdminSection('users');
+  await sb.from('users').delete().eq('id',id);
+  toast('Silindi');adminSec('users');
 }
 
 function updatePermUI(customPerms){
   const role=document.getElementById('au-role').value;
-  const defaultPerms=ROLE_PERMS[role]||[];
-  const perms=customPerms||defaultPerms;
+  const perms=customPerms||ROLE_PERMS[role]||[];
   document.getElementById('au-perms-wrap').innerHTML=ALL_PERMS.map(p=>{
     const active=perms.includes(p.key);
     return`<div class="perm-row">
       <div><div class="perm-label">${p.label}</div><div class="perm-sub">${p.sub}</div></div>
-      <button class="toggle ${active?'on':'off'}" id="pt-${p.key}" onclick="togglePerm('${p.key}')"></button>
+      <button class="toggle ${active?'on':'off'}" id="pt-${p.key}" onclick="tglPerm('${p.key}')"></button>
     </div>`;
   }).join('');
 }
 
-function togglePerm(key){
+function tglPerm(key){
   const btn=document.getElementById('pt-'+key);
   const isOn=btn.classList.contains('on');
-  btn.classList.toggle('on',!isOn);
-  btn.classList.toggle('off',isOn);
+  btn.classList.toggle('on',!isOn);btn.classList.toggle('off',isOn);
 }
 
-function getSelectedPerms(){
+function getSelPerms(){
   return ALL_PERMS.filter(p=>{
-    const btn=document.getElementById('pt-'+p.key);
-    return btn&&btn.classList.contains('on');
+    const b=document.getElementById('pt-'+p.key);return b&&b.classList.contains('on');
   }).map(p=>p.key);
 }
 
-function saveUser(){
+async function saveUser(){
   const name=document.getElementById('au-name').value.trim();
   const username=document.getElementById('au-user').value.trim();
   const password=document.getElementById('au-pass').value;
   const role=document.getElementById('au-role').value;
   if(!name||!username){toast('⚠ Ad və istifadəçi adı lazımdır');return;}
-  if(password.length<4&&!editingUserId){toast('⚠ Şifrə minimum 4 simvol');return;}
-  const perms=getSelectedPerms();
-  const users=getUsers();
+  const perms=getSelPerms();
+  showLoader();
   if(editingUserId){
-    const u=users.find(x=>x.id===editingUserId);
-    if(u){u.name=name;u.username=username;u.role=role;u.perms=perms;if(password)u.password=password;}
-    toast('✓ Güncəlləndi: '+name);
+    const upd={name,username,role,perms};
+    if(password&&password.length>=4) upd.password_hash=password;
+    await sb.from('users').update(upd).eq('id',editingUserId);
+    toast('✓ Yeniləndi: '+name);
   } else {
-    users.push({id:'u_'+Date.now(),name,username,password,role,perms});
+    if(password.length<4){hideLoader();toast('⚠ Şifrə minimum 4 simvol');return;}
+    await sb.from('users').insert({name,username,password_hash:password,role,perms,is_active:true});
     toast('✓ Əlavə edildi: '+name);
   }
-  saveUsers(users);
-  closeAddUser();
-  openAdminSection('users');
+  hideLoader();closeSheet('add-user');adminSec('users');
 }
 
-// ════════════════════════════════════════
-// USER SHEET
-// ════════════════════════════════════════
+// ═══════════════════════════ USER SHEET ═══════════════════════════
 function openUserSheet(){
   if(!currentUser)return;
   document.getElementById('us-name').textContent=currentUser.name;
-  const rLabels={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
-  const rCls={admin:'role-admin',manager:'role-manager',logistics:'role-logistics',dept:'role-dept'};
-  document.getElementById('us-role-badge').innerHTML=`<span class="role-pill ${rCls[currentUser.role]||'role-dept'}">${rLabels[currentUser.role]||currentUser.role}</span>`;
-  const permLabels=Object.fromEntries(ALL_PERMS.map(p=>[p.key,p.label]));
-  document.getElementById('us-perms').innerHTML=(currentUser.perms||[]).map(p=>`<div>✓ ${permLabels[p]||p}</div>`).join('');
+  const rL={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
+  const rC={admin:'role-admin',manager:'role-manager',logistics:'role-logistics',dept:'role-dept'};
+  document.getElementById('us-role').innerHTML=`<span class="role-pill ${rC[currentUser.role]||'role-dept'}">${rL[currentUser.role]||currentUser.role}</span>`;
+  const pL=Object.fromEntries(ALL_PERMS.map(p=>[p.key,p.label]));
+  document.getElementById('us-perms').innerHTML=(currentUser.perms||[]).map(p=>`<div>✓ ${pL[p]||p}</div>`).join('');
   openSheet('user-sheet');
 }
-function closeUserSheet(){closeSheet('user-sheet');}
-function closeAddUser(){closeSheet('add-user');}
 
-// ════════════════════════════════════════
-// SHEET SYSTEM
-// ════════════════════════════════════════
-function openSheet(name){
-  const ov=document.getElementById(name+'-ov')||document.getElementById(name+'-sheet-ov');
-  const sh=document.getElementById(name+'-sheet');
-  if(ov){ov.classList.add('on');}
-  if(sh){setTimeout(()=>sh.classList.add('on'),10);}
+// ═══════════════════════════ SHEET ═══════════════════════════
+function openSheet(n){
+  const ov=document.getElementById(n+'-ov')||document.getElementById(n+'-sheet-ov');
+  const sh=document.getElementById(n+'-sheet');
+  if(ov)ov.classList.add('on');
+  if(sh)setTimeout(()=>sh.classList.add('on'),10);
 }
-function closeSheet(name){
-  const ov=document.getElementById(name+'-ov')||document.getElementById(name+'-sheet-ov');
-  const sh=document.getElementById(name+'-sheet');
+function closeSheet(n){
+  const ov=document.getElementById(n+'-ov')||document.getElementById(n+'-sheet-ov');
+  const sh=document.getElementById(n+'-sheet');
   if(sh)sh.classList.remove('on');
   setTimeout(()=>{if(ov)ov.classList.remove('on');},300);
 }
 
-// Order detail sheet (dynamic)
-const ods=document.createElement('div');ods.className='sheet-overlay';ods.id='order-detail-sheet-ov';ods.onclick=()=>closeSheet('order-detail-sheet');document.body.appendChild(ods);
-const odsh=document.createElement('div');odsh.className='sheet';odsh.id='order-detail-sheet';odsh.innerHTML='<div class="sheet-handle"></div><div class="sheet-title" id="ods-title">—</div><div class="sheet-body" id="ods-body"></div>';document.body.appendChild(odsh);
-
-// ════════════════════════════════════════
-// TOAST
-// ════════════════════════════════════════
+// ═══════════════════════════ TOAST ═══════════════════════════
 let tT;
 function toast(msg){
   const el=document.getElementById('toast');
   el.textContent=msg;el.classList.add('on');
   clearTimeout(tT);tT=setTimeout(()=>el.classList.remove('on'),3200);
 }
-
-// ════════════════════════════════════════
-// CLOCK
-// ════════════════════════════════════════
-setInterval(()=>{
-  const nb=document.getElementById('bnav-dash');
-  if(nb&&activeScreen==='dash')renderDash();
-},30000);
 </script>
 </body>
 </html>
