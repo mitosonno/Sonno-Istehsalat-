@@ -344,10 +344,10 @@ textarea{resize:vertical;min-height:80px}
       <div id="sc-dash" class="sc on">
         <div class="pg-hd">Dashboard <small id="dash-date"></small></div>
         <div class="kgrid">
-          <div class="kpi kT"><div class="kl">AKTİV SİFARİŞ</div><div class="kv" id="k-act">—</div><div class="ks">istehsalda</div></div>
-          <div class="kpi kR"><div class="kl">GECİKƏN</div><div class="kv" id="k-lat" style="color:#E24B4A">—</div><div class="ks">təcili</div></div>
-          <div class="kpi kO"><div class="kl">HAZIR</div><div class="kv" id="k-rdy" style="color:var(--or)">—</div><div class="ks">çatdırılma</div></div>
-          <div class="kpi kD"><div class="kl">TƏSLİM</div><div class="kv" id="k-don">—</div><div class="ks">bu həftə</div></div>
+          <div class="kpi kT" onclick="showOrderSheet('active')" style="cursor:pointer"><div class="kl">AKTİV SİFARİŞ</div><div class="kv" id="k-act">—</div><div class="ks">istehsalda</div></div>
+          <div class="kpi kR" onclick="showOrderSheet('late')" style="cursor:pointer"><div class="kl">GECİKƏN</div><div class="kv" id="k-lat" style="color:#E24B4A">—</div><div class="ks">təcili</div></div>
+          <div class="kpi kO" onclick="showOrderSheet('ready')" style="cursor:pointer"><div class="kl">HAZIR</div><div class="kv" id="k-rdy" style="color:var(--or)">—</div><div class="ks">çatdırılma</div></div>
+          <div class="kpi kD" onclick="showOrderSheet('delivered')" style="cursor:pointer"><div class="kl">TƏSLİM</div><div class="kv" id="k-don">—</div><div class="ks">bu həftə</div></div>
         </div>
         <div class="slbl">Gecikən sifarişlər</div>
         <div class="card" id="late-card"></div>
@@ -685,6 +685,14 @@ textarea{resize:vertical;min-height:80px}
   <div class="sheet-body" id="od-body"></div>
 </div>
 
+<!-- Order list sheet -->
+<div class="sheet-overlay" id="order-list-ov" onclick="closeSheet('order-list')"></div>
+<div class="sheet" id="order-list-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="ol-title">—</div>
+  <div class="sheet-body" id="ol-body" style="padding:0;max-height:70vh;overflow-y:auto"></div>
+</div>
+
 <div id="toast"></div>
 <div id="loader"><div class="spinner"></div></div>
 
@@ -911,6 +919,63 @@ function orderListItem(o){
     </div>
     <div class="li-right"><span class="badge ${st.c}">${st.t}</span></div>
   </div>`;
+}
+
+async function showOrderSheet(type){
+  showLoader();
+  const{data:orders}=await sb.from('orders').select('*').order('created_at',{ascending:false});
+  const{data:models}=await sb.from('models').select('*');
+  hideLoader();
+  
+  const all=orders||[];
+  let filtered=[];
+  let title='';
+  
+  if(type==='active'){
+    filtered=all.filter(o=>['in_progress','created'].includes(o.status));
+    title='Aktiv sifarişlər';
+  }else if(type==='late'){
+    filtered=all.filter(o=>o.status==='late');
+    title='Gecikmiş sifarişlər';
+  }else if(type==='ready'){
+    filtered=all.filter(o=>o.status==='ready');
+    title='Hazır sifarişlər (çatdırılacaq)';
+  }else if(type==='delivered'){
+    const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
+    filtered=all.filter(o=>o.status==='delivered'&&new Date(o.updated_at||o.created_at)>=weekAgo);
+    title='Təslim edilmiş sifarişlər (bu həftə)';
+  }
+  
+  document.getElementById('ol-title').textContent=title+` (${filtered.length})`;
+  
+  if(!filtered.length){
+    document.getElementById('ol-body').innerHTML=`<div style="padding:40px 20px;text-align:center;color:var(--t3)">
+      <div style="font-size:36px;margin-bottom:10px">📭</div>
+      <div style="font-size:14px">Sifariş yoxdur</div>
+    </div>`;
+    openSheet('order-list');
+    return;
+  }
+  
+  document.getElementById('ol-body').innerHTML=filtered.map(o=>{
+    const m=models?.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦',stages:[]};
+    const st=ST[o.status]||ST.created;
+    const stageName=m.stages&&m.stages[o.current_stage-1]?m.stages[o.current_stage-1].name:'—';
+    
+    return`<div class="list-item" onclick="closeSheet('order-list');showOD('${o.id}')" style="border-bottom:1px solid var(--bd)">
+      <div class="li-icon" style="background:${o.status==='late'?'#FCEBEB':o.status==='delivered'?'#E8F5E9':'rgba(17,24,32,.04)'}">
+        ${m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:10px">`:`<div style="font-size:22px">${m.emoji}</div>`}
+      </div>
+      <div class="li-body">
+        <div class="li-title">${o.client} <span class="mono">${o.order_number}</span></div>
+        <div class="li-sub">${m.name.split('—')[0].trim()} · ${o.qty} ədəd${o.final_price?' · '+o.final_price+' ₼':''}</div>
+        ${type==='delivered'?`<div style="font-size:11px;color:var(--t3);margin-top:2px">Təslim: ${fmtDate(o.updated_at||o.created_at)}</div>`:`<div style="font-size:11px;color:var(--t3);margin-top:2px">${stageName}${o.deadline?' · Deadline: '+o.deadline:''}</div>`}
+      </div>
+      <div class="li-right"><span class="badge ${st.c}">${st.t}</span></div>
+    </div>`;
+  }).join('');
+  
+  openSheet('order-list');
 }
 
 async function showOD(id){
