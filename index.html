@@ -343,14 +343,27 @@ textarea{resize:vertical;min-height:80px}
       <!-- DASHBOARD -->
       <div id="sc-dash" class="sc on">
         <div class="pg-hd">Dashboard <small id="dash-date"></small></div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <input type="date" id="dash-date-from" style="flex:1;min-width:140px" onchange="renderDash()">
+          <input type="date" id="dash-date-to" style="flex:1;min-width:140px" onchange="renderDash()">
+          <button class="btn btn-ln" onclick="clearDashFilter()">Hamısı</button>
+        </div>
         <div class="kgrid">
           <div class="kpi kT" onclick="showOrderSheet('active')" style="cursor:pointer"><div class="kl">AKTİV SİFARİŞ</div><div class="kv" id="k-act">—</div><div class="ks">istehsalda</div></div>
           <div class="kpi kR" onclick="showOrderSheet('late')" style="cursor:pointer"><div class="kl">GECİKƏN</div><div class="kv" id="k-lat" style="color:#E24B4A">—</div><div class="ks">təcili</div></div>
           <div class="kpi kO" onclick="showOrderSheet('ready')" style="cursor:pointer"><div class="kl">HAZIR</div><div class="kv" id="k-rdy" style="color:var(--or)">—</div><div class="ks">çatdırılma</div></div>
           <div class="kpi kD" onclick="showOrderSheet('delivered')" style="cursor:pointer"><div class="kl">TƏSLİM</div><div class="kv" id="k-don">—</div><div class="ks">bu həftə</div></div>
         </div>
-        <div class="slbl">Gecikən sifarişlər</div>
-        <div class="card" id="late-card"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div>
+            <div class="slbl" style="margin-bottom:6px">🆕 Bu gün gələn</div>
+            <div class="card" id="today-card" style="max-height:280px;overflow-y:auto"></div>
+          </div>
+          <div>
+            <div class="slbl" style="margin-bottom:6px">🚨 Gecikən sifarişlər</div>
+            <div class="card" id="late-card" style="max-height:280px;overflow-y:auto"></div>
+          </div>
+        </div>
         <div class="slbl">Bütün sifarişlər</div>
         <div class="tbl-wrap">
           <table><thead><tr><th>Sifariş</th><th>Müştəri</th><th>Model</th><th>Ədəd</th><th>Mərhələ</th><th>Məbləğ</th><th>Deadline</th><th>Status</th></tr></thead>
@@ -373,12 +386,11 @@ textarea{resize:vertical;min-height:80px}
             </div>
             <div class="card card-pad">
               <div class="fg2">
-                <div class="fg"><label>Müştəri şirkəti</label><input id="o-client" placeholder="Kapital Bank"></div>
-                <div class="fg"><label>Material adı</label><input id="o-fabric" placeholder="Məs: Velvet, Dəri, Linen..."></div>
-                <div class="fg"><label>Material satan şirkət</label><input id="o-fabric-co" placeholder="Məs: Azərtekstil MMC"></div>
-                <div class="fg"><label>Rəng</label><input id="o-color" placeholder="Məs: Bej, Qara, Göy..."></div>
+                <div class="fg"><label>Müştəri adı</label><input id="o-client" list="client-list" placeholder="Müştəri adı" oninput="saveClientName(this.value)"><datalist id="client-list"></datalist></div>
+                <div class="fg"><label>Parça adı</label><input id="o-fabric" placeholder="Məs: Velvet, Dəri, Linen..."></div>
+                <div class="fg"><label>Parça satan şirkət</label><input id="o-fabric-co" placeholder="Məs: Azərtekstil MMC"></div>
+                <div class="fg"><label>Parça kodu</label><input id="o-color" placeholder="Məs: VL-204, DR-18..."></div>
                 <div class="fg"><label>Ayaq rəngi / növü</label><input id="o-legs" placeholder="Məs: Qara metal, Ağ taxta..."></div>
-                <div class="fg"><label>Ölçü</label><input id="o-size" placeholder="Məs: 220x90, Standart..."></div>
                 <div class="fg"><label>Deadline</label><input id="o-dead" type="date"></div>
               </div>
 
@@ -713,6 +725,7 @@ const DEPT_INFO = {
   shkurka:     {name:'Şkurka şöbəsi',          icon:'🔩', hours:1.5},
   masa_karkaz: {name:'Masa karkaz şöbəsi',     icon:'🪚', hours:3},
   masa_rengle: {name:'Masa rəngləmə şöbəsi',   icon:'🎨', hours:2},
+  rengleme:    {name:'Rənglənmə şöbəsi',       icon:'🖌️', hours:3},
   yastiqlama:  {name:'Yastıqlama / Döşəmə',    icon:'🛋️', hours:4},
   tikiş:       {name:'Tikiş şöbəsi',           icon:'🧵', hours:3},
   qa:          {name:'Keyfiyyət yoxlama',       icon:'✅', hours:1},
@@ -791,6 +804,8 @@ async function doLogin(){
     const {data,error}=await sb.from('users').select('*').eq('username',username).eq('password_hash',password).eq('is_active',true).single();
     if(error||!data){document.getElementById('l-err').textContent='İstifadəçi adı və ya şifrə yanlışdır';return;}
     currentUser=data;
+    // Session saxla
+    localStorage.setItem('sonno_session', JSON.stringify({user:data, ts:Date.now()}));
     document.getElementById('l-err').textContent='';
     document.getElementById('login-screen').classList.add('out');
     setTimeout(async()=>{
@@ -807,6 +822,8 @@ document.getElementById('l-user').addEventListener('keydown',e=>{if(e.key==='Ent
 function doLogout(){
   currentUser=null; appModels=[]; appWorkers=[];
   selModel=null; qty=1; pinUnlocked={}; aiHistory=[];
+  // Session sil
+  localStorage.removeItem('sonno_session');
   closeSheet('user-sheet');
   document.getElementById('app').classList.remove('visible');
   const ls=document.getElementById('login-screen');
@@ -814,6 +831,189 @@ function doLogout(){
   document.getElementById('l-user').value='';
   document.getElementById('l-pass').value='';
 }
+
+// ═══════════ SESSION RESTORE ═══════════
+async function tryRestoreSession(){
+  try{
+    const raw = localStorage.getItem('sonno_session');
+    if(!raw) return false;
+    const {user, ts} = JSON.parse(raw);
+    // 30 gündən köhnədirsə sil
+    if(Date.now()-ts > 30*24*60*60*1000){
+      localStorage.removeItem('sonno_session');
+      return false;
+    }
+    // Supabase-dən fresh user yüklə (deaktiv edilib?)
+    const {data,error} = await sb.from('users').select('*').eq('id',user.id).eq('is_active',true).single();
+    if(error||!data){
+      localStorage.removeItem('sonno_session');
+      return false;
+    }
+    currentUser = data;
+    // Session yenilə
+    localStorage.setItem('sonno_session', JSON.stringify({user:data, ts:Date.now()}));
+    return true;
+  }catch(e){
+    console.error('Session restore error:', e);
+    return false;
+  }
+}
+
+// ═══════════ PAGE LOAD ═══════════
+(async()=>{
+  showLoader();
+
+  // URL-də ?dept=karkaz varsa — kiosk mode
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlDept = urlParams.get('dept');
+
+  if(urlDept && DEPT_INFO[urlDept]){
+    // Kiosk mode — yalnız bu şöbə
+    hideLoader();
+    startKioskMode(urlDept);
+    return;
+  }
+
+  // Normal mode — session yoxla
+  const restored = await tryRestoreSession();
+  if(restored){
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').classList.add('visible');
+    await initApp();
+  }
+  hideLoader();
+})();
+
+// ═══════════ KİOSK MODE ═══════════
+async function startKioskMode(dept){
+  const info = DEPT_INFO[dept];
+
+  // Bütün səhifəni gizlət
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='none';
+
+  // Kiosk ekranı yarat
+  const kiosk = document.createElement('div');
+  kiosk.id = 'kiosk-screen';
+  kiosk.style.cssText = `position:fixed;inset:0;background:#111820;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;font-family:'DM Sans',sans-serif`;
+
+  kiosk.innerHTML = `
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="font-size:72px;margin-bottom:12px">${info.icon}</div>
+      <div style="font-size:28px;font-weight:700;color:#fff;margin-bottom:4px">${info.name}</div>
+      <div style="font-size:14px;color:rgba(255,255,255,.4)">PIN kodunu daxil edin</div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:8px" id="k-dots">
+      <div class="kdot"></div><div class="kdot"></div><div class="kdot"></div><div class="kdot"></div>
+    </div>
+    <div id="k-err" style="color:#E24B4A;font-size:13px;min-height:20px;margin-bottom:20px;text-align:center"></div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,72px);gap:10px">
+      ${['1','2','3','4','5','6','7','8','9','','0','⌫'].map(k=>
+        k===''?`<div></div>`:
+        `<button onclick="kiosk_pp('${k}')" style="width:72px;height:72px;border-radius:16px;border:none;background:rgba(255,255,255,.1);color:#fff;font-size:${k==='⌫'?'22px':'24px'};font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background .1s" onmousedown="this.style.background='rgba(247,137,48,.3)'" onmouseup="this.style.background='rgba(255,255,255,.1)'">${k}</button>`
+      ).join('')}
+    </div>
+  `;
+
+  // CSS for kiosk dots
+  const style = document.createElement('style');
+  style.textContent = `.kdot{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.3);transition:all .15s}.kdot.filled{background:#F78930;border-color:#F78930}.kdot.err{background:#E24B4A;border-color:#E24B4A}`;
+  document.head.appendChild(style);
+  document.body.appendChild(kiosk);
+
+  // PIN logic
+  let buf='';
+  let pinCode='1234';
+
+  // PIN-i Supabase-dən yüklə
+  try{
+    const{data:pins}=await sb.from('dept_pins').select('*').eq('dept_key',dept).single();
+    if(pins?.pin_code) pinCode=pins.pin_code;
+  }catch(e){}
+
+  window.kiosk_pp = function(k){
+    if(k==='⌫'){buf=buf.slice(0,-1);}
+    else if(buf.length<4){buf+=k;}
+    updateKioskDots();
+    if(buf.length===4) setTimeout(()=>checkKioskPin(dept,pinCode,buf),120);
+  };
+
+  function updateKioskDots(){
+    document.querySelectorAll('.kdot').forEach((d,i)=>{
+      d.classList.remove('filled','err');
+      if(i<buf.length) d.classList.add('filled');
+    });
+  }
+
+  async function checkKioskPin(dept,code,entered){
+    if(entered===code){
+      document.querySelectorAll('.kdot').forEach(d=>d.classList.add('filled'));
+      setTimeout(()=>openKioskDept(dept),300);
+    }else{
+      document.querySelectorAll('.kdot').forEach(d=>d.classList.add('err'));
+      document.getElementById('k-err').textContent='PIN yanlışdır. Yenidən cəhd edin.';
+      setTimeout(()=>{buf='';updateKioskDots();document.getElementById('k-err').textContent='';},800);
+    }
+  }
+}
+
+async function openKioskDept(dept){
+  // Kiosk ekranını gizlət
+  const kiosk = document.getElementById('kiosk-screen');
+  if(kiosk) kiosk.style.display='none';
+
+  // Supabase-dən lazımi data yüklə (minimal)
+  showLoader();
+  try{
+    const[mr,wr]=await Promise.all([
+      sb.from('models').select('*').eq('is_active',true),
+      sb.from('workers').select('*').eq('status','active'),
+    ]);
+    appModels=mr.data||[];
+    appWorkers=wr.data||[];
+  }catch(e){}
+  hideLoader();
+
+  // App-i göstər amma yalnız dept ekranı
+  const app = document.getElementById('app');
+  app.style.display='flex';
+  app.classList.add('visible');
+
+  // Kiosk mode üçün nav-ı gizlət
+  const nav = document.querySelector('.bottom-nav');
+  if(nav) nav.style.display='none';
+
+  // Birbaşa şöbə tapşırıqlarına get
+  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('act'));
+  document.getElementById('sc-dept').classList.add('act');
+  
+  // Başlıq yarat
+  const info = DEPT_INFO[dept];
+  const deptHd = document.getElementById('dept-hd');
+  if(deptHd){
+    deptHd.style.display='flex';
+    document.getElementById('dt-icon').textContent = info.icon;
+    document.getElementById('dt-name').textContent = info.name;
+  }
+
+  // "Çıxış" düyməsini "🔒 Kilit" et — PIN ekranına qayıt
+  const lockBtn = deptHd?.querySelector('button');
+  if(lockBtn){
+    lockBtn.textContent='🔒 Kilit';
+    lockBtn.onclick = ()=>{
+      app.style.display='none';
+      const kiosk=document.getElementById('kiosk-screen');
+      if(kiosk){kiosk.style.display='flex';}else{window.location.reload();}
+    };
+  }
+
+  showDV('dept-tasks');
+  await renderDeptTasks(dept);
+  pinUnlocked[dept]=true;
+}
+
 
 // ═══════════ INIT ═══════════
 async function initApp(){
@@ -833,7 +1033,7 @@ async function initApp(){
   document.getElementById('topbar-av').textContent=ini;
   const rL={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
   document.getElementById('topbar-role').textContent=rL[u.role]||u.role;
-  document.getElementById('dash-date').textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
+  loadClientNames();document.getElementById('dash-date').textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
 
   // Build nav
   const visible=NAV_ITEMS.filter(n=>hasPerm(n.perm));
@@ -874,10 +1074,21 @@ async function goTo(key){
 }
 
 // ═══════════ DASHBOARD ═══════════
+
+function clearDashFilter(){
+  document.getElementById('dash-date-from').value='';
+  document.getElementById('dash-date-to').value='';
+  renderDash();
+}
 async function renderDash(){
   showLoader();
   try{
-    const{data:orders}=await sb.from('orders').select('*').order('created_at',{ascending:false});
+    let query = sb.from('orders').select('*').order('created_at',{ascending:false});
+    const dateFrom = document.getElementById('dash-date-from')?.value;
+    const dateTo = document.getElementById('dash-date-to')?.value;
+    if(dateFrom) query = query.gte('created_at', dateFrom+'T00:00:00');
+    if(dateTo) query = query.lte('created_at', dateTo+'T23:59:59');
+    const{data:orders}=await query;
     const all=orders||[];
     document.getElementById('k-act').textContent=all.filter(o=>['in_progress','created','late'].includes(o.status)).length;
     document.getElementById('k-lat').textContent=all.filter(o=>o.status==='late').length;
@@ -885,6 +1096,13 @@ async function renderDash(){
     document.getElementById('k-don').textContent=all.filter(o=>o.status==='delivered').length;
 
     const late=all.filter(o=>o.status==='late');
+    // Today card
+    const today = new Date().toISOString().split('T')[0];
+    const todayOrders = all.filter(o=>o.created_at && o.created_at.startsWith(today));
+    document.getElementById('today-card').innerHTML = todayOrders.length
+      ? todayOrders.map(o=>orderListItem(o)).join('')
+      : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Bu gün sifariş yoxdur</div>';
+
     document.getElementById('late-card').innerHTML=late.length
       ?late.map(o=>orderListItem(o)).join('')
       :'<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Gecikən sifariş yoxdur ✓</div>';
@@ -923,7 +1141,12 @@ function orderListItem(o){
 
 async function showOrderSheet(type){
   showLoader();
-  const{data:orders}=await sb.from('orders').select('*').order('created_at',{ascending:false});
+  let query = sb.from('orders').select('*').order('created_at',{ascending:false});
+    const dateFrom = document.getElementById('dash-date-from')?.value;
+    const dateTo = document.getElementById('dash-date-to')?.value;
+    if(dateFrom) query = query.gte('created_at', dateFrom+'T00:00:00');
+    if(dateTo) query = query.lte('created_at', dateTo+'T23:59:59');
+    const{data:orders}=await query;
   const{data:models}=await sb.from('models').select('*');
   hideLoader();
   
@@ -962,20 +1185,76 @@ async function showOrderSheet(type){
     const st=ST[o.status]||ST.created;
     const stageName=m.stages&&m.stages[o.current_stage-1]?m.stages[o.current_stage-1].name:'—';
     
-    return`<div class="list-item" onclick="closeSheet('order-list');showOD('${o.id}')" style="border-bottom:1px solid var(--bd)">
-      <div class="li-icon" style="background:${o.status==='late'?'#FCEBEB':o.status==='delivered'?'#E8F5E9':'rgba(17,24,32,.04)'}">
+    // Stage color for active orders
+    const stageColors = {
+      hazirlik:'#E3F2FD', bez_kesim:'#F3E5F5', karkaz:'#E8F5E9',
+      shkurka:'#FFF3E0', masa_karkaz:'#FCE4EC', masa_rengle:'#E0F2F1',
+      rengleme:'#EDE7F6', yastiqlama:'#FFF8E1', tikiş:'#E8EAF6',
+      qa:'#E0F7FA', logistics:'#F1F8E9'
+    };
+    const curStage = m.stages&&m.stages[o.current_stage-1];
+    const deptKey = curStage?.dept?.split('||')[0]||'';
+    const stageColor = stageColors[deptKey]||'rgba(17,24,32,.04)';
+    const deptInfo = DEPT_INFO[deptKey]||{name:stageName,icon:'🏭'};
+
+    // Signature for delivered
+    const hasSig = o.signature ? `<div style="font-size:11px;color:var(--tl);margin-top:4px">✍ İmza var</div>` : '';
+
+    return`<div class="list-item" onclick="closeSheet('order-list');${type==='delivered'?`showDeliveredDetail('${o.id}')`:`showOD('${o.id}')`}" style="border-bottom:1px solid var(--bd)">
+      <div class="li-icon" style="background:${o.status==='late'?'#FCEBEB':o.status==='delivered'?'#E8F5E9':stageColor}">
         ${m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:10px">`:`<div style="font-size:22px">${m.emoji}</div>`}
       </div>
       <div class="li-body">
         <div class="li-title">${o.client} <span class="mono">${o.order_number}</span></div>
         <div class="li-sub">${m.name.split('—')[0].trim()} · ${o.qty} ədəd${o.final_price?' · '+o.final_price+' ₼':''}</div>
-        ${type==='delivered'?`<div style="font-size:11px;color:var(--t3);margin-top:2px">Təslim: ${fmtDate(o.updated_at||o.created_at)}</div>`:`<div style="font-size:11px;color:var(--t3);margin-top:2px">${stageName}${o.deadline?' · Deadline: '+o.deadline:''}</div>`}
+        ${type==='active'||type==='late'?`<div style="font-size:11px;margin-top:4px;padding:2px 8px;background:${stageColor};border-radius:20px;display:inline-block;font-weight:500">${deptInfo.icon} ${deptInfo.name}${o.deadline?' · Deadline: '+o.deadline:''}</div>`:''}
+        ${type==='delivered'?`<div style="font-size:11px;color:var(--t3);margin-top:2px">Təslim: ${fmtDate(o.updated_at||o.created_at)}</div>${hasSig}`:''}
       </div>
       <div class="li-right"><span class="badge ${st.c}">${st.t}</span></div>
     </div>`;
   }).join('');
   
   openSheet('order-list');
+}
+
+async function showDeliveredDetail(id){
+  showLoader();
+  const{data:o}=await sb.from('orders').select('*').eq('id',id).single();
+  const{data:models}=await sb.from('models').select('*');
+  hideLoader();
+  if(!o)return;
+  const m=models?.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
+  document.getElementById('ol-title').textContent='Təslim məlumatı';
+  document.getElementById('ol-body').innerHTML=`
+    <div style="padding:16px">
+      <div style="background:var(--lt);border-radius:var(--r);padding:14px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          ${m.img_url?`<img src="${m.img_url}" style="width:56px;height:56px;object-fit:cover;border-radius:8px">`:`<div style="font-size:36px">${m.emoji}</div>`}
+          <div>
+            <div style="font-weight:700;font-size:16px">${m.name.split('—')[0].trim()}</div>
+            <div style="font-size:13px;color:var(--t2)">${o.order_number}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><div style="font-size:11px;color:var(--t2)">Müştəri</div><div style="font-weight:600">${o.client}</div></div>
+          <div><div style="font-size:11px;color:var(--t2)">Ədəd</div><div style="font-weight:700;color:var(--tl);font-size:18px">${o.qty}</div></div>
+          <div><div style="font-size:11px;color:var(--t2)">Məbləğ</div><div style="font-weight:700;color:var(--tl)">${o.final_price||0} ₼</div></div>
+          <div><div style="font-size:11px;color:var(--t2)">Təslim tarixi</div><div style="font-weight:600">${fmtDate(o.updated_at||o.created_at)}</div></div>
+        </div>
+      </div>
+      ${o.signature?`
+        <div style="margin-bottom:6px;font-size:13px;font-weight:600">Müştəri imzası</div>
+        <div style="border:2px solid var(--bd);border-radius:var(--r);overflow:hidden;background:#fff">
+          <img src="${o.signature}" style="width:100%;max-height:180px;object-fit:contain">
+        </div>
+        <div style="font-size:11px;color:var(--tl);margin-top:6px;text-align:center">✍ İmza alınmışdır</div>
+      `:`
+        <div style="padding:24px;text-align:center;background:rgba(17,24,32,.04);border-radius:var(--r)">
+          <div style="font-size:24px;margin-bottom:6px">✍</div>
+          <div style="font-size:13px;color:var(--t3)">İmza yoxdur</div>
+        </div>
+      `}
+    </div>`;
 }
 
 async function showOD(id){
@@ -1091,13 +1370,22 @@ function calcFinal(){
 function updateEta(m){
   const bar=document.getElementById('eta-bar');bar.style.display='block';
   const h=(m.total_hours*qty).toFixed(1);
-  const days=Math.ceil(m.total_hours*qty/8);
-  const d=new Date();d.setDate(d.getDate()+days);
+  const minDays = 7; // Minimum 7 iş günü
+  let days = Math.max(Math.ceil(m.total_hours*qty/8), minDays);
+  const d=new Date();
+  let added=0;
+  while(added<days){
+    d.setDate(d.getDate()+1);
+    const dow=d.getDay();
+    if(dow!==0 && dow!==6) added++; // Skip Sat(6) and Sun(0)
+  }
   const eta=d.toLocaleDateString('az-AZ',{day:'2-digit',month:'long'});
   const dl=document.getElementById('o-dead').value;
   let ok='';
   if(dl){const ok2=new Date(dl)>=d;ok=ok2?' · <span style="color:var(--tl)">✓ Vaxt var</span>':' · <span style="color:#E24B4A">⚠ Risk</span>';}
-  document.getElementById('eta-txt').innerHTML=`${h} saat · ETA: ${eta}${ok}`;
+  document.getElementById('eta-txt').innerHTML=`${h} saat · ${days} iş günü · ETA: ${eta}${ok}`;
+  // Auto-set deadline
+  if(!dl) document.getElementById('o-dead').value=d.toISOString().split('T')[0];
 }
 
 function renderPipePrev(m){
@@ -1138,7 +1426,7 @@ async function createOrder(){
   hideLoader();
   if(error){toast('Xəta: '+error.message);return;}
   toast(`✓ ${num} yaradıldı — ${total?total+' ₼ · ':''}Pipeline başladı!`);
-  ['o-client','o-fabric','o-fabric-co','o-color','o-legs','o-size','o-notes'].forEach(id=>{
+  ['o-client','o-fabric','o-fabric-co','o-color','o-legs','o-notes'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
   if(document.getElementById('o-discount'))document.getElementById('o-discount').value=0;
@@ -2120,20 +2408,32 @@ async function renderUsersSection(el){
 async function renderPinsSection(el){
   const{data:pins}=await sb.from('dept_pins').select('*');
   const pm={};(pins||[]).forEach(p=>pm[p.dept_key]=p.pin_code);
+  const baseUrl = window.location.origin + window.location.pathname;
   el.innerHTML=`
-    <div class="slbl">Şöbə PIN kodları</div>
+    <div class="slbl">Şöbə PIN kodları və Kiosk URL-lər</div>
     <div class="sec-card card-pad">
-      <p style="font-size:13px;color:var(--t2);margin-bottom:14px">4 rəqəmli PIN — hər şöbə üçün ayrıca</p>
+      <p style="font-size:13px;color:var(--t2);margin-bottom:14px">Hər şöbə üçün 4 rəqəmli PIN təyin edin. Monitor/telefon üçün URL-i kopyalayın — açılanda yalnız o şöbənin PIN ekranı görünəcək.</p>
       ${Object.entries(DEPT_INFO).map(([key,info])=>`
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(17,24,32,.06)">
-          <span style="font-size:18px">${info.icon}</span>
-          <span style="flex:1;font-size:13px;font-weight:500">${info.name}</span>
-          <input type="text" maxlength="4" value="${pm[key]||'1234'}" id="pi-${key}"
-            style="width:72px;font-family:'DM Mono',monospace;font-size:16px;font-weight:700;letter-spacing:.2em;text-align:center;padding:6px 4px;border:1px solid var(--bd);border-radius:8px"
-            oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)">
-          <button onclick="savePinChg('${key}')" style="border:none;background:var(--lt);color:var(--tl);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit">Saxla</button>
+        <div style="padding:12px 0;border-bottom:1px solid rgba(17,24,32,.06)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <span style="font-size:22px">${info.icon}</span>
+            <span style="flex:1;font-size:14px;font-weight:600">${info.name}</span>
+            <input type="text" maxlength="4" value="${pm[key]||'1234'}" id="pi-${key}"
+              style="width:72px;font-family:'DM Mono',monospace;font-size:16px;font-weight:700;letter-spacing:.2em;text-align:center;padding:6px 4px;border:1px solid var(--bd);border-radius:8px"
+              oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,4)">
+            <button onclick="savePinChg('${key}')" style="border:none;background:var(--lt);color:var(--tl);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit">Saxla</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(17,24,32,.04);border-radius:8px;padding:8px 10px">
+            <div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${baseUrl}?dept=${key}</div>
+            <button onclick="copyKioskUrl('${baseUrl}?dept=${key}')" style="border:none;background:var(--tl);color:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;font-family:inherit;white-space:nowrap">📋 Kopyala</button>
+            <a href="${baseUrl}?dept=${key}" target="_blank" style="border:none;background:var(--or);color:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;font-family:inherit;text-decoration:none;white-space:nowrap">↗ Aç</a>
+          </div>
         </div>`).join('')}
     </div>`;
+}
+
+function copyKioskUrl(url){
+  navigator.clipboard.writeText(url).then(()=>toast('✓ URL kopyalandı: '+url)).catch(()=>toast('URL: '+url));
 }
 
 async function savePinChg(key){
