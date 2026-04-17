@@ -784,7 +784,11 @@ function toast(msg, dur=3500){
   el.textContent=msg; el.classList.add('on');
   clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('on'),dur);
 }
-function hasPerm(k){return currentUser?.perms?.includes(k)}
+function hasPerm(k){
+  if(!currentUser) return false;
+  if(currentUser.role==='admin') return true;
+  return currentUser?.perms?.includes(k);
+}
 function fmtTime(mins){
   if(!mins) return '—';
   if(mins<60) return Math.round(mins)+'dəq';
@@ -837,24 +841,25 @@ async function tryRestoreSession(){
   try{
     const raw = localStorage.getItem('sonno_session');
     if(!raw) return false;
-    const {user, ts} = JSON.parse(raw);
+    const saved = JSON.parse(raw);
+    if(!saved||!saved.user||!saved.user.id) return false;
     // 30 gündən köhnədirsə sil
-    if(Date.now()-ts > 30*24*60*60*1000){
+    if(saved.ts && Date.now()-saved.ts > 30*24*60*60*1000){
       localStorage.removeItem('sonno_session');
       return false;
     }
-    // Supabase-dən fresh user yüklə (deaktiv edilib?)
-    const {data,error} = await sb.from('users').select('*').eq('id',user.id).eq('is_active',true).single();
+    // Supabase-dən fresh user yüklə
+    const {data,error} = await sb.from('users').select('*').eq('id',saved.user.id).eq('is_active',true).single();
     if(error||!data){
       localStorage.removeItem('sonno_session');
       return false;
     }
     currentUser = data;
-    // Session yenilə
     localStorage.setItem('sonno_session', JSON.stringify({user:data, ts:Date.now()}));
     return true;
   }catch(e){
     console.error('Session restore error:', e);
+    localStorage.removeItem('sonno_session');
     return false;
   }
 }
