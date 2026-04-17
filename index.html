@@ -864,6 +864,19 @@ async function tryRestoreSession(){
   }
 }
 
+
+// ═══════════ GERİ DÜYMƏSİ (telefon) ═══════════
+let navHistory = [];
+window.addEventListener('popstate', (e)=>{
+  if(e.state && e.state.page){
+    goTo(e.state.page, true);
+  } else if(navHistory.length > 1){
+    navHistory.pop();
+    const prev = navHistory[navHistory.length-1];
+    if(prev) goTo(prev, true);
+  }
+});
+
 // ═══════════ PAGE LOAD ═══════════
 (async()=>{
   showLoader();
@@ -1022,23 +1035,25 @@ async function openKioskDept(dept){
 
 // ═══════════ INIT ═══════════
 async function initApp(){
-  showLoader();
-  try{
-    const[mr,wr]=await Promise.all([
-      sb.from('models').select('*').eq('is_active',true),
-      sb.from('workers').select('*').eq('status','active'),
-    ]);
-    appModels=mr.data||[];
-    appWorkers=wr.data||[];
-  }catch(e){console.error(e);}
-  hideLoader();
-
+  // UI-i dərhal göstər (data gözləmədən)
   const u=currentUser;
   const ini=u.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
   document.getElementById('topbar-av').textContent=ini;
   const rL={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
   document.getElementById('topbar-role').textContent=rL[u.role]||u.role;
   document.getElementById('dash-date').textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
+  
+  // Data arxa planda yüklə (parallel)
+  const dataPromise = Promise.all([
+    sb.from('models').select('*').eq('is_active',true),
+    sb.from('workers').select('*').eq('status','active'),
+  ]).then(([mr,wr])=>{
+    appModels=mr.data||[];
+    appWorkers=wr.data||[];
+  }).catch(e=>console.error(e));
+  
+  // UI göstərsən, data arxa planda gözləsin
+  await dataPromise;
 
   // Build nav
   const visible = currentUser.role === 'admin' 
@@ -1062,9 +1077,14 @@ async function initApp(){
 }
 
 // ═══════════ NAVIGATION ═══════════
-async function goTo(key){
+async function goTo(key, fromHistory){
   const item=NAV_ITEMS.find(n=>n.key===key);
   if(!item||!hasPerm(item.perm)) return;
+  // History-ə əlavə et
+  if(!fromHistory){
+    navHistory.push(key);
+    history.pushState({page:key}, '', '#'+key);
+  }
   document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.sidebar-item').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('.bnav-item').forEach(b=>b.classList.remove('on'));
@@ -1576,7 +1596,7 @@ async function renderDeptTasks(dept){
       if(a.o.deadline)return -1;if(b.o.deadline)return 1;
       return new Date(a.o.created_at||0)-new Date(b.o.created_at||0);
     });
-    const vis=tasks.slice(0,10);
+    const vis=tasks.slice(0,5);
     const hidden=tasks.length-vis.length;
     document.getElementById('dt-cnt').textContent=tasks.length;
     const tl=document.getElementById('dept-task-list');
@@ -1817,25 +1837,40 @@ async function dDone(oid,si,key,dept,totalStages){
   const newStage=parseInt(si)+1;
   const newStatus=newStage>parseInt(totalStages)?'ready':'in_progress';
   
-  console.log(`[dDone] Order ${oid}: stage ${si} → ${newStage}, status: ${newStatus}, dept: ${dept}`);
-  
-  await Promise.all([
-    sb.from('orders').update({current_stage:newStage,status:newStatus}).eq('id',oid),
-    sb.from('task_logs').upsert({
-      order_id:oid, stage_index:parseInt(si),
-      worker_id:currentUser.id, worker_name:currentUser.name,
-      dept_key:dept, action:'completed',
-      completed_at:now, duration_minutes:durMin
-    },{onConflict:'order_id,stage_index'}),
-  ]);
-  const el=document.getElementById('ts-'+oid);
-  if(el){
-    el.className='ts-box ts-done';
-    el.textContent='✓ Tamamlandı'+(durMin?' ('+fmtTime(durMin)+')':'');
+  // Timer interval təmizlə
+  const timerEl = document.getElementById('timer-'+oid);
+  if(timerEl && timerEl.dataset.intervalId){
+    clearInterval(parseInt(timerEl.dataset.intervalId));
   }
-  const db=document.getElementById('td-'+oid);if(db)db.disabled=true;
+  
+  // Card-ı dərhal gizlət (fade effect)
+  const card = document.getElementById('tcard-'+oid);
+  if(card){
+    card.style.transition = 'all .4s';
+    card.style.opacity = '0';
+    card.style.transform = 'translateX(20px)';
+  }
+  
   toast('✅ Tamamlandı!');
-  setTimeout(()=>renderDeptTasks(dept),900);
+  
+  // Supabase yenilənməsi arxa planda
+  try{
+    await Promise.all([
+      sb.from('orders').update({current_stage:newStage,status:newStatus}).eq('id',oid),
+      sb.from('task_logs').upsert({
+        order_id:oid, stage_index:parseInt(si),
+        worker_id:currentUser.id, worker_name:currentUser.name,
+        dept_key:dept, action:'completed',
+        completed_at:now, duration_minutes:durMin
+      },{onConflict:'order_id,stage_index'}),
+    ]);
+  }catch(e){
+    console.error('dDone xəta:', e);
+    toast('⚠ Xəta: '+e.message);
+  }
+  
+  // 400ms sonra siyahını yenilə (card fade-out bitənə qədər)
+  setTimeout(()=>renderDeptTasks(dept),400);
 }
 
 // ═══════════ LOGISTICS ═══════════
