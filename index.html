@@ -1038,7 +1038,7 @@ async function initApp(){
   document.getElementById('topbar-av').textContent=ini;
   const rL={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
   document.getElementById('topbar-role').textContent=rL[u.role]||u.role;
-  loadClientNames();document.getElementById('dash-date').textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('dash-date').textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
 
   // Build nav
   const visible = currentUser.role === 'admin' 
