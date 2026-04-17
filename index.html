@@ -774,6 +774,20 @@ let pinDept = null, pinBuf = '', pinUnlocked = {}, curPinCode = '';
 let editingUserId = null, editingModelId = null;
 let modelEmoji = '🛋️', modelImgData = null;
 let aiHistory = [];
+let savedClients = JSON.parse(localStorage.getItem('clients')||'[]');
+
+function saveClientName(name){
+  if(name && name.trim().length>2 && !savedClients.includes(name.trim())){
+    savedClients.push(name.trim());
+    localStorage.setItem('clients',JSON.stringify(savedClients));
+    loadClientNames();
+  }
+}
+
+function loadClientNames(){
+  const dl = document.getElementById('client-list');
+  if(dl) dl.innerHTML = savedClients.map(c=>`<option value="${c}">`).join('');
+}
 
 // ═══════════ HELPERS ═══════════
 const showLoader = () => document.getElementById('loader').classList.add('on');
@@ -1037,7 +1051,7 @@ async function initApp(){
   document.getElementById('topbar-av').textContent=ini;
   const rL={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
   document.getElementById('topbar-role').textContent=rL[u.role]||u.role;
-  loadClientNames();document.getElementById('dash-date').textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('dash-date').textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
 
   // Build nav
   const visible = currentUser.role === 'admin' 
