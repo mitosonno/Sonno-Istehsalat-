@@ -462,7 +462,7 @@ textarea{resize:vertical;min-height:80px}
 
       <!-- AI ANALİZ -->
       <div id="sc-ai" class="sc">
-        <div class="pg-hd">AI Analiz <small>GPT-4o-mini ilə</small></div>
+        <div class="pg-hd">AI Analiz <small>GPT-4o ilə</small></div>
 
         <!-- Stats -->
         <div class="stat-grid" id="stat-grid"></div>
@@ -479,6 +479,7 @@ textarea{resize:vertical;min-height:80px}
 
         <!-- Auto insights -->
         <div class="slbl">Avtomatik analiz</div>
+        <button class="btn btn-o btn-full" onclick="runAutoAnalysis()" style="margin-bottom:14px">🤖 Tam analiz çalışdır — problemlər, riskler, tövsiyələr</button>
         <div id="ai-insights"></div>
 
         <!-- Order stats -->
@@ -643,6 +644,39 @@ textarea{resize:vertical;min-height:80px}
   </div>
 </div>
 
+<!-- Signature sheet -->
+<div class="sheet-overlay" id="signature-ov" onclick="closeSheet('signature')"></div>
+<div class="sheet" id="signature-sheet" style="max-width:600px">
+  <div class="sheet-title">Təslim imzası</div>
+  <div class="sheet-body">
+    <div style="background:var(--lt);border-radius:var(--r);padding:14px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center">
+        <div id="sig-model-img"></div>
+        <div>
+          <div style="font-size:16px;font-weight:700" id="sig-model-name">—</div>
+          <div style="font-size:13px;color:var(--t2);margin-top:2px">
+            <span id="sig-order-num">—</span> · <span id="sig-client">—</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(17,24,32,.1)">
+        <div><div style="font-size:11px;color:var(--t2)">Ədəd</div><div style="font-size:18px;font-weight:700;color:var(--tl)" id="sig-qty">—</div></div>
+        <div><div style="font-size:11px;color:var(--t2)">Məbləğ</div><div style="font-size:18px;font-weight:700;color:var(--tl)" id="sig-price">—</div></div>
+      </div>
+    </div>
+    
+    <div style="margin-bottom:8px;font-size:13px;font-weight:600">Müştəri imzası</div>
+    <div style="border:2px solid var(--bd);border-radius:var(--r);overflow:hidden;background:#fff">
+      <canvas id="signature-canvas" width="540" height="200" style="display:block;width:100%;touch-action:none"></canvas>
+    </div>
+    <div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:center">Barmağınızla və ya qələmlə imzalayın</div>
+  </div>
+  <div class="sheet-footer">
+    <button class="btn btn-ln" style="flex:1" id="sig-clear-btn">Təmizlə</button>
+    <button class="btn btn-t" style="flex:2" id="sig-confirm-btn">✓ Təsdiq et və təslim et</button>
+  </div>
+</div>
+
 <!-- Order detail sheet -->
 <div class="sheet-overlay" id="order-detail-ov" onclick="closeSheet('order-detail')"></div>
 <div class="sheet" id="order-detail-sheet">
@@ -659,7 +693,9 @@ textarea{resize:vertical;min-height:80px}
 const SUPA_URL = 'https://vtnsamrkmnvbqecvcwrp.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0bnNhbXJrbW52YnFlY3Zjd3JwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMDUzNzIsImV4cCI6MjA5MTg4MTM3Mn0.rYZc1Pl64NwlduQSgXM79Fulr_V5BhwE-eQ_rQAZ4Eo';
 const OPENAI_KEY = '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';
-const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true }
+});
 
 // ═══════════ CONSTANTS ═══════════
 const DEPT_INFO = {
@@ -1236,6 +1272,11 @@ async function renderDeptTasks(dept){
     }).join('')+(hidden>0?`<div style="text-align:center;padding:18px;background:var(--lo);border-radius:var(--rl);border:2px dashed rgba(247,137,48,.3);margin-top:8px"><div style="font-size:28px;font-weight:700;color:var(--or)">${hidden}</div><div style="font-size:13px;color:#854F0B;margin-top:2px">sifariş növbədə gözləyir</div></div>`:'');
 
     // Real-time timer
+    // Əvvəlki intervalları təmizlə
+    document.querySelectorAll('[id^="timer-"]').forEach(el=>{
+      if(el.dataset.intervalId){clearInterval(parseInt(el.dataset.intervalId));}
+    });
+    
     vis.forEach(({o,si})=>{
       const key=`ts_${o.id}_${si}`;
       const s2=localStorage.getItem(key+'_s');
@@ -1247,7 +1288,7 @@ async function renderDeptTasks(dept){
           const update=()=>{
             const elapsed=Math.floor((Date.now()-new Date(t2))/60000);
             const sec=Math.floor(((Date.now()-new Date(t2))%60000)/1000);
-            if(timerEl.isConnected)timerEl.textContent=`⏱ ${elapsed} dəq ${sec} san`;
+            if(timerEl&&timerEl.isConnected)timerEl.textContent=`⏱ ${elapsed} dəq ${sec} san`;
           };
           update();
           const int=setInterval(update,1000);
@@ -1276,7 +1317,27 @@ async function renderDeptTasks(dept){
       const dt=localStorage.getItem(key+'_dt');
       const dm=t0&&dt?Math.round((new Date(dt)-new Date(t0))/60000):null;
       const st=ST[o.status]||ST.created;
-      return`<div class="task-card"><div class="task-card-top" style="background:var(--lt)"><div><div style="font-size:15px;font-weight:700">✓ ${s.name}</div><div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${o.client}</div></div><span class="badge ${st.c}">${st.t}</span></div><div class="task-card-body"><div class="task-meta"><div class="tm-i"><div class="tm-k">Model</div><div class="tm-v">${m.name.split('—')[0].trim()}</div></div><div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div><div class="tm-i"><div class="tm-k">Vaxt</div><div class="tm-v">${dm?fmtTime(dm):s.hours+'s plan'}</div></div></div>${dt?`<div style="font-size:11px;color:var(--t3);margin-top:6px">Tamamlandı: ${new Date(dt).toLocaleString('az-AZ')}</div>`:''}</div></div>`;
+      const modelImg=m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
+      return`<div class="task-card">
+        <div class="task-card-top" style="background:var(--lt)">
+          <div style="display:flex;align-items:center;gap:10px;flex:1">
+            ${modelImg}
+            <div>
+              <div style="font-size:15px;font-weight:700">✓ ${s.name}</div>
+              <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${o.client}</div>
+            </div>
+          </div>
+          <span class="badge ${st.c}">${st.t}</span>
+        </div>
+        <div class="task-card-body">
+          <div class="task-meta">
+            <div class="tm-i"><div class="tm-k">Model</div><div class="tm-v">${m.name.split('—')[0].trim()}</div></div>
+            <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div>
+            <div class="tm-i"><div class="tm-k">Vaxt</div><div class="tm-v">${dm?fmtTime(dm):s.hours+'s plan'}</div></div>
+          </div>
+          ${dt?`<div style="font-size:11px;color:var(--t3);margin-top:6px">Tamamlandı: ${new Date(dt).toLocaleString('az-AZ')}</div>`:''}
+        </div>
+      </div>`;
     }).join('');
   }
 }
@@ -1362,8 +1423,78 @@ async function startDel(id){
   toast('🚛 Yola çıxıldı');renderLogi();
 }
 async function markDel(id){
-  await sb.from('orders').update({status:'delivered'}).eq('id',id);
-  toast('✅ Təslim edildi!');renderLogi();
+  // Sifariş məlumatını yüklə
+  const {data:order} = await sb.from('orders').select('*').eq('id',id).single();
+  if(!order){toast('Xəta: sifariş tapılmadı');return;}
+  
+  const {data:models} = await sb.from('models').select('*');
+  const model = models?.find(m=>m.id===order.model_id);
+  if(!model){toast('Xəta: model tapılmadı');return;}
+
+  // İmza PDF-i göstər
+  openSignatureSheet(order,model);
+}
+
+function openSignatureSheet(order,model){
+  const sheet = document.getElementById('signature-sheet');
+  const canvas = document.getElementById('signature-canvas');
+  const ctx = canvas.getContext('2d');
+  
+  // Canvas təmizlə
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='#111820';
+  ctx.lineWidth=2;
+  ctx.lineCap='round';
+  
+  let drawing=false;
+  const startDraw=(e)=>{
+    drawing=true;
+    const rect=canvas.getBoundingClientRect();
+    ctx.beginPath();
+    ctx.moveTo(e.clientX-rect.left,e.clientY-rect.top);
+  };
+  const draw=(e)=>{
+    if(!drawing)return;
+    const rect=canvas.getBoundingClientRect();
+    ctx.lineTo(e.clientX-rect.left,e.clientY-rect.top);
+    ctx.stroke();
+  };
+  const stopDraw=()=>drawing=false;
+  
+  canvas.onmousedown=startDraw;
+  canvas.onmousemove=draw;
+  canvas.onmouseup=stopDraw;
+  canvas.onmouseleave=stopDraw;
+  
+  // Touch events
+  canvas.ontouchstart=(e)=>{e.preventDefault();startDraw(e.touches[0]);};
+  canvas.ontouchmove=(e)=>{e.preventDefault();draw(e.touches[0]);};
+  canvas.ontouchend=(e)=>{e.preventDefault();stopDraw();};
+  
+  // Sifariş məlumatlarını doldur
+  document.getElementById('sig-order-num').textContent=order.order_number;
+  document.getElementById('sig-client').textContent=order.client;
+  document.getElementById('sig-model-name').textContent=model.name;
+  const modelImg=model.img_url||model.emoji||'🛋️';
+  if(model.img_url){
+    document.getElementById('sig-model-img').innerHTML=`<img src="${model.img_url}" style="width:60px;height:60px;object-fit:cover;border-radius:8px">`;
+  }else{
+    document.getElementById('sig-model-img').innerHTML=`<div style="font-size:40px">${modelImg}</div>`;
+  }
+  document.getElementById('sig-qty').textContent=order.qty;
+  document.getElementById('sig-price').textContent=(order.final_price||0).toFixed(2)+' ₼';
+  
+  // Təmizlə və təsdiqlə düymələri
+  document.getElementById('sig-clear-btn').onclick=()=>ctx.clearRect(0,0,canvas.width,canvas.height);
+  document.getElementById('sig-confirm-btn').onclick=async ()=>{
+    const signatureData=canvas.toDataURL('image/png');
+    await sb.from('orders').update({status:'delivered',signature:signatureData}).eq('id',order.id);
+    closeSheet('signature');
+    toast('✅ Təslim edildi — imza saxlanıldı!');
+    renderLogi();
+  };
+  
+  openSheet('signature');
 }
 
 // ═══════════ AI ANALİZ ═══════════
@@ -1494,45 +1625,224 @@ async function sendAI(){
   hist.innerHTML+=`<div class="ai-typing" id="ai-typing"><span></span><span></span><span></span></div>`;
   hist.scrollTop=hist.scrollHeight;
 
-  // Get context
-  const{data:orders}=await sb.from('orders').select('*');
-  const{data:logs}=await sb.from('task_logs').select('*');
-  const all=orders||[];
-  const context=`Sonno mebel fabriki istehsal sistemi məlumatları:
-Cari sifarişlər: ${all.length} ədəd
-Aktiv: ${all.filter(o=>['in_progress','created'].includes(o.status)).length}
-Gecikən: ${all.filter(o=>o.status==='late').length}
-Hazır (çatdırılmağa): ${all.filter(o=>o.status==='ready').length}
-Tamamlanan: ${all.filter(o=>o.status==='delivered').length}
-Task logları: ${(logs||[]).length} ədəd
-Mövcud modellər: ${appModels.map(m=>m.name).join(', ')}
-Gecikən sifarişlər: ${all.filter(o=>o.status==='late').map(o=>o.order_number+' ('+o.client+')').join(', ')||'yoxdur'}`;
+  // Load ALL data for deep analysis
+  const [{data:orders},{data:logs},{data:models},{data:workers},{data:users}] = await Promise.all([
+    sb.from('orders').select('*'),
+    sb.from('task_logs').select('*'),
+    sb.from('models').select('*'),
+    sb.from('workers').select('*'),
+    sb.from('users').select('*'),
+  ]);
+
+  const allOrders = orders||[];
+  const allLogs = logs||[];
+  const allModels = models||[];
+  const allWorkers = workers||[];
+  const allUsers = users||[];
+
+  // Deep context building
+  const context = buildDeepContext(allOrders, allLogs, allModels, allWorkers, allUsers);
 
   try{
     const res=await fetch('https://api.openai.com/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+OPENAI_KEY},
       body:JSON.stringify({
-        model:'gpt-4o-mini',
-        max_tokens:500,
+        model:'gpt-4o',
+        max_tokens:1500,
+        temperature:0.7,
         messages:[
-          {role:'system',content:'Sən Sonno mebel fabrikinin istehsal analitiki köməkçisisən. Azərbaycan dilində qısa, praktik cavablar ver. Məlumatları analiz edib konkret tövsiyələr ver.'},
-          {role:'user',content:context+'\n\nSual: '+msg},
-          ...aiHistory.slice(-4),
+          {role:'system',content:`Sən Sonno mebel fabrikinin AI analitiki və məsləhətçisisən. Azərbaycan dilində danış.
+
+ROLUN:
+- Bütün istehsal prosesini dərindən analiz edirsən
+- Problemli işçiləri, şöbələri, sifarişləri tapırsan
+- Konkret, əməli tövsiyələr verirsən
+- Riskləri və imkanları göstərirsən
+
+CAVAB FORMATI:
+- Qısa, konkret, əməli
+- Rəqəmlərlə dəstəklə
+- Tövsiyələri nöqtələrlə yaz
+- Problem varsa MÜTLƏQ göstər
+
+TÖVSİYƏLƏR:
+- Yavaş işçini adı ilə göstər
+- Darboğaz şöbəni tap
+- Gecikən sifarişləri prioritetləşdir
+- Effektivliyi artırmaq yollarını göstər`},
+          {role:'user',content:context+'\n\nSUAL: '+msg},
         ],
       }),
     });
+
     const data=await res.json();
-    const reply=data.choices?.[0]?.message?.content||'Cavab alınmadı';
+    if(data.error){
+      hist.querySelector('.ai-typing').remove();
+      hist.innerHTML+=`<div style="background:#FEE;border-radius:var(--rl);padding:10px 14px;font-size:13px;color:#E24B4A;margin-bottom:8px"><b>Xəta:</b> ${data.error.message || 'OpenAI key yoxdur və ya xətalıdır'}</div>`;
+      btn.disabled=false;
+      return;
+    }
+
+    const reply=data.choices[0].message.content;
     aiHistory.push({role:'assistant',content:reply});
-    document.getElementById('ai-typing').remove();
-    hist.innerHTML+=`<div class="ai-chat-bubble"><b style="color:var(--tl)">AI:</b> ${reply}</div>`;
+    hist.querySelector('.ai-typing').remove();
+    hist.innerHTML+=`<div style="background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);padding:12px 16px;font-size:13px;line-height:1.6;margin-bottom:8px;white-space:pre-wrap">${reply}</div>`;
     hist.scrollTop=hist.scrollHeight;
-  }catch(e){
-    document.getElementById('ai-typing')?.remove();
-    hist.innerHTML+=`<div style="color:#E24B4A;font-size:13px;padding:8px">Xəta: ${e.message}</div>`;
+  }catch(err){
+    hist.querySelector('.ai-typing')?.remove();
+    hist.innerHTML+=`<div style="background:#FEE;border-radius:var(--rl);padding:10px 14px;font-size:13px;color:#E24B4A;margin-bottom:8px"><b>Xəta:</b> ${err.message}</div>`;
   }
-  btn.disabled=false;input.focus();
+  btn.disabled=false;
+}
+
+function buildDeepContext(orders, logs, models, workers, users){
+  // Statistika
+  const active = orders.filter(o=>['in_progress','created'].includes(o.status));
+  const late = orders.filter(o=>o.status==='late');
+  const delivered = orders.filter(o=>o.status==='delivered');
+
+  // İşçi performansı
+  const workerPerf = {};
+  logs.filter(l=>l.worker_name && l.duration_minutes).forEach(l=>{
+    if(!workerPerf[l.worker_name]) workerPerf[l.worker_name]={total:0,count:0,tasks:[]};
+    workerPerf[l.worker_name].total += l.duration_minutes;
+    workerPerf[l.worker_name].count++;
+    workerPerf[l.worker_name].tasks.push(l.duration_minutes);
+  });
+
+  const workerStats = Object.entries(workerPerf)
+    .map(([name,s])=>({name,avg:s.total/s.count,count:s.count}))
+    .sort((a,b)=>b.avg-a.avg)
+    .slice(0,5);
+
+  // Şöbə performansı
+  const deptPerf = {};
+  logs.filter(l=>l.dept_key && l.duration_minutes).forEach(l=>{
+    const order = orders.find(o=>o.id===l.order_id);
+    if(!order) return;
+    const model = models.find(m=>m.id===order.model_id);
+    if(!model || !model.stages) return;
+    const stage = model.stages[l.stage_index-1];
+    if(!stage) return;
+
+    const dept = l.dept_key;
+    if(!deptPerf[dept]) deptPerf[dept]={total:0,count:0,planned:0};
+    deptPerf[dept].total += l.duration_minutes;
+    deptPerf[dept].count++;
+    deptPerf[dept].planned += stage.hours*60;
+  });
+
+  const deptStats = Object.entries(deptPerf)
+    .map(([dept,s])=>{
+      const info = DEPT_INFO[dept]||{name:dept};
+      const avg = s.total/s.count;
+      const planned = s.planned/s.count;
+      const eff = Math.round(planned/avg*100);
+      return {dept:info.name,eff,avg,count:s.count};
+    })
+    .sort((a,b)=>a.eff-b.eff);
+
+  // Model performansı
+  const modelPerf = {};
+  logs.forEach(l=>{
+    const order = orders.find(o=>o.id===l.order_id);
+    if(!order || !order.model_id) return;
+    if(!modelPerf[order.model_id]) modelPerf[order.model_id]={total:0,count:0};
+    if(l.duration_minutes){
+      modelPerf[order.model_id].total += l.duration_minutes;
+      modelPerf[order.model_id].count++;
+    }
+  });
+
+  const slowModels = Object.entries(modelPerf)
+    .map(([id,s])=>{
+      const m = models.find(x=>x.id===id)||{name:'?'};
+      return {name:m.name,avg:s.total/s.count,count:s.count};
+    })
+    .sort((a,b)=>b.avg-a.avg)
+    .slice(0,3);
+
+  // Context build
+  return `=== SONNO MEBEL FABRİKİ — DETALLI ANALİZ ===
+
+📊 ÜMUMI STATİSTİKA:
+- Cəmi sifarişlər: ${orders.length}
+- Aktiv (işləyir): ${active.length}
+- Gecikmiş: ${late.length} ədəd ${late.length?'⚠️ TƏCİLİ':''}
+- Hazır (çatdırılacaq): ${orders.filter(o=>o.status==='ready').length}
+- Təslim edilmiş: ${delivered.length}
+
+${late.length>0 ? `
+🚨 GECİKMİŞ SİFARİŞLƏR:
+${late.map(o=>`- ${o.order_number}: ${o.client}, deadline: ${o.deadline||'?'}`).join('\n')}
+` : ''}
+
+👥 İŞÇİ PERFORMANSI (ən yavaş 5):
+${workerStats.map((w,i)=>`${i+1}. ${w.name}: ortalama ${Math.round(w.avg)} dəq/tapşırıq (${w.count} tapşırıq)`).join('\n')}
+
+🏭 ŞÖBƏ EFFEKTİVLİYİ (ən aşağı → yuxarı):
+${deptStats.map(d=>`- ${d.dept}: ${d.eff}% effektiv, ort. ${Math.round(d.avg)} dəq (${d.count} tapşırıq)`).join('\n')}
+
+⏱️ ƏN UZUN İSTEHSAL ALAN MODELLƏR:
+${slowModels.map(m=>`- ${m.name}: ortalama ${Math.round(m.avg)} dəq (${m.count} sifariş)`).join('\n')}
+
+📈 TREND:
+- Son 7 gün sifarişləri: ${orders.filter(o=>new Date(o.created_at)>new Date(Date.now()-7*24*60*60*1000)).length}
+- Ortalama istehsal vaxtı: ${logs.filter(l=>l.duration_minutes).length ? Math.round(logs.reduce((s,l)=>s+(l.duration_minutes||0),0)/Math.max(delivered.length,1)) : '?'} dəq
+
+🎯 İŞÇİLƏR:
+${workers.map(w=>`- ${w.name} (${DEPT_INFO[w.dept_key]?.name||w.dept_key})`).join('\n')}`;
+}
+
+async function runAutoAnalysis(){
+  const insightsEl = document.getElementById('ai-insights');
+  insightsEl.innerHTML = `<div class="ai-typing"><span></span><span></span><span></span></div>`;
+  
+  // Load data
+  const [{data:orders},{data:logs},{data:models},{data:workers}] = await Promise.all([
+    sb.from('orders').select('*'),
+    sb.from('task_logs').select('*'),
+    sb.from('models').select('*'),
+    sb.from('workers').select('*'),
+  ]);
+  
+  const context = buildDeepContext(orders||[], logs||[], models||[], workers||[], []);
+  
+  try{
+    const res = await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+OPENAI_KEY},
+      body:JSON.stringify({
+        model:'gpt-4o',
+        max_tokens:2000,
+        temperature:0.7,
+        messages:[
+          {role:'system',content:`Sən Sonno fabrikinin AI analitikisən. Ətraflı analiz et və konkret tövsiyələr ver.
+
+MÜTLƏQ CAVABDA OLSUN:
+1. 🚨 KRİTİK PROBLEMLƏR (gecikən sifarişlər, yavaş işçilər, darboğaz şöbələr)
+2. ⚠️ RİSKLƏR (gələcək problemlər, trend xəbərdarlıqları)
+3. ✅ TÖVSİYƏLƏR (konkret addımlar, prioritetlər)
+4. 📊 GÜCLÜ TƏRƏFLƏR (nə yaxşı işləyir)
+
+Hər bölmə 2-4 nöqtə olsun. Azərbaycan dilində yaz.`},
+          {role:'user',content:context+'\n\nTam analiz et — bütün problemləri, riskləri və tövsiyələri göstər.'},
+        ],
+      }),
+    });
+    
+    const data = await res.json();
+    if(data.error){
+      insightsEl.innerHTML = `<div class="card card-pad" style="background:#FEE;border:1px solid #E24B4A;color:#E24B4A"><b>Xəta:</b> ${data.error.message || 'OpenAI key yoxdur. Vercel environment variable əlavə edin: OPENAI_KEY'}</div>`;
+      return;
+    }
+    
+    const reply = data.choices[0].message.content;
+    insightsEl.innerHTML = `<div class="card card-pad" style="background:var(--sf);border:1px solid var(--bd);white-space:pre-wrap;line-height:1.7">${reply}</div>`;
+  }catch(err){
+    insightsEl.innerHTML = `<div class="card card-pad" style="background:#FEE;border:1px solid #E24B4A;color:#E24B4A"><b>Xəta:</b> ${err.message}</div>`;
+  }
 }
 
 // ═══════════ ADMIN ═══════════
@@ -1558,16 +1868,18 @@ async function adminSec(sec){
 
 async function renderStatsSection(el){
   showLoader();
-  const [{data:orders},{data:logs},{data:users}] = await Promise.all([
+  const [{data:orders},{data:logs},{data:users},{data:models}] = await Promise.all([
     sb.from('orders').select('*'),
     sb.from('task_logs').select('*'),
     sb.from('users').select('*'),
+    sb.from('models').select('*'),
   ]);
   hideLoader();
 
   const allOrders = orders||[];
   const allLogs = logs||[];
   const allUsers = users||[];
+  const allModels = models||[];
 
   // ── 1. Ən çox satılan model ──
   const modelSales={};
@@ -1578,7 +1890,7 @@ async function renderStatsSection(el){
     modelSales[o.model_id].revenue+=(o.final_price||0);
   });
   const topModels=Object.entries(modelSales)
-    .map(([id,s])=>{const m=appModels.find(x=>x.id===id)||{name:'?',emoji:'📦'};return{...s,name:m.name,emoji:m.emoji};})
+    .map(([id,s])=>{const m=allModels.find(x=>x.id===id)||{name:'?',emoji:'📦'};return{...s,name:m.name,emoji:m.emoji};})
     .sort((a,b)=>b.qty-a.qty).slice(0,5);
 
   // ── 2. Ən uzun istehsal alan model ──
@@ -1591,7 +1903,7 @@ async function renderStatsSection(el){
   });
   const topSlowModels=Object.entries(modelTime)
     .map(([id,s])=>{
-      const m=appModels.find(x=>x.id===id)||{name:'?',emoji:'📦'};
+      const m=allModels.find(x=>x.id===id)||{name:'?',emoji:'📦'};
       return{name:m.name,emoji:m.emoji,avg:s.count?s.total/s.count:0};
     })
     .sort((a,b)=>b.avg-a.avg).slice(0,5);
@@ -1782,6 +2094,7 @@ async function renderModelsSection(el){
         </div>
         <div style="display:flex;gap:6px">
           <button onclick="editModel('${m.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:var(--tl);font-family:inherit;padding:3px 8px;border-radius:6px">Düzəlt</button>
+          <button onclick="deleteModel('${m.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:#E24B4A;font-family:inherit;padding:3px 8px;border-radius:6px">Sil</button>
         </div>
       </div>`).join('')}
     </div>`;
@@ -2068,6 +2381,17 @@ async function saveModel(){
   }
   hideLoader();
   closeSheet('add-model');
+  const{data}=await sb.from('models').select('*').eq('is_active',true);
+  appModels=data||[];
+  adminSec('models');
+}
+
+async function deleteModel(id){
+  if(!confirm('Bu modeli silmək istədiyinizdən əminsiniz? Modellə bağlı sifarişlər saxlanılacaq.'))return;
+  showLoader();
+  await sb.from('models').update({is_active:false}).eq('id',id);
+  hideLoader();
+  toast('✓ Model silindi');
   const{data}=await sb.from('models').select('*').eq('is_active',true);
   appModels=data||[];
   adminSec('models');
