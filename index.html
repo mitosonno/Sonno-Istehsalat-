@@ -391,6 +391,12 @@ textarea{resize:vertical;min-height:80px}
                 <div class="fg"><label>Parça satan şirkət</label><input id="o-fabric-co" placeholder="Məs: Azərtekstil MMC"></div>
                 <div class="fg"><label>Parça kodu</label><input id="o-color" placeholder="Məs: VL-204, DR-18..."></div>
                 <div class="fg"><label>Ayaq rəngi / növü</label><input id="o-legs" placeholder="Məs: Qara metal, Ağ taxta..."></div>
+                <div class="fg"><label>Satış növü</label>
+                  <select id="o-sale-type" style="width:100%;padding:13px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;background:#fff">
+                    <option value="cash">💵 Nağd satış</option>
+                    <option value="showroom">🏪 Vitrin satışı</option>
+                  </select>
+                </div>
                 <div class="fg"><label>Deadline</label><input id="o-dead" type="date"></div>
               </div>
 
@@ -721,7 +727,9 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
 const DEPT_INFO = {
   hazirlik:    {name:'Hazırlıq — Kəsmə',      icon:'✂️', hours:2},
   bez_kesim:   {name:'Bel kəsim şöbəsi',       icon:'🧶', hours:2},
-  ayaq_bagla:  {name:'Ayaq bağlama və bel əymə şöbəsi', icon:'🔗', hours:3},
+  oturacaq_dik:{name:'Oturacaq dik kəsmə şöbəsi', icon:'🪑', hours:2},
+  ayaq_bagla:  {name:'Ayaq bağlama şöbəsi',    icon:'🔗', hours:2},
+  bel_eyme:    {name:'Bel əymə şöbəsi',        icon:'🌀', hours:2},
   karkaz:      {name:'Karkaz yığım şöbəsi',    icon:'🪵', hours:4},
   shkurka:     {name:'Şkurka şöbəsi',          icon:'🔩', hours:1.5},
   masa_karkaz: {name:'Masa karkaz şöbəsi',     icon:'🪚', hours:3},
@@ -1446,9 +1454,9 @@ async function createOrder(){
     fabric_company:document.getElementById('o-fabric-co').value,
     legs:document.getElementById('o-legs').value,
     color:document.getElementById('o-color').value,
-    size:document.getElementById('o-size').value,
     notes:document.getElementById('o-notes').value,
     deadline:document.getElementById('o-dead').value||null,
+    sale_type:document.getElementById('o-sale-type')?.value||'cash',
     status:'created', current_stage:1,
     sale_price:price, discount:disc, final_price:total,
   });
@@ -2702,6 +2710,7 @@ function openAddModel(){
   document.getElementById('am-sale-price').value='';
   document.getElementById('am-cost-price').value='';
   document.getElementById('am-prev').innerHTML='🛋️';
+  window._currentStageOrder = [];
   renderDeptChecklist([]);
   openSheet('add-model');
 }
@@ -2720,6 +2729,7 @@ async function editModel(id){
   if(m.img_url)prev.innerHTML=`<img src="${m.img_url}" style="width:80px;height:64px;object-fit:cover;border-radius:var(--r)">`;
   else prev.innerHTML=m.emoji||'🛋️';
   const selectedKeys=(m.stages||[]).map(s=>s.dept);
+  window._currentStageOrder = selectedKeys;
   renderDeptChecklist(selectedKeys);
   openSheet('add-model');
 }
@@ -2742,27 +2752,64 @@ function previewImg(input){
 function renderDeptChecklist(selectedKeys){
   const cl=document.getElementById('dept-check-list');
   if(!cl)return;
+  // Paralel açarları açın — bütün seçilmiş şöbələri tap
+  const flatSelected = {};
+  selectedKeys.forEach((k, i)=>{
+    if(k.includes('||')){
+      k.split('||').forEach(part=>{
+        flatSelected[part] = i+1;
+      });
+    } else {
+      flatSelected[k] = i+1;
+    }
+  });
+  
   cl.innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
-    const checked=selectedKeys.includes(key);
-    const idx=selectedKeys.indexOf(key);
+    const checked = flatSelected.hasOwnProperty(key);
+    const order = flatSelected[key];
     return`<label class="dept-check-item${checked?' checked':''}" id="dci-${key}">
       <input type="checkbox" data-key="${key}" ${checked?'checked':''} onchange="onDeptChk(this)">
       <span style="font-size:16px">${info.icon}</span>
       <span style="flex:1;font-size:13px;font-weight:${checked?'500':'400'}">${info.name}</span>
       <span style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${info.hours}s</span>
-      <span class="dept-check-num">${checked?idx+1:''}</span>
+      <span class="dept-check-num">${checked?order:''}</span>
     </label>`;
   }).join('');
   updateStageOrder(selectedKeys);
 }
 
 function onDeptChk(cb){
-  const selected=getSelDeptKeys();
-  renderDeptChecklist(selected);
+  // Əgər paralel mövcud siyahıda varsa — onu qoruyub yalnız yeni dəyişiklikləri tət
+  const currentKeys = window._currentStageOrder || [];
+  const dept = cb.dataset.key;
+  
+  if(cb.checked){
+    // Əlavə et (əgər yoxdursa)
+    const exists = currentKeys.some(k=>k===dept || (k.includes('||') && k.split('||').includes(dept)));
+    if(!exists){
+      currentKeys.push(dept);
+    }
+  } else {
+    // Sil - paralel daxilindən də
+    for(let i=currentKeys.length-1; i>=0; i--){
+      const k = currentKeys[i];
+      if(k===dept){
+        currentKeys.splice(i,1);
+      } else if(k.includes('||')){
+        const parts = k.split('||').filter(p=>p!==dept);
+        if(parts.length===0) currentKeys.splice(i,1);
+        else if(parts.length===1) currentKeys[i] = parts[0];
+        else currentKeys[i] = parts.join('||');
+      }
+    }
+  }
+  
+  window._currentStageOrder = currentKeys;
+  renderDeptChecklist(currentKeys);
 }
 
 function getSelDeptKeys(){
-  return Array.from(document.querySelectorAll('#dept-check-list input:checked')).map(cb=>cb.dataset.key);
+  return window._currentStageOrder || [];
 }
 
 function updateStageOrder(keys){
@@ -2814,10 +2861,11 @@ function updateStageOrder(keys){
 }
 
 function moveStage(key,dir){
-  const keys=getSelDeptKeys();
+  const keys=(window._currentStageOrder||[]).slice();
   const i=keys.indexOf(key);if(i<0)return;
   const ni=i+dir;if(ni<0||ni>=keys.length)return;
   [keys[i],keys[ni]]=[keys[ni],keys[i]];
+  window._currentStageOrder = keys;
   renderDeptChecklist(keys);
 }
 
@@ -2873,7 +2921,7 @@ function mergeStages(idx){
 }
 
 function confirmParallel(idx, selectedKey){
-  const keys = getSelDeptKeys();
+  const keys = (window._currentStageOrder || []).slice();
   const currentKey = keys[idx];
   if(!currentKey) return;
   
@@ -2881,13 +2929,23 @@ function confirmParallel(idx, selectedKey){
   const merged = currentDept + '||' + selectedKey;
   
   // Əgər seçilən şöbə artıq siyahıda varsa, onu sil
-  const existingIdx = keys.indexOf(selectedKey);
-  if(existingIdx > -1) keys.splice(existingIdx, 1);
+  const existingIdx = keys.findIndex(k=>k===selectedKey || (k.includes('||') && k.split('||').includes(selectedKey)));
+  if(existingIdx > -1 && existingIdx !== idx){
+    if(keys[existingIdx].includes('||')){
+      // Paralel içindəysə — çıxar
+      const parts = keys[existingIdx].split('||').filter(p=>p!==selectedKey);
+      if(parts.length===1) keys[existingIdx] = parts[0];
+      else keys[existingIdx] = parts.join('||');
+    } else {
+      keys.splice(existingIdx, 1);
+    }
+  }
   
   // Yeni idx-i yenidən tap
   const newIdx = keys.indexOf(currentKey);
-  if(newIdx > -1) keys.splice(newIdx, 1, merged);
+  if(newIdx > -1) keys[newIdx] = merged;
   
+  window._currentStageOrder = keys;
   closeParallelModal();
   renderDeptChecklist(keys);
   toast('✓ Paralel birləşdirildi');
@@ -2899,10 +2957,11 @@ function closeParallelModal(){
 }
 
 function unmergeStages(idx){
-  const keys=getSelDeptKeys();
+  const keys=(window._currentStageOrder||[]).slice();
   if(!keys[idx]||!keys[idx].includes('||'))return;
   const parts=keys[idx].split('||');
   keys.splice(idx,1,...parts);
+  window._currentStageOrder = keys;
   renderDeptChecklist(keys);
   toast('✓ Paralel mərhələ ayrıldı');
 }
