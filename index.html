@@ -408,7 +408,7 @@ textarea{resize:vertical;min-height:80px}
                     <option value="showroom">🏪 Vitrin satışı</option>
                   </select>
                 </div>
-                <div class="fg"><label>Deadline</label><input id="o-dead" type="date"></div>
+                <div class="fg"><label>Deadline</label><input id="o-dead" type="date" onchange="validateDeadline(this)"></div>
               </div>
 
               <!-- Qiymət bölməsi -->
@@ -529,6 +529,7 @@ textarea{resize:vertical;min-height:80px}
           <div class="ami" onclick="adminSec('pins')"><div class="ami-icon">🔑</div><div class="ami-name">PIN Kodlar</div><div class="ami-sub">Şöbə girişi</div></div>
           <div class="ami" onclick="adminSec('models')"><div class="ami-icon">🛋️</div><div class="ami-name">Modellər</div><div class="ami-sub" id="ami-m">—</div></div>
           <div class="ami" onclick="adminSec('workers')"><div class="ami-icon">🧑‍🔧</div><div class="ami-name">İşçilər</div><div class="ami-sub" id="ami-w">—</div></div>
+          <div class="ami" onclick="adminSec('settings')"><div class="ami-icon">⚙️</div><div class="ami-name">Parametrlər</div><div class="ami-sub">Limit & ayarlar</div></div>
         </div>
         <div id="admin-sec"></div>
       </div>
@@ -655,8 +656,8 @@ textarea{resize:vertical;min-height:80px}
 <div class="sheet" id="add-client-sheet" style="max-width:400px">
   <div class="sheet-title">Yeni müştəri əlavə et</div>
   <div class="sheet-body">
-    <div class="fg"><label>Ad / Şirkət</label><input id="ac-name" placeholder="Məs: Kapital Bank və ya Elçin Məmmədov"></div>
-    <div class="fg"><label>Əlaqə nömrəsi</label><input id="ac-phone" placeholder="+994 XX XXX XX XX"></div>
+    <div class="fg"><label>Ad / Şirkət</label><input id="ac-name" type="text" placeholder="Məs: Kapital Bank və ya Elçin Məmmədov"></div>
+    <div class="fg"><label>Əlaqə nömrəsi</label><input id="ac-phone" type="tel" inputmode="tel" placeholder="+994 XX XXX XX XX"></div>
   </div>
   <div class="sheet-footer">
     <button class="btn btn-ln" style="flex:1" onclick="closeSheet('add-client')">Ləğv et</button>
@@ -870,6 +871,80 @@ function showWarningDialog(count){
     window.__warnResolve = resolve;
     document.body.appendChild(modal);
   });
+}
+
+// ═══════════ DEADLINE VALIDATION ═══════════
+async function validateDeadline(input){
+  const dateStr = input.value;
+  if(!dateStr) return;
+  
+  const d = new Date(dateStr);
+  const dow = d.getDay();
+  
+  // Şənbə-Bazar blokla
+  if(dow === 0 || dow === 6){
+    toast('⚠ Şənbə və Bazar günü seçilə bilməz');
+    input.value = '';
+    return;
+  }
+  
+  // Günlük limit yoxla
+  await checkDailyLimit(dateStr, input);
+}
+
+async function getDailyLimit(){
+  try{
+    const {data} = await sb.from('app_settings').select('value').eq('key','daily_limit').single();
+    return parseInt(data?.value) || 70;
+  }catch(e){
+    return 70; // Default
+  }
+}
+
+async function checkDailyLimit(dateStr, input){
+  const limit = await getDailyLimit();
+  
+  // Həmin günə artıq nə qədər məhsul çatdırılır
+  const startDate = dateStr + 'T00:00:00';
+  const endDate = dateStr + 'T23:59:59';
+  
+  const {data:orders} = await sb.from('orders')
+    .select('qty')
+    .gte('deadline', dateStr)
+    .lte('deadline', dateStr)
+    .not('status', 'eq', 'delivered');
+  
+  const currentQty = (orders||[]).reduce((sum,o)=>sum+(o.qty||0), 0);
+  const newQty = parseInt(document.getElementById('qty-num')?.textContent || 0) || 0;
+  
+  if(currentQty + newQty > limit){
+    toast(`⚠ ${dateStr} tarixində artıq ${currentQty} ədəd çatdırılır. Limit: ${limit}`);
+    input.value = '';
+    await suggestNextAvailable(dateStr, limit, newQty, input);
+  }
+}
+
+async function suggestNextAvailable(fromDate, limit, newQty, input){
+  // Növbəti 60 gün ərzində sərbəst gün tap
+  let check = new Date(fromDate);
+  for(let i=1; i<=60; i++){
+    check.setDate(check.getDate()+1);
+    const dow = check.getDay();
+    if(dow===0 || dow===6) continue; // Şənbə-Bazar
+    
+    const checkStr = check.toISOString().split('T')[0];
+    const {data} = await sb.from('orders')
+      .select('qty')
+      .eq('deadline', checkStr)
+      .not('status','eq','delivered');
+    const dayQty = (data||[]).reduce((s,o)=>s+(o.qty||0), 0);
+    
+    if(dayQty + newQty <= limit){
+      input.value = checkStr;
+      toast(`✓ Təklif: ${checkStr} tarixi boşdur`);
+      return;
+    }
+  }
 }
 
 // ═══════════ HELPERS ═══════════
@@ -1257,7 +1332,9 @@ async function renderDash(){
         ? `<img src="${m.img_url}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;flex-shrink:0">`
         : `<div style="width:32px;height:32px;border-radius:6px;background:var(--lt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${m.emoji}</div>`;
       
-      return`<tr onclick="showOD('${o.id}')">
+      const rowBg = o.status === 'late' ? '#FEEEED' : o.status === 'delivered' ? '#E8F5E9' : 'transparent';
+      
+      return`<tr onclick="showOD('${o.id}')" style="background:${rowBg}">
         <td><span class="mono">${o.order_number}</span><div style="font-size:10px;color:var(--t3);margin-top:2px">${createdDate}</div></td>
         <td>${o.client}<div style="font-size:10px;color:var(--t3);margin-top:2px">👤 ${managerName}</div></td>
         <td><div style="display:flex;align-items:center;gap:8px">${modelImg}<span>${m.name.split('—')[0].trim()}</span></div></td>
@@ -1641,9 +1718,8 @@ async function renderDeptPick(){
   const{data:pins}=await sb.from('dept_pins').select('*');
   const pinMap={};(pins||[]).forEach(p=>pinMap[p.dept_key]=p.pin_code);
   document.getElementById('dept-grid').innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
-    const cnt=dCnt[key]||0,unl=pinUnlocked[key];
-    return`<div onclick="deptCard('${key}','${pinMap[key]||'1234'}')" style="background:var(--sf);border:2px solid ${unl?'var(--tl)':'var(--bd)'};border-radius:var(--rl);padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative">
-      ${unl?'<div style="position:absolute;top:8px;right:8px;width:18px;height:18px;background:var(--tl);border-radius:50%;color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">✓</div>':''}
+    const cnt=dCnt[key]||0;
+    return`<div onclick="deptCard('${key}','${pinMap[key]||'1234'}')" style="background:var(--sf);border:2px solid var(--bd);border-radius:var(--rl);padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative">
       <div style="font-size:28px;margin-bottom:8px">${info.icon}</div>
       <div style="font-size:12px;font-weight:600;line-height:1.4">${info.name}</div>
       <div style="font-size:11px;margin-top:6px;color:${cnt>0?'var(--or)':'var(--t3)'};font-weight:${cnt>0?'600':'400'}">${cnt>0?cnt+' tapşırıq':'Boş'}</div>
@@ -1653,8 +1729,8 @@ async function renderDeptPick(){
 }
 
 function deptCard(dept,pin){
-  if(pinUnlocked[dept]){showDeptTasks(dept);}
-  else{openPin(dept,pin);}
+  // Həmişə PIN istəsin
+  openPin(dept,pin);
 }
 
 function openPin(dept,code){
@@ -1868,7 +1944,11 @@ async function renderDeptTasks(dept){
     orders.forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);if(!m)return;
       (m.stages||[]).forEach((s,i)=>{
-        if(s.dept===dept&&o.current_stage>i+1)done.push({o,m,s,stageNum:i+1});
+        const stageDept = s.dept;
+        // Paralel və ya tam uyğun
+        if((stageDept===dept || (stageDept.includes('||') && stageDept.split('||').includes(dept))) && o.current_stage>i+1){
+          done.push({o,m,s,stageNum:i+1});
+        }
       });
     });
     document.getElementById('dt-cnt').textContent=done.length;
@@ -1879,9 +1959,14 @@ async function renderDeptTasks(dept){
     }
     tl2.innerHTML=done.map(({o,m,s,stageNum})=>{
       const key=`ts_${o.id}_${stageNum}`;
-      const t0=localStorage.getItem(key+'_t');
-      const dt=localStorage.getItem(key+'_dt');
-      const dm=t0&&dt?Math.round((new Date(dt)-new Date(t0))/60000):null;
+      const logKey = o.id + '_' + (stageNum-1);
+      const log = logMap[logKey];
+      
+      const t0 = (log && log.started_at) || localStorage.getItem(key+'_t');
+      const dt = (log && log.completed_at) || localStorage.getItem(key+'_dt');
+      let dm = log?.duration_minutes;
+      if(!dm && t0 && dt) dm = Math.round((new Date(dt)-new Date(t0))/60000);
+      
       const st=ST[o.status]||ST.created;
       const modelImg=m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
       return`<div class="task-card">
@@ -1896,10 +1981,15 @@ async function renderDeptTasks(dept){
           <span class="badge ${st.c}">${st.t}</span>
         </div>
         <div class="task-card-body">
+          ${dm ? `<div style="background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:12px;padding:14px;margin-bottom:10px;text-align:center;border:2px solid var(--tl)">
+            <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">⏱ Sərf olunan vaxt</div>
+            <div style="font-size:32px;font-weight:700;color:var(--tl);font-family:'DM Mono',monospace;line-height:1">${fmtTime(dm)}</div>
+            <div style="font-size:11px;color:var(--t3);margin-top:4px">Plan: ${s.hours} saat</div>
+          </div>` : ''}
           <div class="task-meta">
             <div class="tm-i"><div class="tm-k">Model</div><div class="tm-v">${m.name.split('—')[0].trim()}</div></div>
             <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div>
-            <div class="tm-i"><div class="tm-k">Vaxt</div><div class="tm-v">${dm?fmtTime(dm):s.hours+'s plan'}</div></div>
+            <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v">${o.client}</div></div>
           </div>
           ${dt?`<div style="font-size:11px;color:var(--t3);margin-top:6px">Tamamlandı: ${new Date(dt).toLocaleString('az-AZ')}</div>`:''}
         </div>
@@ -2528,6 +2618,39 @@ async function adminSec(sec){
   if(sec==='pins') await renderPinsSection(el);
   if(sec==='models') await renderModelsSection(el);
   if(sec==='workers') await renderWorkersSection(el);
+  if(sec==='settings') await renderSettingsSection(el);
+}
+
+async function renderSettingsSection(el){
+  const limit = await getDailyLimit();
+  el.innerHTML = `
+    <div class="slbl" style="margin-top:0">⚙️ Parametrlər</div>
+    <div class="sec-card card-pad">
+      <div style="margin-bottom:16px">
+        <label style="font-size:13px;font-weight:600;color:var(--dp);display:block;margin-bottom:6px">Gündəlik çatdırılma limiti (ədəd)</label>
+        <p style="font-size:12px;color:var(--t2);margin-bottom:10px">Bir günə maksimum neçə ədəd məhsul çatdırıla bilər. Limit aşıldıqda menecer o günə deadline qoya bilməyəcək.</p>
+        <div style="display:flex;gap:10px;align-items:center">
+          <input type="number" id="daily-limit-input" value="${limit}" min="1" max="10000" style="width:150px;padding:10px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Mono',monospace;font-size:16px;font-weight:600">
+          <span style="font-size:13px;color:var(--t2)">ədəd/gün</span>
+          <button class="btn btn-t" style="font-size:12px;padding:10px 16px" onclick="saveDailyLimit()">💾 Yadda saxla</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function saveDailyLimit(){
+  const val = parseInt(document.getElementById('daily-limit-input').value) || 70;
+  showLoader();
+  try{
+    // Upsert app_settings
+    await sb.from('app_settings').upsert({key:'daily_limit', value:String(val)});
+    hideLoader();
+    toast('✓ Günlük limit yeniləndi: '+val+' ədəd');
+  }catch(e){
+    hideLoader();
+    toast('Xəta: '+e.message);
+  }
 }
 
 async function renderStatsSection(el){
@@ -2771,6 +2894,77 @@ function renderFinanceStats(){
     </div>
     <div style="font-size:12px;color:var(--t2);padding:10px;background:rgba(17,24,32,.03);border-radius:8px">
       💡 Maya dəyəri hesablanması: hər modelin <b>cost_price</b> × ədəd. Plan — bütün sifarişlər, Real — yalnız təslim edilənlər.
+    </div>
+  `;
+  renderDeptMonthStats();
+}
+
+async function renderDeptMonthStats(){
+  const monthInput = document.getElementById('finance-month');
+  const selectedMonth = monthInput?.value || '';
+  if(!selectedMonth) return;
+  const [year, month] = selectedMonth.split('-').map(Number);
+  
+  // Task log-ları ay üzrə yüklə
+  const startDate = new Date(year, month-1, 1).toISOString();
+  const endDate = new Date(year, month, 0, 23, 59, 59).toISOString();
+  
+  const {data:logs} = await sb.from('task_logs')
+    .select('*')
+    .gte('completed_at', startDate)
+    .lte('completed_at', endDate)
+    .not('completed_at', 'is', null);
+  
+  const deptStats = {};
+  (logs||[]).forEach(l=>{
+    if(!l.dept_key || !l.duration_minutes) return;
+    // Paralel varsa split et
+    const depts = l.dept_key.includes('||') ? l.dept_key.split('||') : [l.dept_key];
+    depts.forEach(d=>{
+      if(!deptStats[d]) deptStats[d] = {completed:0, totalMin:0};
+      deptStats[d].completed++;
+      deptStats[d].totalMin += l.duration_minutes;
+    });
+  });
+  
+  // Target element tap
+  let target = document.getElementById('dept-month-stats');
+  if(!target){
+    const financeSec = document.querySelector('.sec-card.card-pad');
+    if(!financeSec) return;
+    target = document.createElement('div');
+    target.id = 'dept-month-stats';
+    target.style.marginTop = '14px';
+    financeSec.appendChild(target);
+  }
+  
+  const sortedDepts = Object.entries(deptStats)
+    .map(([d,s])=>({dept:d, ...s, avgMin: s.totalMin/s.completed}))
+    .sort((a,b)=>a.avgMin - b.avgMin); // Ən sürətli → ən yavaş
+  
+  if(!sortedDepts.length){
+    target.innerHTML = `<div style="padding:16px;text-align:center;color:var(--t3);font-size:13px;background:rgba(17,24,32,.03);border-radius:8px">Bu ay üçün şöbə məlumatı yoxdur</div>`;
+    return;
+  }
+  
+  target.innerHTML = `
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px">🏭 Şöbə performansı — ${monthInput.value}</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${sortedDepts.map((d,i)=>{
+        const info = DEPT_INFO[d.dept] || {name:d.dept, icon:'🏭'};
+        const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+        const totalHours = (d.totalMin/60).toFixed(1);
+        return `<div style="background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px 14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:14px;font-weight:600">${medal} ${info.icon} ${info.name}</span>
+            <span style="font-size:13px;color:var(--tl);font-weight:700">ort. ${fmtTime(d.avgMin)}</span>
+          </div>
+          <div style="display:flex;gap:12px;font-size:12px;color:var(--t2)">
+            <span>✓ ${d.completed} sifariş tamamlanıb</span>
+            <span>⏱ Cəmi ${totalHours} saat</span>
+          </div>
+        </div>`;
+      }).join('')}
     </div>
   `;
 }
