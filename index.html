@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:80px}
             </div>
             <div class="card card-pad">
               <div class="fg2">
-                <div class="fg"><label>Müştəri adı</label><input id="o-client" list="client-list" placeholder="Müştəri adı" oninput="saveClientName(this.value)"><datalist id="client-list"></datalist></div>
+                <div class="fg"><label>Müştəri adı</label><input id="o-client" placeholder="Müştəri adı"></div>
                 <div class="fg"><label>Parça adı</label><input id="o-fabric" placeholder="Məs: Velvet, Dəri, Linen..."></div>
                 <div class="fg"><label>Parça satan şirkət</label><input id="o-fabric-co" placeholder="Məs: Azərtekstil MMC"></div>
                 <div class="fg"><label>Parça kodu</label><input id="o-color" placeholder="Məs: VL-204, DR-18..."></div>
@@ -774,20 +774,6 @@ let pinDept = null, pinBuf = '', pinUnlocked = {}, curPinCode = '';
 let editingUserId = null, editingModelId = null;
 let modelEmoji = '🛋️', modelImgData = null;
 let aiHistory = [];
-let savedClients = JSON.parse(localStorage.getItem('clients')||'[]');
-
-function saveClientName(name){
-  if(name && name.trim().length>2 && !savedClients.includes(name.trim())){
-    savedClients.push(name.trim());
-    localStorage.setItem('clients',JSON.stringify(savedClients));
-    loadClientNames();
-  }
-}
-
-function loadClientNames(){
-  const dl = document.getElementById('client-list');
-  if(dl) dl.innerHTML = savedClients.map(c=>`<option value="${c}">`).join('');
-}
 
 // ═══════════ HELPERS ═══════════
 const showLoader = () => document.getElementById('loader').classList.add('on');
