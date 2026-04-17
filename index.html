@@ -1041,10 +1041,11 @@ async function initApp(){
   loadClientNames();document.getElementById('dash-date').textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
 
   // Build nav
-  const visible = NAV_ITEMS; document.getElementById('sidebar').style.display='flex'; document.getElementById('bottom-nav').style.display='flex';
-  console.log('currentUser:', currentUser);
-  console.log('currentUser.role:', currentUser?.role);
-  console.log('visible nav items:', visible.length, visible.map(n=>n.key));
+  const visible = currentUser.role === 'admin' 
+    ? NAV_ITEMS  // Admin — hamısı görünsün
+    : NAV_ITEMS.filter(n=>hasPerm(n.perm));
+  console.log('currentUser:', JSON.stringify(currentUser));
+  console.log('visible:', visible.map(n=>n.key));
   // Sidebar (PC)
   document.getElementById('sidebar').innerHTML=`
     <div style="font-size:13px;font-weight:600;color:rgba(255,255,255,.3);padding:0 12px;margin-bottom:8px;letter-spacing:.05em">${u.name}</div>
