@@ -1705,15 +1705,24 @@ async function renderDeptTasks(dept){
   }
   
   showLoader();
-  const [{data:allOrders},{data:allModels}] = await Promise.all([
+  const [{data:allOrders},{data:allModels},{data:allLogs}] = await Promise.all([
     sb.from('orders').select('*').order('created_at',{ascending:true}),
     sb.from('models').select('*'),
+    sb.from('task_logs').select('*').eq('dept_key',dept).order('started_at',{ascending:false}),
   ]);
   hideLoader();
 
   const orders=allOrders||[];
   const models=allModels||[];
+  const logs=allLogs||[];
   const dws=appWorkers.filter(w=>w.dept_key===dept);
+  
+  // Log-ları order_id + stage_index üzrə xəritələşdir
+  const logMap = {};
+  logs.forEach(l=>{
+    const k = l.order_id + '_' + l.stage_index;
+    if(!logMap[k]) logMap[k] = l;
+  });
 
   if(curDeptTab==='active'){
     const tasks=[];
@@ -1750,9 +1759,14 @@ async function renderDeptTasks(dept){
 
     tl.innerHTML=vis.map(({o,m,s,si})=>{
       const key=`ts_${o.id}_${si}`;
-      const started=localStorage.getItem(key+'_s');
-      const done=localStorage.getItem(key+'_d');
-      const startTime=localStorage.getItem(key+'_t');
+      const logKey = o.id + '_' + (si-1); // stage_index 0-dan başlayır
+      const log = logMap[logKey];
+      
+      // Supabase log əsas, localStorage backup
+      const started = (log && log.started_at) || localStorage.getItem(key+'_s');
+      const done = (log && log.completed_at) || localStorage.getItem(key+'_d');
+      const startTime = (log && log.started_at) || localStorage.getItem(key+'_t');
+      
       const total=(m.stages||[]).length;
       const dots=(m.stages||[]).map((_,i)=>`<div class="sdot${i+1<si?' done':i+1===si?' cur':''}"></div>`).join('');
       let stCls='ts-idle',stTxt='Başla düyməsinə basın';
@@ -1801,16 +1815,20 @@ async function renderDeptTasks(dept){
     }).join('')+(hidden>0?`<div style="text-align:center;padding:18px;background:var(--lo);border-radius:var(--rl);border:2px dashed rgba(247,137,48,.3);margin-top:8px"><div style="font-size:28px;font-weight:700;color:var(--or)">${hidden}</div><div style="font-size:13px;color:#854F0B;margin-top:2px">sifariş növbədə gözləyir</div></div>`:'');
 
     // Real-time timer
-    // Əvvəlki intervalları təmizlə
     document.querySelectorAll('[id^="timer-"]').forEach(el=>{
       if(el.dataset.intervalId){clearInterval(parseInt(el.dataset.intervalId));}
     });
     
     vis.forEach(({o,si})=>{
       const key=`ts_${o.id}_${si}`;
-      const s2=localStorage.getItem(key+'_s');
-      const d2=localStorage.getItem(key+'_d');
-      const t2=localStorage.getItem(key+'_t');
+      const logKey = o.id + '_' + (si-1);
+      const log = logMap[logKey];
+      
+      // Supabase log əsas, localStorage backup
+      const s2 = (log && log.started_at) || localStorage.getItem(key+'_s');
+      const d2 = (log && log.completed_at) || localStorage.getItem(key+'_d');
+      const t2 = (log && log.started_at) || localStorage.getItem(key+'_t');
+      
       if(s2&&!d2&&t2){
         const timerEl=document.getElementById('timer-'+o.id);
         if(timerEl){
