@@ -1644,9 +1644,9 @@ async function sendAI(){
   const context = buildDeepContext(allOrders, allLogs, allModels, allWorkers, allUsers);
 
   try{
-    const res=await fetch('https://api.openai.com/v1/chat/completions',{
+    const res=await fetch('/api/ai',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+OPENAI_KEY},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         model:'gpt-4o',
         max_tokens:1500,
@@ -1810,9 +1810,9 @@ async function runAutoAnalysis(){
   const context = buildDeepContext(orders||[], logs||[], models||[], workers||[], []);
   
   try{
-    const res = await fetch('https://api.openai.com/v1/chat/completions',{
+    const res = await fetch('/api/ai',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+OPENAI_KEY},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         model:'gpt-4o',
         max_tokens:2000,
