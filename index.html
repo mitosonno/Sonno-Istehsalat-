@@ -378,6 +378,7 @@ textarea{resize:vertical;min-height:80px}
         <div style="display:grid;grid-template-columns:1fr 340px;gap:20px" id="order-layout">
           <div>
             <div class="slbl" style="margin-top:0">Məhsul seçin</div>
+            <input type="text" id="product-search" placeholder="🔍 Model axtar..." style="width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;margin-bottom:12px" oninput="filterProducts(this.value)">
             <div class="pgrid" id="product-grid"></div>
             <div id="qty-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:12px 14px;align-items:center;gap:12px;margin-bottom:14px">
               <span id="qty-name" style="flex:1;font-size:13px;font-weight:600;color:var(--dp)">—</span>
@@ -640,30 +641,7 @@ textarea{resize:vertical;min-height:80px}
       <label>Şöbə</label>
       <select id="aw-dept">
         <option value="">Şöbə seçin</option>
-        <option value="hazirlik">✂️ Hazırlıq — Kəsmə</option>
-        <option value="bez_kesim">🧶 Bez kəsim</option>
-        <option value="karkaz">🪵 Karkaz yığım</option>
-        <option value="shkurka">🔩 Şkurka</option>
-        <option value="masa_karkaz">🪚 Masa karkaz</option>
-        <option value="masa_rengle">🎨 Masa rəngləmə</option>
-        <option value="yastiqlama">🛋️ Yastıqlama / Döşəmə</option>
-        <option value="tikiş">🧵 Tikiş</option>
-        <option value="qa">✅ Keyfiyyət yoxlama</option>
-        <option value="logistics">🚛 Logistika</option>
       </select>
-    </div>
-    <div class="fg">
-      <label>Status</label>
-      <div style="display:flex;gap:10px;align-items:center">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-          <input type="radio" name="aw-status" value="active" checked>
-          <span style="font-size:13px">Aktiv</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-          <input type="radio" name="aw-status" value="inactive">
-          <span style="font-size:13px">Qeyri-aktiv</span>
-        </label>
-      </div>
     </div>
   </div>
   <div class="sheet-footer">
@@ -1117,7 +1095,14 @@ async function openKioskDept(dept){
   app.style.display='flex';
   app.classList.add('visible');
 
-  // Kiosk mode üçün nav-ı gizlət
+  // Kiosk mode — top bar, sidebar, bottom nav gizlət
+  const topbar = document.querySelector('.topbar');
+  if(topbar) topbar.style.display = 'none';
+  const sidebar = document.getElementById('sidebar');
+  if(sidebar) sidebar.style.display = 'none';
+  const bottomNav = document.getElementById('bottom-nav');
+  if(bottomNav) bottomNav.style.display = 'none';
+  
   const nav = document.querySelector('.bottom-nav');
   if(nav) nav.style.display='none';
 
@@ -1467,7 +1452,26 @@ async function showOD(id){
 
 // ═══════════ ORDER CREATE ═══════════
 function renderOrderForm(){
-  document.getElementById('product-grid').innerHTML=appModels.map(m=>{
+  renderProductGrid(appModels);
+  if(!document.getElementById('o-dead').value){
+    const d=new Date();d.setDate(d.getDate()+7);
+    document.getElementById('o-dead').value=d.toISOString().split('T')[0];
+  }
+  // Mobile: stack layout
+  if(window.innerWidth<=768){
+    document.getElementById('order-layout').style.gridTemplateColumns='1fr';
+    document.getElementById('pipe-preview-wrap').style.display='none';
+  }
+}
+
+function renderProductGrid(models){
+  const grid = document.getElementById('product-grid');
+  if(!grid) return;
+  if(!models.length){
+    grid.innerHTML = `<div style="padding:24px;text-align:center;color:var(--t3);grid-column:1/-1">Model tapılmadı</div>`;
+    return;
+  }
+  grid.innerHTML = models.map(m=>{
     const img=m.img_url?`<img src="${m.img_url}" style="width:100%;height:100px;object-fit:cover">`:`<div class="pcard-img">${m.emoji}</div>`;
     return`<div class="pcard" id="pc-${m.id}" onclick="selProd('${m.id}')">
       <div class="pcard-chk">✓</div>${img}
@@ -1479,15 +1483,15 @@ function renderOrderForm(){
       </div>
     </div>`;
   }).join('');
-  if(!document.getElementById('o-dead').value){
-    const d=new Date();d.setDate(d.getDate()+7);
-    document.getElementById('o-dead').value=d.toISOString().split('T')[0];
-  }
-  // Mobile: stack layout
-  if(window.innerWidth<=768){
-    document.getElementById('order-layout').style.gridTemplateColumns='1fr';
-    document.getElementById('pipe-preview-wrap').style.display='none';
-  }
+}
+
+function filterProducts(query){
+  const q = query.toLowerCase().trim();
+  const filtered = !q ? appModels : appModels.filter(m=>
+    m.name.toLowerCase().includes(q) || 
+    (m.description||'').toLowerCase().includes(q)
+  );
+  renderProductGrid(filtered);
 }
 
 function selProd(id){
@@ -1612,12 +1616,27 @@ async function createOrder(){
 
 // ═══════════ DEPT / PIN ═══════════
 async function renderDeptPick(){
-  const{data:orders}=await sb.from('orders').select('*').in('status',['in_progress','created','late']);
+  const{data:orders}=await sb.from('orders').select('*').in('status',['in_progress','created','late','ready']);
   const dCnt={};
   (orders||[]).forEach(o=>{
+    // Logistika üçün xüsusi: status=ready olanlar
+    if(o.status === 'ready'){
+      dCnt['logistics'] = (dCnt['logistics']||0)+1;
+      return;
+    }
     const m=appModels.find(x=>x.id===o.model_id);if(!m)return;
     const stages=m.stages||[];const si=o.current_stage-1;
-    if(si>=0&&si<stages.length){const d=stages[si].dept;dCnt[d]=(dCnt[d]||0)+1;}
+    if(si>=0&&si<stages.length){
+      const d=stages[si].dept;
+      // Paralel olsa — hər iki şöbəyə say
+      if(d.includes('||')){
+        d.split('||').forEach(part=>{
+          dCnt[part]=(dCnt[part]||0)+1;
+        });
+      } else {
+        dCnt[d]=(dCnt[d]||0)+1;
+      }
+    }
   });
   const{data:pins}=await sb.from('dept_pins').select('*');
   const pinMap={};(pins||[]).forEach(p=>pinMap[p.dept_key]=p.pin_code);
@@ -2627,8 +2646,23 @@ async function renderStatsSection(el){
   topMgrs.forEach(x=>x._main=x.revenue?x.revenue.toFixed(0)+' ₼':'—');
   topClients.forEach(x=>x._main=x.count+' sifariş');
 
+  // Maliyyə analizi — ay üzrə
+  const now = new Date();
+  const defaultMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  window._statsAllOrders = allOrders;
+  window._statsAllModels = allModels;
+
   el.innerHTML=`
-    <div class="slbl" style="margin-top:0">Performans analizi</div>
+    <div class="slbl" style="margin-top:0">💰 Maliyyə Analizi</div>
+    <div class="sec-card card-pad" style="margin-bottom:14px">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+        <label style="font-size:13px;font-weight:600">Ay:</label>
+        <input type="month" id="finance-month" value="${defaultMonth}" onchange="renderFinanceStats()" style="padding:8px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px">
+      </div>
+      <div id="finance-stats"></div>
+    </div>
+
+    <div class="slbl">Performans analizi</div>
     
     <div class="sec-card" style="margin-bottom:14px">
       <div class="sec-card-hd"><h3>🏆 Ən çox satılan modellər</h3></div>
@@ -2666,6 +2700,77 @@ async function renderStatsSection(el){
     <div class="sec-card">
       <div class="sec-card-hd"><h3>🤝 Ən çox sifariş verən müştərilər</h3></div>
       ${rankList(topClients,x=>`${x.qty} ədəd · ${x.revenue?x.revenue.toFixed(0)+' ₼':''}`)}
+    </div>
+  `;
+  renderFinanceStats();
+}
+
+function renderFinanceStats(){
+  const orders = window._statsAllOrders || [];
+  const models = window._statsAllModels || [];
+  const monthInput = document.getElementById('finance-month');
+  const target = document.getElementById('finance-stats');
+  if(!target) return;
+  
+  const selectedMonth = monthInput?.value || '';
+  const [year, month] = selectedMonth ? selectedMonth.split('-').map(Number) : [new Date().getFullYear(), new Date().getMonth()+1];
+  
+  // Ay üzrə filterlə
+  const monthOrders = orders.filter(o=>{
+    if(!o.created_at) return false;
+    const d = new Date(o.created_at);
+    return d.getFullYear()===year && (d.getMonth()+1)===month;
+  });
+  
+  let totalRevenue = 0;
+  let totalCost = 0;
+  let totalQty = 0;
+  let deliveredRevenue = 0;
+  let deliveredCost = 0;
+  
+  monthOrders.forEach(o=>{
+    const m = models.find(x=>x.id===o.model_id);
+    const qty = o.qty || 0;
+    const final = o.final_price || 0;
+    const cost = (m?.cost_price || 0) * qty;
+    totalRevenue += final;
+    totalCost += cost;
+    totalQty += qty;
+    if(o.status === 'delivered'){
+      deliveredRevenue += final;
+      deliveredCost += cost;
+    }
+  });
+  
+  const profit = totalRevenue - totalCost;
+  const profitMargin = totalRevenue > 0 ? (profit/totalRevenue*100) : 0;
+  const deliveredProfit = deliveredRevenue - deliveredCost;
+  
+  target.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">
+      <div style="background:var(--lt);padding:14px;border-radius:10px">
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Ümumi satış</div>
+        <div style="font-size:22px;font-weight:700;color:var(--tl);margin-top:4px">${totalRevenue.toFixed(0)} ₼</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px">${monthOrders.length} sifariş · ${totalQty} ədəd</div>
+      </div>
+      <div style="background:#FEEEED;padding:14px;border-radius:10px">
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Maya dəyəri</div>
+        <div style="font-size:22px;font-weight:700;color:#E24B4A;margin-top:4px">${totalCost.toFixed(0)} ₼</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px">istehsal xərci</div>
+      </div>
+      <div style="background:var(--lo);padding:14px;border-radius:10px">
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Mənfəət (plan)</div>
+        <div style="font-size:22px;font-weight:700;color:${profit>=0?'var(--tl)':'#E24B4A'};margin-top:4px">${profit.toFixed(0)} ₼</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px">${profitMargin.toFixed(1)}% marj</div>
+      </div>
+      <div style="background:#E8F5E9;padding:14px;border-radius:10px;border:2px solid var(--tl)">
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Təslim edilən mənfəət</div>
+        <div style="font-size:22px;font-weight:700;color:var(--tl);margin-top:4px">${deliveredProfit.toFixed(0)} ₼</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px">real qazanc</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--t2);padding:10px;background:rgba(17,24,32,.03);border-radius:8px">
+      💡 Maya dəyəri hesablanması: hər modelin <b>cost_price</b> × ədəd. Plan — bütün sifarişlər, Real — yalnız təslim edilənlər.
     </div>
   `;
 }
@@ -2737,12 +2842,20 @@ async function savePinChg(key){
 
 async function renderModelsSection(el){
   const{data:models}=await sb.from('models').select('*');
+  const allModels = models||[];
   el.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div class="slbl" style="margin:0">Modellər</div>
+      <div class="slbl" style="margin:0">Modellər (${allModels.length})</div>
       <button class="btn btn-t" style="font-size:12px;padding:8px 14px" onclick="openAddModel()">+ Yeni model</button>
     </div>
-    <div class="sec-card">${(models||[]).map(m=>`
+    <input type="text" id="models-search" placeholder="🔍 Model axtar..." style="width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;margin-bottom:10px" oninput="filterModelsList(this.value)">
+    <div class="sec-card" id="models-list">${renderModelsList(allModels)}</div>`;
+  window._allModelsCache = allModels;
+}
+
+function renderModelsList(models){
+  if(!models.length) return `<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Model tapılmadı</div>`;
+  return models.map(m=>`
       <div class="list-item">
         <div class="li-icon" style="background:var(--lt);font-size:22px">${m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:10px">`:m.emoji}</div>
         <div class="li-body">
@@ -2753,8 +2866,14 @@ async function renderModelsSection(el){
           <button onclick="editModel('${m.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:var(--tl);font-family:inherit;padding:3px 8px;border-radius:6px">Düzəlt</button>
           <button onclick="deleteModel('${m.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:#E24B4A;font-family:inherit;padding:3px 8px;border-radius:6px">Sil</button>
         </div>
-      </div>`).join('')}
-    </div>`;
+      </div>`).join('');
+}
+
+function filterModelsList(query){
+  const models = window._allModelsCache || [];
+  const q = query.toLowerCase().trim();
+  const filtered = !q ? models : models.filter(m=>m.name.toLowerCase().includes(q) || (m.description||'').toLowerCase().includes(q));
+  document.getElementById('models-list').innerHTML = renderModelsList(filtered);
 }
 
 async function renderWorkersSection(el){
@@ -2789,13 +2908,20 @@ async function renderWorkersSection(el){
 // ═══════════ WORKER MANAGEMENT ═══════════
 let editingWorkerId = null;
 
+function populateWorkerDeptSelect(){
+  const sel = document.getElementById('aw-dept');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">Şöbə seçin</option>' + 
+    Object.entries(DEPT_INFO).map(([k,info])=>`<option value="${k}">${info.icon} ${info.name}</option>`).join('');
+}
+
 function openAddWorker(){
   editingWorkerId = null;
+  populateWorkerDeptSelect();
   document.getElementById('aw-title').textContent = 'Yeni işçi';
   document.getElementById('aw-name').value = '';
   document.getElementById('aw-role').value = '';
   document.getElementById('aw-dept').value = '';
-  document.querySelector('input[name="aw-status"][value="active"]').checked = true;
   openSheet('add-worker');
 }
 
@@ -2803,11 +2929,11 @@ async function editWorker(id){
   const {data} = await sb.from('workers').select('*').eq('id', id).single();
   if(!data){toast('Xəta: işçi tapılmadı'); return;}
   editingWorkerId = id;
+  populateWorkerDeptSelect();
   document.getElementById('aw-title').textContent = 'İşçini düzəlt';
   document.getElementById('aw-name').value = data.name;
   document.getElementById('aw-role').value = data.role_title || '';
   document.getElementById('aw-dept').value = data.dept_key;
-  document.querySelector(`input[name="aw-status"][value="${data.status||'active'}"]`).checked = true;
   openSheet('add-worker');
 }
 
@@ -2816,15 +2942,14 @@ async function saveWorker(){
   const dept = document.getElementById('aw-dept').value;
   if(!name){toast('⚠ Ad yazın'); return;}
   if(!dept){toast('⚠ Şöbə seçin'); return;}
-  const status = document.querySelector('input[name="aw-status"]:checked').value;
   const role = document.getElementById('aw-role').value.trim();
   
   showLoader();
   if(editingWorkerId){
-    await sb.from('workers').update({name, dept_key:dept, role_title:role, status}).eq('id', editingWorkerId);
+    await sb.from('workers').update({name, dept_key:dept, role_title:role, status:'active'}).eq('id', editingWorkerId);
     toast('✓ İşçi yeniləndi');
   } else {
-    await sb.from('workers').insert({name, dept_key:dept, role_title:role, status});
+    await sb.from('workers').insert({name, dept_key:dept, role_title:role, status:'active'});
     toast('✓ İşçi əlavə edildi');
   }
   hideLoader();
