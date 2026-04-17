@@ -611,13 +611,16 @@ textarea{resize:vertical;min-height:80px}
       <label>Şöbə</label>
       <select id="aw-dept">
         <option value="">Şöbə seçin</option>
-        <option value="cutting">✂️ Kəsmə</option>
-        <option value="sewing">🧵 Tikiş</option>
-        <option value="assembly">🔧 Yığma</option>
-        <option value="upholstery">🛋️ Döşəmə</option>
-        <option value="painting">🎨 Boyama</option>
-        <option value="quality">✅ Keyfiyyət nəzarəti</option>
-        <option value="packaging">📦 Qablaşdırma</option>
+        <option value="hazirlik">✂️ Hazırlıq — Kəsmə</option>
+        <option value="bez_kesim">🧶 Bez kəsim</option>
+        <option value="karkaz">🪵 Karkaz yığım</option>
+        <option value="shkurka">🔩 Şkurka</option>
+        <option value="masa_karkaz">🪚 Masa karkaz</option>
+        <option value="masa_rengle">🎨 Masa rəngləmə</option>
+        <option value="yastiqlama">🛋️ Yastıqlama / Döşəmə</option>
+        <option value="tikiş">🧵 Tikiş</option>
+        <option value="qa">✅ Keyfiyyət yoxlama</option>
+        <option value="logistics">🚛 Logistika</option>
       </select>
     </div>
     <div class="fg">
@@ -1137,138 +1140,89 @@ function showDV(v){
 
 async function renderDeptTasks(dept){
   showLoader();
-  // Aktiv tab: cari mərhələsi bu şöbəyə aid olan sifarişlər
-  // Tamamlananlar tab: bu şöbənin tapşırığını tamamlamış sifarişlər (current_stage bu şöbənin mərhələsindən böyükdür)
-  const{data:allOrders}=await sb.from('orders').select('*').order('created_at',{ascending:false});
+  const [{data:allOrders},{data:allModels}] = await Promise.all([
+    sb.from("orders").select("*").order("created_at",{ascending:true}),
+    sb.from("models").select("*"),
+  ]);
   hideLoader();
 
   const orders=allOrders||[];
+  const models=allModels||[];
   const dws=appWorkers.filter(w=>w.dept_key===dept);
 
-  if(curDeptTab==='active'){
-    // Aktiv: bu şöbənin cari tapşırığı var
+  if(curDeptTab==="active"){
     const tasks=[];
-    orders.filter(o=>['in_progress','created','late'].includes(o.status)).forEach(o=>{
-      const m=appModels.find(x=>x.id===o.model_id);if(!m)return;
+    orders.filter(o=>["in_progress","created","late"].includes(o.status)).forEach(o=>{
+      const m=models.find(x=>x.id===o.model_id);
+      if(!m){console.warn("Model tapilmadi:",o.model_id,o.order_number);return;}
       const stages=m.stages||[];
       const si=o.current_stage-1;
       if(si>=0&&si<stages.length&&stages[si].dept===dept)
         tasks.push({o,m,s:stages[si],si:o.current_stage});
     });
 
-    console.log(`[${dept}] Total tasks: ${tasks.length}`);
+    console.log("["+dept+"] tasks:",tasks.length);
 
-    // FIFO: deadline-a görə sırala, yalnız ilk 10-u göstər
     tasks.sort((a,b)=>{
-      if(a.o.deadline&&b.o.deadline) return new Date(a.o.deadline)-new Date(b.o.deadline);
-      if(a.o.deadline) return -1;
-      if(b.o.deadline) return 1;
-      return new Date(a.o.created_at||Date.now())-new Date(b.o.created_at||Date.now());
+      if(a.o.deadline&&b.o.deadline)return new Date(a.o.deadline)-new Date(b.o.deadline);
+      if(a.o.deadline)return -1;if(b.o.deadline)return 1;
+      return new Date(a.o.created_at||0)-new Date(b.o.created_at||0);
     });
-    const visibleTasks=tasks.slice(0,10);
-    const hiddenCount=tasks.length-visibleTasks.length;
+    const vis=tasks.slice(0,10);
+    const hidden=tasks.length-vis.length;
+    document.getElementById("dt-cnt").textContent=tasks.length;
+    const tl=document.getElementById("dept-task-list");
 
-    console.log(`[${dept}] Visible: ${visibleTasks.length}, Hidden: ${hiddenCount}`);
-    document.getElementById('dt-cnt').textContent=tasks.length;
-    const tl=document.getElementById('dept-task-list');
-    if(!visibleTasks.length){
-      tl.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:48px;margin-bottom:12px">✅</div><div style="font-weight:600;color:var(--tl);font-size:16px">Bu şöbədə aktiv iş yoxdur</div><div style="font-size:13px;margin-top:6px">Növbəti tapşırıq gəldikdə avtomatik görünəcək</div></div>`;
+    if(!vis.length){
+      tl.innerHTML="<div style=\"text-align:center;padding:48px;color:var(--t3)\"><div style=\"font-size:48px;margin-bottom:12px\">\u2705</div><div style=\"font-weight:600;color:var(--tl);font-size:16px\">Bu \u015f\u00f6b\u0259d\u0259 aktiv i\u015f yoxdur</div><div style=\"font-size:13px;margin-top:6px\">N\u00f6vb\u0259ti tap\u015fır\u0131q g\u0259ldikd\u0259 avtomatik g\u00f6r\u00fcn\u0259c\u0259k</div></div>";
       return;
     }
-    tl.innerHTML=visibleTasks.map(({o,m,s,si})=>{
-      const key=`ts_${o.id}_${si}`;
-      const started=localStorage.getItem(key+'_s');
-      const done=localStorage.getItem(key+'_d');
-      const startTime=localStorage.getItem(key+'_t');
-      const dots=(m.stages||[]).map((_,i)=>`<div class="sdot${i+1<si?' done':i+1===si?' cur':''}"></div>`).join('');
-      let stCls='ts-idle',stTxt='Başlamaq üçün "Başla" basın';
-      if(done){
-        const doneTime=localStorage.getItem(key+'_dt');
-        const durMin=startTime&&doneTime?Math.round((new Date(doneTime)-new Date(startTime))/60000):null;
-        stCls='ts-done';stTxt='✓ Tamamlandı'+(durMin?' ('+fmtTime(durMin)+')':'');
-      }else if(started){stCls='ts-go';stTxt='⏱ İcra olunur...';}
-      const isLate=o.status==='late';
-      const wHtml=dws.length?`<div class="wchips">${dws.map(w=>{
-        const ini=w.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
-        return`<div class="wchip"><div class="wchip-av">${ini}</div><span>${w.name.split(' ')[0]}</span></div>`;
-      }).join('')}</div>`:'';
-      return`<div class="task-card">
-        <div class="task-card-top${isLate?' late':''}">
-          <div><div style="font-size:15px;font-weight:700">${s.name}</div><div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${m.name.split('—')[0].trim()}</div></div>
-          <span class="badge ${isLate?'bR':'bO'}">${isLate?'GECİKMİŞ':'Aktiv'}</span>
-        </div>
-        <div class="task-card-body">
-          <div class="stage-dots">${dots}</div>
-          <div style="font-size:11px;color:var(--t2);margin-bottom:8px">${si}/${(m.stages||[]).length} mərhələ</div>
-          <div class="task-meta">
-            <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v">${o.client}</div></div>
-            <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-size:20px;font-weight:700">${o.qty}</div></div>
-            <div class="tm-i"><div class="tm-k">Müddət (plan)</div><div class="tm-v">${s.hours} saat</div></div>
-            <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v" style="${isLate?'color:#E24B4A':''};font-size:13px">${o.deadline||'—'}</div></div>
-          </div>
-          ${o.color||o.size?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-            ${o.color?`<span class="badge bG">🎨 ${o.color}</span>`:''}
-            ${o.size?`<span class="badge bG">📐 ${o.size}</span>`:''}
-          </div>`:''}
-          ${wHtml}
-          <div class="ts-box ${stCls}" id="ts-${o.id}">${stTxt}</div>
-          <div class="task-btns">
-            <button class="btn btn-o btn-lg" ${started||done?'disabled':''} onclick="dStart('${o.id}','${si}','${key}','${dept}')">▶ Başla</button>
-            <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${(m.stages||[]).length}')">✓ Tamamla</button>
-          </div>
-        </div>
-      </div>`;
-    }).join('') + (hiddenCount>0 ? `
-    <div style="text-align:center;padding:16px;background:var(--lo);border-radius:var(--rl);border:1px dashed rgba(247,137,48,.3)">
-      <div style="font-size:22px;font-weight:700;color:var(--or)">${hiddenCount}</div>
-      <div style="font-size:13px;color:#854F0B;margin-top:2px">sifariş növbədə gözləyir</div>
-      <div style="font-size:11px;color:#854F0B;margin-top:4px">Yuxarıdakı sifarişlər tamamlandıqca avtomatik görünəcək</div>
-    </div>` : '');
-    // TAMAMLANANLAR: bu şöbənin mərhələsini keçmiş sifarişlər
+
+    tl.innerHTML=vis.map(({o,m,s,si})=>{
+      const key="ts_"+o.id+"_"+si;
+      const started=localStorage.getItem(key+"_s");
+      const done=localStorage.getItem(key+"_d");
+      const startTime=localStorage.getItem(key+"_t");
+      const total=(m.stages||[]).length;
+      const dots=(m.stages||[]).map((_,i)=>"<div class=\"sdot"+(i+1<si?" done":i+1===si?" cur":"")+"\"></div>").join("");
+      let stCls="ts-idle",stTxt="Ba\u015flamaq \u00fc\u00e7\u00fcn Ba\u015fla d\u00fcym\u0259sin\u0259 bas\u0131n";
+      if(done){const dt=localStorage.getItem(key+"_dt");const dm=startTime&&dt?Math.round((new Date(dt)-new Date(startTime))/60000):null;stCls="ts-done";stTxt="\u2713 Tamamland\u0131"+(dm?" ("+fmtTime(dm)+")": "");}
+      else if(started){stCls="ts-go";stTxt="\u23f1 \u0130cra olunur...";}
+      const isLate=o.status==="late"||(o.deadline&&new Date(o.deadline)<new Date());
+      const wHtml=dws.length?"<div class=\"wchips\">"+dws.map(w=>{const ini=w.name.split(" ").map(x=>x[0]).join("").slice(0,2).toUpperCase();return"<div class=\"wchip\"><div class=\"wchip-av\">"+ini+"</div><span>"+w.name.split(" ")[0]+"</span></div>";}).join("")+ "</div>":"";
+      return"<div class=\"task-card\"><div class=\"task-card-top"+(isLate?" late":"")+"\"><div><div style=\"font-size:15px;font-weight:700\">"+ s.name+"</div><div style=\"font-size:12px;color:var(--t2);margin-top:2px\">"+ o.order_number+" \u00b7 "+ m.name.split("\u2014")[0].trim()+"</div></div><span class=\"badge "+(isLate?"bR":"bO")+"\">"+( isLate?"GEC\u0130KM\u0130Ş":"Aktiv")+"</span></div><div class=\"task-card-body\"><div class=\"stage-dots\">"+dots+"</div><div style=\"font-size:11px;color:var(--t2);margin-bottom:8px\">"+si+"/"+total+" m\u0259rh\u0259l\u0259</div><div class=\"task-meta\"><div class=\"tm-i\"><div class=\"tm-k\">M\u00fc\u015ft\u0259ri</div><div class=\"tm-v\" style=\"font-weight:600\">"+o.client+"</div></div><div class=\"tm-i\"><div class=\"tm-k\">&Auml;d\u0259d</div><div class=\"tm-v\" style=\"color:var(--tl);font-size:20px;font-weight:700\">"+o.qty+"</div></div><div class=\"tm-i\"><div class=\"tm-k\">Plan vaxt</div><div class=\"tm-v\">"+s.hours+" saat</div></div><div class=\"tm-i\"><div class=\"tm-k\">Deadline</div><div class=\"tm-v\" style=\""+(isLate?"color:#E24B4A;font-weight:600":"")+"\">"+( o.deadline||"\u2014")+"</div></div></div>"+wHtml+"<div class=\"ts-box "+stCls+"\" id=\"ts-"+o.id+"\">"+stTxt+"</div><div class=\"task-btns\"><button class=\"btn btn-o btn-lg\" "+(started||done?"disabled":"")+" onclick=\"dStart('"+o.id+"','"+si+"','"+key+"','"+dept+"')\">\u25b6 Ba\u015fla</button><button class=\"btn btn-t btn-lg\" "+((!started||done)?"disabled":"")+" id=\"td-"+o.id+"\" onclick=\"dDone('"+o.id+"','"+si+"','"+key+"','"+dept+"','"+total+"')\">\u2713 Tamamla</button></div></div></div>";
+    }).join("")+(hidden>0?"<div style=\"text-align:center;padding:18px;background:var(--lo);border-radius:var(--rl);border:2px dashed rgba(247,137,48,.3);margin-top:8px\"><div style=\"font-size:28px;font-weight:700;color:var(--or)\">"+hidden+"</div><div style=\"font-size:13px;color:#854F0B;margin-top:2px\">sifari\u015f n\u00f6vb\u0259d\u0259 g\u00f6zl\u0259yir</div></div>":"");
+
+    vis.forEach(({o,si})=>{
+      const key="ts_"+o.id+"_"+si;
+      const s2=localStorage.getItem(key+"_s");
+      const d2=localStorage.getItem(key+"_d");
+      const t2=localStorage.getItem(key+"_t");
+      if(s2&&!d2&&t2){
+        const el2=document.getElementById("ts-"+o.id);
+        if(el2){const upd=()=>{const e=Math.round((Date.now()-new Date(t2))/60000);if(el2.isConnected)el2.textContent="\u23f1 \u0130cra olunur... "+fmtTime(e);};upd();setInterval(upd,30000);}
+      }
+    });
+
+  } else {
     const done=[];
     orders.forEach(o=>{
-      const m=appModels.find(x=>x.id===o.model_id);if(!m)return;
-      const stages=m.stages||[];
-      // Check if any past stage belongs to this dept (already passed)
-      stages.forEach((s,i)=>{
-        const stageNum=i+1;
-        if(s.dept===dept && o.current_stage>stageNum){
-          done.push({o,m,s,stageNum});
-        }
+      const m=models.find(x=>x.id===o.model_id);if(!m)return;
+      (m.stages||[]).forEach((s,i)=>{
+        if(s.dept===dept&&o.current_stage>i+1) done.push({o,m,s,stageNum:i+1});
       });
     });
-
-    document.getElementById('dt-cnt').textContent=done.length;
-    const tl2=document.getElementById('dept-task-list');
-    if(!done.length){
-      tl2.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:14px">Hələ tamamlanan iş yoxdur</div></div>`;
-      return;
-    }
+    document.getElementById("dt-cnt").textContent=done.length;
+    const tl2=document.getElementById("dept-task-list");
+    if(!done.length){tl2.innerHTML="<div style=\"text-align:center;padding:48px;color:var(--t3)\"><div style=\"font-size:36px;margin-bottom:12px\">\ud83d\udccb</div><div style=\"font-size:14px\">H\u0259l\u0259 tamamlanan i\u015f yoxdur</div></div>";return;}
     tl2.innerHTML=done.map(({o,m,s,stageNum})=>{
-      const key=`ts_${o.id}_${stageNum}`;
-      const startTime=localStorage.getItem(key+'_t');
-      const doneTime=localStorage.getItem(key+'_dt');
-      const durMin=startTime&&doneTime?Math.round((new Date(doneTime)-new Date(startTime))/60000):null;
+      const key="ts_"+o.id+"_"+stageNum;
+      const t0=localStorage.getItem(key+"_t");
+      const dt=localStorage.getItem(key+"_dt");
+      const dm=t0&&dt?Math.round((new Date(dt)-new Date(t0))/60000):null;
       const st=ST[o.status]||ST.created;
-      return`<div class="task-card">
-        <div class="task-card-top" style="background:var(--lt)">
-          <div>
-            <div style="font-size:15px;font-weight:700">✓ ${s.name}</div>
-            <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${o.client}</div>
-          </div>
-          <span class="badge ${st.c}">${st.t}</span>
-        </div>
-        <div class="task-card-body">
-          <div class="task-meta">
-            <div class="tm-i"><div class="tm-k">Model</div><div class="tm-v" style="font-size:13px">${m.name.split('—')[0].trim()}</div></div>
-            <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div>
-            <div class="tm-i"><div class="tm-k">İcra vaxtı</div><div class="tm-v" style="color:var(--tl)">${durMin?fmtTime(durMin):s.hours+'s (plan)'}</div></div>
-            <div class="tm-i"><div class="tm-k">Sifariş mərhələsi</div><div class="tm-v" style="font-size:13px">${o.current_stage}/${m.stages.length}</div></div>
-          </div>
-          ${doneTime?`<div style="font-size:11px;color:var(--t3);margin-top:6px">Tamamlandı: ${new Date(doneTime).toLocaleString('az-AZ')}</div>`:''}
-        </div>
-      </div>`;
-    }).join('');
+      return"<div class=\"task-card\"><div class=\"task-card-top\" style=\"background:var(--lt)\"><div><div style=\"font-size:15px;font-weight:700\">\u2713 "+s.name+"</div><div style=\"font-size:12px;color:var(--t2);margin-top:2px\">"+o.order_number+" \u00b7 "+o.client+"</div></div><span class=\"badge "+st.c+"\">"+st.t+"</span></div><div class=\"task-card-body\"><div class=\"task-meta\"><div class=\"tm-i\"><div class=\"tm-k\">Model</div><div class=\"tm-v\">"+ m.name.split("\u2014")[0].trim()+"</div></div><div class=\"tm-i\"><div class=\"tm-k\">&Auml;d\u0259d</div><div class=\"tm-v\" style=\"color:var(--tl);font-weight:700\">"+o.qty+"</div></div><div class=\"tm-i\"><div class=\"tm-k\">Vaxt</div><div class=\"tm-v\">"+( dm?fmtTime(dm):s.hours+"s plan")+"</div></div></div>"+(dt?"<div style=\"font-size:11px;color:var(--t3);margin-top:6px\">Tamamland\u0131: "+new Date(dt).toLocaleString("az-AZ")+"</div>":"")+"</div></div>";
+    }).join("");
   }
 }
 
