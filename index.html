@@ -762,7 +762,6 @@ const NAV_ITEMS = [
   {key:'dash',  icon:'📊',label:'Dashboard',  perm:'dashboard',    sc:'sc-dash'},
   {key:'order', icon:'➕',label:'Sifariş',    perm:'orders_create',sc:'sc-order'},
   {key:'dept',  icon:'🏭',label:'Şöbə',       perm:'dept_screen',  sc:'sc-dept'},
-  {key:'logi',  icon:'🚛',label:'Logistika',  perm:'logistics',    sc:'sc-logi'},
   {key:'ai',    icon:'🤖',label:'AI Analiz',  perm:'ai',           sc:'sc-ai'},
   {key:'admin', icon:'⚙️',label:'Admin',      perm:'admin',        sc:'sc-admin'},
 ];
@@ -1038,7 +1037,7 @@ async function initApp(){
   document.getElementById('topbar-av').textContent=ini;
   const rL={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
   document.getElementById('topbar-role').textContent=rL[u.role]||u.role;
-  document.getElementById('dash-date').textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
+  loadClientNames();document.getElementById('dash-date').textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
 
   // Build nav
   const visible = currentUser.role === 'admin' 
@@ -1537,6 +1536,11 @@ function showDV(v){
 }
 
 async function renderDeptTasks(dept){
+  // Xüsusi hal: Logistika — "ready" sifarişləri göstər
+  if(dept === 'logistics'){
+    return renderLogisticsDept();
+  }
+  
   showLoader();
   const [{data:allOrders},{data:allModels}] = await Promise.all([
     sb.from('orders').select('*').order('created_at',{ascending:true}),
@@ -1712,12 +1716,95 @@ function dStart(oid,si,key,dept){
   if(el){el.className='ts-box ts-go';el.textContent='⏱ İcra olunur...';}
   document.querySelectorAll(`[onclick*="dStart('${oid}"]`).forEach(b=>b.disabled=true);
   const db=document.getElementById('td-'+oid);if(db)db.disabled=false;
+  
+  // Timer HTML-ini əlavə et (əgər yoxdursa)
+  if(!document.getElementById('timer-'+oid)){
+    const taskCard = document.getElementById('tcard-'+oid);
+    if(taskCard){
+      const btns = taskCard.querySelector('.task-btns');
+      if(btns){
+        const timerDiv = document.createElement('div');
+        timerDiv.id = 'timer-'+oid;
+        timerDiv.style.cssText = 'font-size:14px;font-weight:600;color:var(--or);text-align:center;margin:8px 0';
+        timerDiv.textContent = '⏱ 0 dəq 0 san';
+        btns.parentNode.insertBefore(timerDiv, btns);
+      }
+    }
+  }
+  
+  // Timer başlat
+  const timerEl = document.getElementById('timer-'+oid);
+  if(timerEl){
+    if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
+    const update = ()=>{
+      const elapsed = Math.floor((Date.now()-new Date(now))/60000);
+      const sec = Math.floor(((Date.now()-new Date(now))%60000)/1000);
+      if(timerEl && timerEl.isConnected) timerEl.textContent = `⏱ ${elapsed} dəq ${sec} san`;
+    };
+    update();
+    const int = setInterval(update, 1000);
+    timerEl.dataset.intervalId = int;
+  }
+  
   sb.from('task_logs').insert({
     order_id:oid, stage_index:parseInt(si),
     worker_id:currentUser.id, worker_name:currentUser.name,
     dept_key:dept, action:'started', started_at:now
   }).then();
   toast('▶ Başladı — vaxt sayılır');
+}
+
+async function renderLogisticsDept(){
+  showLoader();
+  const [{data:orders},{data:models}] = await Promise.all([
+    sb.from('orders').select('*').in('status',['ready','delivering']).order('created_at',{ascending:true}),
+    sb.from('models').select('*'),
+  ]);
+  hideLoader();
+  
+  const all = orders||[];
+  document.getElementById('dt-cnt').textContent = all.length;
+  const tl = document.getElementById('dept-task-list');
+  
+  if(!all.length){
+    tl.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)">
+      <div style="font-size:48px;margin-bottom:12px">🚛</div>
+      <div style="font-weight:600;color:var(--tl);font-size:16px">Çatdırılacaq sifariş yoxdur</div>
+      <div style="font-size:13px;margin-top:6px">Keyfiyyət yoxlamadan sonra sifarişlər burada görünəcək</div>
+    </div>`;
+    return;
+  }
+  
+  tl.innerHTML = all.map(o=>{
+    const m = models?.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
+    const modelImg = m.img_url 
+      ? `<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`
+      : `<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
+    
+    return `<div class="task-card">
+      <div class="task-card-top">
+        <div style="display:flex;align-items:center;gap:10px;flex:1">
+          ${modelImg}
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:700">Çatdırılma</div>
+            <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${m.name.split('—')[0].trim()}</div>
+          </div>
+        </div>
+        <span class="badge bT">Hazır</span>
+      </div>
+      <div class="task-card-body">
+        <div class="task-meta">
+          <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600">${o.client}</div></div>
+          <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-size:20px;font-weight:700">${o.qty}</div></div>
+          <div class="tm-i"><div class="tm-k">Məbləğ</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.final_price||0} ₼</div></div>
+          <div class="tm-i"><div class="tm-k">Ünvan</div><div class="tm-v">${o.address||'—'}</div></div>
+        </div>
+        <div class="task-btns">
+          <button class="btn btn-t btn-lg btn-full" onclick="markDel('${o.id}')">✓ Təslim et və imzala</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function dDone(oid,si,key,dept,totalStages){
