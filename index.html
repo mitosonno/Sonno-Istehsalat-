@@ -600,6 +600,46 @@ textarea{resize:vertical;min-height:80px}
   </div>
 </div>
 
+<!-- Add worker sheet -->
+<div class="sheet-overlay" id="add-worker-ov" onclick="closeSheet('add-worker')"></div>
+<div class="sheet" id="add-worker-sheet">
+  <div class="sheet-title" id="aw-title">Yeni işçi</div>
+  <div class="sheet-body">
+    <div class="fg"><label>Ad Soyad</label><input id="aw-name" placeholder="Məs: Rəşad Məmmədov"></div>
+    <div class="fg"><label>Vəzifə</label><input id="aw-role" placeholder="Məs: Usta, Köməkçi, Operator"></div>
+    <div class="fg">
+      <label>Şöbə</label>
+      <select id="aw-dept">
+        <option value="">Şöbə seçin</option>
+        <option value="cutting">✂️ Kəsmə</option>
+        <option value="sewing">🧵 Tikiş</option>
+        <option value="assembly">🔧 Yığma</option>
+        <option value="upholstery">🛋️ Döşəmə</option>
+        <option value="painting">🎨 Boyama</option>
+        <option value="quality">✅ Keyfiyyət nəzarəti</option>
+        <option value="packaging">📦 Qablaşdırma</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Status</label>
+      <div style="display:flex;gap:10px;align-items:center">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="aw-status" value="active" checked>
+          <span style="font-size:13px">Aktiv</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="aw-status" value="inactive">
+          <span style="font-size:13px">Qeyri-aktiv</span>
+        </label>
+      </div>
+    </div>
+  </div>
+  <div class="sheet-footer">
+    <button class="btn btn-ln" style="flex:1" onclick="closeSheet('add-worker')">Ləğv et</button>
+    <button class="btn btn-t" style="flex:2" onclick="saveWorker()">💾 Yadda saxla</button>
+  </div>
+</div>
+
 <!-- Order detail sheet -->
 <div class="sheet-overlay" id="order-detail-ov" onclick="closeSheet('order-detail')"></div>
 <div class="sheet" id="order-detail-sheet">
@@ -1116,15 +1156,19 @@ async function renderDeptTasks(dept){
         tasks.push({o,m,s:stages[si],si:o.current_stage});
     });
 
-    // FIFO: deadline-a görə sırala, yalnız ilk 5-i göstər
+    console.log(`[${dept}] Total tasks: ${tasks.length}`);
+
+    // FIFO: deadline-a görə sırala, yalnız ilk 10-u göstər
     tasks.sort((a,b)=>{
       if(a.o.deadline&&b.o.deadline) return new Date(a.o.deadline)-new Date(b.o.deadline);
       if(a.o.deadline) return -1;
       if(b.o.deadline) return 1;
-      return new Date(a.o.created_at)-new Date(b.o.created_at);
+      return new Date(a.o.created_at||Date.now())-new Date(b.o.created_at||Date.now());
     });
-    const visibleTasks=tasks.slice(0,5);
+    const visibleTasks=tasks.slice(0,10);
     const hiddenCount=tasks.length-visibleTasks.length;
+
+    console.log(`[${dept}] Visible: ${visibleTasks.length}, Hidden: ${hiddenCount}`);
     document.getElementById('dt-cnt').textContent=tasks.length;
     const tl=document.getElementById('dept-task-list');
     if(!visibleTasks.length){
@@ -1252,6 +1296,9 @@ async function dDone(oid,si,key,dept,totalStages){
   localStorage.setItem(key+'_dt',now);
   const newStage=parseInt(si)+1;
   const newStatus=newStage>parseInt(totalStages)?'ready':'in_progress';
+  
+  console.log(`[dDone] Order ${oid}: stage ${si} → ${newStage}, status: ${newStatus}, dept: ${dept}`);
+  
   await Promise.all([
     sb.from('orders').update({current_stage:newStage,status:newStatus}).eq('id',oid),
     sb.from('task_logs').upsert({
@@ -1597,18 +1644,16 @@ async function renderStatsSection(el){
   // ── RENDER ──
   const rankList=(items,fields)=>items.length
     ? items.map((item,i)=>`
-      <div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid rgba(17,24,32,.05)">
-        <div style="width:24px;height:24px;border-radius:50%;background:${i===0?'var(--or)':i===1?'var(--tl)':'rgba(17,24,32,.08)'};color:${i<2?'#fff':'var(--t2)'};font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
-        ${item.emoji?`<span style="font-size:18px">${item.emoji}</span>`:''}
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(17,24,32,.05);background:${i===0?'rgba(247,137,48,.04)':'transparent'}">
+        <div style="width:28px;height:28px;border-radius:50%;background:${i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'rgba(17,24,32,.08)'};color:${i<3?'#fff':'var(--t2)'};font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
+        ${item.emoji?`<span style="font-size:20px;flex-shrink:0">${item.emoji}</span>`:''}
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.name}</div>
-          <div style="font-size:11px;color:var(--t2)">${fields(item)}</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:2px">${item.name}</div>
+          <div style="font-size:12px;color:var(--t2)">${fields(item)}</div>
         </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:15px;font-weight:700;color:var(--tl)">${item._main}</div>
-        </div>
+        <div style="text-align:right;flex-shrink:0;font-size:16px;font-weight:700;color:var(--tl)">${item._main}</div>
       </div>`).join('')
-    : '<div style="padding:16px;text-align:center;color:var(--t3);font-size:13px">Məlumat yoxdur</div>';
+    : '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Məlumat yoxdur</div>';
 
   topModels.forEach(x=>x._main=x.qty+' ədəd');
   topSlowModels.forEach(x=>x._main=fmtTime(x.avg));
@@ -1617,47 +1662,46 @@ async function renderStatsSection(el){
   topClients.forEach(x=>x._main=x.count+' sifariş');
 
   el.innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="slbl" style="margin-top:0">Performans analizi</div>
+    
+    <div class="sec-card" style="margin-bottom:14px">
+      <div class="sec-card-hd"><h3>🏆 Ən çox satılan modellər</h3></div>
+      ${rankList(topModels,x=>`${x.qty} ədəd · ${x.revenue?x.revenue.toFixed(0)+' ₼':''}`)}
+    </div>
 
-      <div class="sec-card">
-        <div class="sec-card-hd"><h3>🏆 Ən çox satılan model</h3></div>
-        ${rankList(topModels,x=>`${x.qty} ədəd · ${x.revenue?x.revenue.toFixed(0)+' ₼':''}`)}
-      </div>
+    <div class="sec-card" style="margin-bottom:14px">
+      <div class="sec-card-hd"><h3>⏱ Ən uzun istehsal alan modellər</h3></div>
+      ${rankList(topSlowModels,x=>`Ortalama: ${fmtTime(x.avg)}`)}
+    </div>
 
-      <div class="sec-card">
-        <div class="sec-card-hd"><h3>⏱ Ən uzun istehsal alan model</h3></div>
-        ${rankList(topSlowModels,x=>`Ortalama: ${fmtTime(x.avg)}`)}
-      </div>
+    <div class="sec-card" style="margin-bottom:14px">
+      <div class="sec-card-hd"><h3>⚡ Şöbə performansı — effektivlik</h3></div>
+      ${topDepts.length ? topDepts.map((d,i)=>{
+        const color=d.eff>=90?'var(--tl)':d.eff>=70?'var(--or)':'#E24B4A';
+        const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+        return`<div style="padding:12px 16px;border-bottom:1px solid rgba(17,24,32,.05)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:14px;font-weight:600">${medal} ${d.icon} ${d.name}</span>
+            <span style="font-size:15px;font-weight:700;color:${color}">${d.eff}%</span>
+          </div>
+          <div style="font-size:11px;color:var(--t2);margin-bottom:4px">Ortalama: ${fmtTime(d.avg)} · ${d.count} tapşırıq</div>
+          <div style="height:6px;background:rgba(17,24,32,.08);border-radius:3px;overflow:hidden">
+            <div style="height:6px;width:${Math.min(d.eff,100)}%;background:${color};border-radius:3px;transition:width .5s"></div>
+          </div>
+        </div>`;
+      }).join('') : '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Məlumat yoxdur</div>'}
+    </div>
 
-      <div class="sec-card">
-        <div class="sec-card-hd"><h3>⚡ Şöbə performansı (sürətli → yavaş)</h3></div>
-        ${topDepts.length ? topDepts.map((d,i)=>{
-          const color=d.eff>=90?'var(--tl)':d.eff>=70?'var(--or)':'#E24B4A';
-          return`<div style="padding:10px 16px;border-bottom:1px solid rgba(17,24,32,.05)">
-            <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-              <span style="font-size:13px;font-weight:500">${d.icon} ${d.name}</span>
-              <span style="font-size:13px;font-weight:700;color:${color}">${d.eff}% · ${fmtTime(d.avg)}</span>
-            </div>
-            <div style="height:5px;background:rgba(17,24,32,.08);border-radius:3px;overflow:hidden">
-              <div style="height:5px;width:${Math.min(d.eff,100)}%;background:${color};border-radius:3px;transition:width .5s"></div>
-            </div>
-          </div>`;
-        }).join('') : '<div style="padding:16px;text-align:center;color:var(--t3);font-size:13px">Məlumat yoxdur — tapşırıqlar tamamlandıqca görünəcək</div>'}
-      </div>
+    <div class="sec-card" style="margin-bottom:14px">
+      <div class="sec-card-hd"><h3>👤 Ən çox satış edən menecerlər</h3></div>
+      ${rankList(topMgrs,x=>`${x.count} sifariş · ${x.qty} ədəd`)}
+    </div>
 
-      <div class="sec-card">
-        <div class="sec-card-hd"><h3>👤 Ən çox satış edən menecer</h3></div>
-        ${rankList(topMgrs,x=>`${x.count} sifariş · ${x.qty} ədəd`)}
-      </div>
-
-      <div class="sec-card" style="grid-column:1/-1">
-        <div class="sec-card-hd"><h3>🤝 Ən çox sifariş verən müştəri/partner</h3></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr">
-          ${rankList(topClients,x=>`${x.qty} ədəd · ${x.revenue?x.revenue.toFixed(0)+' ₼':''}`)}
-        </div>
-      </div>
-
-    </div>`;
+    <div class="sec-card">
+      <div class="sec-card-hd"><h3>🤝 Ən çox sifariş verən müştərilər</h3></div>
+      ${rankList(topClients,x=>`${x.qty} ədəd · ${x.revenue?x.revenue.toFixed(0)+' ₼':''}`)}
+    </div>
+  `;
 }
 
 async function renderUsersSection(el){
@@ -1739,8 +1783,11 @@ async function renderWorkersSection(el){
   const byDept={};
   (workers||[]).forEach(w=>{if(!byDept[w.dept_key])byDept[w.dept_key]=[];byDept[w.dept_key].push(w);});
   el.innerHTML=`
-    <div class="slbl">İşçilər — şöbə üzrə</div>
-    ${Object.entries(byDept).map(([dept,ws])=>{
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="slbl" style="margin:0">İşçilər — şöbə üzrə</div>
+      <button class="btn btn-t" style="font-size:12px;padding:8px 14px" onclick="openAddWorker()">+ İşçi əlavə et</button>
+    </div>
+    ${Object.keys(byDept).length ? Object.entries(byDept).map(([dept,ws])=>{
       const info=DEPT_INFO[dept]||{name:dept,icon:'👷'};
       return`<div class="sec-card" style="margin-bottom:10px">
         <div class="sec-card-hd"><h3>${info.icon} ${info.name}</h3><span style="font-size:12px;color:var(--t2)">${ws.length} nəfər</span></div>
@@ -1749,10 +1796,82 @@ async function renderWorkersSection(el){
           return`<div class="list-item">
             <div style="width:36px;height:36px;border-radius:50%;background:var(--lt);color:var(--dp);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ini}</div>
             <div class="li-body"><div class="li-title">${w.name}</div><div class="li-sub">${w.role_title||''}</div></div>
+            <div style="display:flex;gap:6px">
+              <button onclick="editWorker('${w.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:var(--tl);font-family:inherit;padding:3px 8px;border-radius:6px">Düzəlt</button>
+              <button onclick="delWorker('${w.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:#E24B4A;font-family:inherit;padding:3px 8px;border-radius:6px">Sil</button>
+            </div>
           </div>`;
         }).join('')}
       </div>`;
-    }).join('')}`;
+    }).join('') : '<div class="sec-card card-pad"><div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">İşçi yoxdur — "+ İşçi əlavə et" düyməsinə basın</div></div>'}
+  `;
+}
+
+// ═══════════ WORKER MANAGEMENT ═══════════
+let editingWorkerId = null;
+
+function openAddWorker(){
+  editingWorkerId = null;
+  document.getElementById('aw-title').textContent = 'Yeni işçi';
+  document.getElementById('aw-name').value = '';
+  document.getElementById('aw-role').value = '';
+  document.getElementById('aw-dept').value = '';
+  document.querySelector('input[name="aw-status"][value="active"]').checked = true;
+  openSheet('add-worker');
+}
+
+async function editWorker(id){
+  const {data} = await sb.from('workers').select('*').eq('id', id).single();
+  if(!data){toast('Xəta: işçi tapılmadı'); return;}
+  editingWorkerId = id;
+  document.getElementById('aw-title').textContent = 'İşçini düzəlt';
+  document.getElementById('aw-name').value = data.name;
+  document.getElementById('aw-role').value = data.role_title || '';
+  document.getElementById('aw-dept').value = data.dept_key;
+  document.querySelector(`input[name="aw-status"][value="${data.status||'active'}"]`).checked = true;
+  openSheet('add-worker');
+}
+
+async function saveWorker(){
+  const name = document.getElementById('aw-name').value.trim();
+  const dept = document.getElementById('aw-dept').value;
+  if(!name){toast('⚠ Ad yazın'); return;}
+  if(!dept){toast('⚠ Şöbə seçin'); return;}
+  const status = document.querySelector('input[name="aw-status"]:checked').value;
+  const role = document.getElementById('aw-role').value.trim();
+  
+  showLoader();
+  if(editingWorkerId){
+    await sb.from('workers').update({name, dept_key:dept, role_title:role, status}).eq('id', editingWorkerId);
+    toast('✓ İşçi yeniləndi');
+  } else {
+    await sb.from('workers').insert({name, dept_key:dept, role_title:role, status});
+    toast('✓ İşçi əlavə edildi');
+  }
+  hideLoader();
+  closeSheet('add-worker');
+  
+  // Refresh workers
+  const {data:workers} = await sb.from('workers').select('*');
+  appWorkers = workers || [];
+  const wc = document.getElementById('ami-w');
+  if(wc) wc.textContent = (appWorkers.length || 0) + ' işçi';
+  adminSec('workers');
+}
+
+async function delWorker(id){
+  if(!confirm('İşçini silmək istədiyinizdən əminsiniz?')) return;
+  showLoader();
+  await sb.from('workers').delete().eq('id', id);
+  hideLoader();
+  toast('✓ İşçi silindi');
+  
+  // Refresh workers
+  const {data:workers} = await sb.from('workers').select('*');
+  appWorkers = workers || [];
+  const wc = document.getElementById('ami-w');
+  if(wc) wc.textContent = (appWorkers.length || 0) + ' işçi';
+  adminSec('workers');
 }
 
 // ═══════════ MODEL MANAGEMENT ═══════════
