@@ -1041,7 +1041,7 @@ async function initApp(){
   loadClientNames();document.getElementById('dash-date').textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
 
   // Build nav
-  const visible = NAV_ITEMS;
+  const visible = NAV_ITEMS; document.getElementById('sidebar').style.display='flex'; document.getElementById('bottom-nav').style.display='flex';
   console.log('currentUser:', currentUser);
   console.log('currentUser.role:', currentUser?.role);
   console.log('visible nav items:', visible.length, visible.map(n=>n.key));
