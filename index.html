@@ -96,7 +96,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-h
 .ks{font-size:11px;color:var(--t3);margin-top:3px}
 
 /* TABLE */
-.tbl-wrap{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden}
+.tbl-wrap{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tbl-wrap table{min-width:700px}
 table{width:100%;border-collapse:collapse}
 thead th{padding:10px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--t3);background:rgba(17,24,32,.03);border-bottom:1px solid var(--bd)}
 tbody td{padding:12px 14px;border-bottom:1px solid rgba(17,24,32,.05);font-size:13px;color:var(--t1)}
@@ -386,7 +387,16 @@ textarea{resize:vertical;min-height:80px}
             </div>
             <div class="card card-pad">
               <div class="fg2">
-                <div class="fg"><label>Müştəri adı</label><input id="o-client" placeholder="Müştəri adı"></div>
+                <div class="fg"><label>Müştəri</label>
+                  <div style="display:flex;gap:6px">
+                    <select id="o-client-sel" style="flex:1;padding:13px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;background:#fff" onchange="onClientSelect()">
+                      <option value="">— Müştəri seçin —</option>
+                    </select>
+                    <button type="button" onclick="openAddClient()" style="padding:0 14px;background:var(--tl);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap">+ Əlavə et</button>
+                  </div>
+                  <input type="hidden" id="o-client" value="">
+                  <div id="o-client-phone-display" style="font-size:11px;color:var(--t3);margin-top:4px;min-height:14px"></div>
+                </div>
                 <div class="fg"><label>Parça adı</label><input id="o-fabric" placeholder="Məs: Velvet, Dəri, Linen..."></div>
                 <div class="fg"><label>Parça satan şirkət</label><input id="o-fabric-co" placeholder="Məs: Azərtekstil MMC"></div>
                 <div class="fg"><label>Parça kodu</label><input id="o-color" placeholder="Məs: VL-204, DR-18..."></div>
@@ -662,6 +672,20 @@ textarea{resize:vertical;min-height:80px}
   </div>
 </div>
 
+<!-- Client add sheet -->
+<div class="sheet-overlay" id="add-client-ov" onclick="closeSheet('add-client')"></div>
+<div class="sheet" id="add-client-sheet" style="max-width:400px">
+  <div class="sheet-title">Yeni müştəri əlavə et</div>
+  <div class="sheet-body">
+    <div class="fg"><label>Ad / Şirkət</label><input id="ac-name" placeholder="Məs: Kapital Bank və ya Elçin Məmmədov"></div>
+    <div class="fg"><label>Əlaqə nömrəsi</label><input id="ac-phone" placeholder="+994 XX XXX XX XX"></div>
+  </div>
+  <div class="sheet-footer">
+    <button class="btn btn-ln" style="flex:1" onclick="closeSheet('add-client')">Ləğv et</button>
+    <button class="btn btn-t" style="flex:2" onclick="saveNewClient()">💾 Yadda saxla</button>
+  </div>
+</div>
+
 <!-- Signature sheet -->
 <div class="sheet-overlay" id="signature-ov" onclick="closeSheet('signature')"></div>
 <div class="sheet" id="signature-sheet" style="max-width:600px">
@@ -783,6 +807,92 @@ let pinDept = null, pinBuf = '', pinUnlocked = {}, curPinCode = '';
 let editingUserId = null, editingModelId = null;
 let modelEmoji = '🛋️', modelImgData = null;
 let aiHistory = [];
+let appClients = [];
+
+async function loadClients(){
+  try{
+    const {data} = await sb.from('clients').select('*').order('name');
+    appClients = data||[];
+    updateClientSelect();
+  }catch(e){console.error('loadClients err:',e);}
+}
+
+function updateClientSelect(){
+  const sel = document.getElementById('o-client-sel');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">— Müştəri seçin —</option>' + 
+    appClients.map(c=>`<option value="${c.id}" data-name="${c.name}" data-phone="${c.phone||''}">${c.name}${c.phone?' · '+c.phone:''}</option>`).join('');
+}
+
+function onClientSelect(){
+  const sel = document.getElementById('o-client-sel');
+  const opt = sel.options[sel.selectedIndex];
+  const hiddenInput = document.getElementById('o-client');
+  const phoneDisplay = document.getElementById('o-client-phone-display');
+  if(opt && opt.dataset.name){
+    hiddenInput.value = opt.dataset.name;
+    phoneDisplay.textContent = opt.dataset.phone ? '📞 '+opt.dataset.phone : '';
+  } else {
+    hiddenInput.value = '';
+    phoneDisplay.textContent = '';
+  }
+}
+
+function openAddClient(){
+  document.getElementById('ac-name').value = '';
+  document.getElementById('ac-phone').value = '';
+  openSheet('add-client');
+}
+
+async function saveNewClient(){
+  const name = document.getElementById('ac-name').value.trim();
+  const phone = document.getElementById('ac-phone').value.trim();
+  if(!name){toast('⚠ Müştəri adını yazın');return;}
+  showLoader();
+  try{
+    const {data, error} = await sb.from('clients').insert({name, phone}).select().single();
+    hideLoader();
+    if(error){toast('Xəta: '+error.message);return;}
+    appClients.push(data);
+    appClients.sort((a,b)=>a.name.localeCompare(b.name));
+    updateClientSelect();
+    // Yeni müştərini avtomatik seç
+    document.getElementById('o-client-sel').value = data.id;
+    onClientSelect();
+    closeSheet('add-client');
+    toast('✓ Müştəri əlavə edildi: '+name);
+  }catch(e){
+    hideLoader();
+    toast('Xəta: '+e.message);
+  }
+}
+
+function showWarningDialog(count){
+  return new Promise(resolve=>{
+    const modal = document.createElement('div');
+    modal.id = 'warning-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:16px;padding:24px;max-width:420px;width:100%;border:3px solid #E24B4A">
+        <div style="text-align:center;margin-bottom:16px">
+          <div style="font-size:48px;margin-bottom:8px">⚠️</div>
+          <div style="font-size:18px;font-weight:700;color:#E24B4A;margin-bottom:6px">FABRİK YÜKÜ YÜKSƏKDİR!</div>
+        </div>
+        <div style="background:#FEEEED;border:1px solid #E24B4A;border-radius:10px;padding:14px;margin-bottom:16px">
+          <div style="font-size:14px;color:#A12F2F;line-height:1.6">
+            Fabrikdə hazırda <b>${count} ədəd məhsul</b> istehsaldadır. 
+            Yeni sifariş götürərkən <b>çatdırılma vaxtını nəzərə alın</b> — deadline-ı daha uzağa qoyun.
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="document.getElementById('warning-modal').remove();__warnResolve(false)" style="flex:1;padding:12px;background:none;border:1px solid var(--bd);border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600">Ləğv et</button>
+          <button onclick="document.getElementById('warning-modal').remove();__warnResolve(true)" style="flex:2;padding:12px;background:#E24B4A;color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700">Davam et, riski qəbul edirəm</button>
+        </div>
+      </div>`;
+    window.__warnResolve = resolve;
+    document.body.appendChild(modal);
+  });
+}
 
 // ═══════════ HELPERS ═══════════
 const showLoader = () => document.getElementById('loader').classList.add('on');
@@ -1055,9 +1165,12 @@ async function initApp(){
   const dataPromise = Promise.all([
     sb.from('models').select('*').eq('is_active',true),
     sb.from('workers').select('*').eq('status','active'),
-  ]).then(([mr,wr])=>{
+    sb.from('clients').select('*').order('name'),
+  ]).then(([mr,wr,cr])=>{
     appModels=mr.data||[];
     appWorkers=wr.data||[];
+    appClients=cr.data||[];
+    updateClientSelect();
   }).catch(e=>console.error(e));
   
   // UI göstərsən, data arxa planda gözləsin
@@ -1144,14 +1257,25 @@ async function renderDash(){
       ?late.map(o=>orderListItem(o)).join('')
       :'<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Gecikən sifariş yoxdur ✓</div>';
 
+    // Users-ləri yüklə (menecer adları üçün)
+    const {data:users} = await sb.from('users').select('id,name');
+    const userMap = {};
+    (users||[]).forEach(u=>userMap[u.id]=u.name);
+    
     document.getElementById('orders-tbody').innerHTML=all.map(o=>{
       const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦',stages:[]};
       const st=ST[o.status]||ST.created;
       const stageName=m.stages&&m.stages[o.current_stage-1]?m.stages[o.current_stage-1].name:'—';
+      const managerName = userMap[o.created_by] || '—';
+      const createdDate = o.created_at ? new Date(o.created_at).toLocaleDateString('az-AZ',{day:'2-digit',month:'short'}) : '—';
+      const modelImg = m.img_url 
+        ? `<img src="${m.img_url}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;flex-shrink:0">`
+        : `<div style="width:32px;height:32px;border-radius:6px;background:var(--lt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${m.emoji}</div>`;
+      
       return`<tr onclick="showOD('${o.id}')">
-        <td><span class="mono">${o.order_number}</span></td>
-        <td>${o.client}</td>
-        <td>${m.emoji} ${m.name.split('—')[0].trim()}</td>
+        <td><span class="mono">${o.order_number}</span><div style="font-size:10px;color:var(--t3);margin-top:2px">${createdDate}</div></td>
+        <td>${o.client}<div style="font-size:10px;color:var(--t3);margin-top:2px">👤 ${managerName}</div></td>
+        <td><div style="display:flex;align-items:center;gap:8px">${modelImg}<span>${m.name.split('—')[0].trim()}</span></div></td>
         <td style="font-weight:600">${o.qty}</td>
         <td><span style="font-size:12px;color:var(--t2)">${stageName}</span></td>
         <td style="font-weight:600;color:var(--tl)">${o.final_price?o.final_price+' ₼':'—'}${o.discount>0?`<span style="font-size:10px;color:var(--or);margin-left:4px">-${o.discount}%</span>`:''}</td>
@@ -1440,7 +1564,17 @@ function renderPipePrev(m){
 async function createOrder(){
   if(!selModel){toast('⚠ Məhsul seçin');return;}
   const client=document.getElementById('o-client').value.trim();
-  if(!client){toast('⚠ Müştəri adını yazın');return;}
+  if(!client){toast('⚠ Müştəri seçin və ya əlavə edin');return;}
+  
+  // Fabrik yükünü yoxla (ümumi ədəd)
+  const {data:activeOrders} = await sb.from('orders').select('qty').in('status',['created','in_progress','late','ready']);
+  const totalQty = (activeOrders||[]).reduce((sum,o)=>sum+(o.qty||0),0);
+  
+  if(totalQty >= 300){
+    const confirmed = await showWarningDialog(totalQty);
+    if(!confirmed) return;
+  }
+  
   const price=parseFloat(document.getElementById('o-price')?.value)||0;
   const disc=parseFloat(document.getElementById('o-discount')?.value)||0;
   const unit=price*(1-disc/100);
