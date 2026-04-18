@@ -1873,7 +1873,8 @@ async function renderDeptTasks(dept){
     const {data:allLogsForDept} = await sb.from('task_logs')
       .select('order_id,stage_index,dept_key,started_at,completed_at')
       .eq('dept_key', dept);
-    const completedSet = new Set((allLogsForDept||[]).filter(l=>l.completed_at).map(l=>l.order_id+'_'+l.stage_index));
+    // Hər şöbə üçün ayrı-ayrı set (dept_key ilə)
+    const completedSet = new Set((allLogsForDept||[]).filter(l=>l.completed_at).map(l=>l.order_id+'_'+l.stage_index+'_'+l.dept_key));
     
     const tasks=[];
     const addedStages = new Set(); // duplicate qarşısı
@@ -1887,7 +1888,7 @@ async function renderDeptTasks(dept){
       const si=o.current_stage-1;
       if(si>=0 && si<stages.length){
         const stage=stages[si];
-        const stageKey = o.id+'_'+si;
+        const stageKey = o.id+'_'+si+'_'+dept;
         
         if(!completedSet.has(stageKey)){
           if(stage.dept===dept || (stage.dept.includes('||') && stage.dept.split('||').includes(dept))){
@@ -1905,7 +1906,7 @@ async function renderDeptTasks(dept){
         const parts = stage.dept.split('||');
         if(!parts.includes(dept)) continue;
         
-        const stageKey = o.id+'_'+i;
+        const stageKey = o.id+'_'+i+'_'+dept;
         if(completedSet.has(stageKey)) continue; // bu şöbə bu stage-ni artıq bitirib
         if(addedStages.has(stageKey)) continue;
         
