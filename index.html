@@ -2266,9 +2266,19 @@ async function dDone(oid,si,key,dept,totalStages){
       // Hamsı bitməlidir
       const allDone = parallelDepts.every(d=>completedDepts.has(d));
       shouldAdvance = allDone;
-    } else {
+    } else if(parallelMode === 'any'){
       // Biri bəsdir - artıq bitib
       shouldAdvance = true;
+    } else if(parallelMode.startsWith('specific:')){
+      // Xüsusi şöbə tamamlanmalıdır
+      const requiredDept = parallelMode.split(':')[1];
+      shouldAdvance = completedDepts.has(requiredDept);
+      
+      if(!shouldAdvance && dept !== requiredDept){
+        // İndi tamamlayan şöbə tələb olunan şöbə deyil — hələ keçmir
+      }
+    } else {
+      shouldAdvance = true; // fallback
     }
     
     if(!shouldAdvance){
@@ -3636,18 +3646,37 @@ function askParallelMode(mergedKey, keys){
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
   
   modal.innerHTML = `
-    <div style="background:#fff;border-radius:16px;padding:20px;max-width:420px;width:100%">
+    <div style="background:#fff;border-radius:16px;padding:20px;max-width:440px;width:100%;max-height:85vh;overflow-y:auto">
       <div style="font-size:17px;font-weight:700;margin-bottom:8px">Paralel işləmə rejimi</div>
-      <div style="font-size:13px;color:var(--t2);margin-bottom:16px">${info1.icon} <b>${info1.name}</b> və ${info2.icon} <b>${info2.name}</b> paraleldir. Növbəti mərhələyə keçmək üçün:</div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:16px">${info1.icon} <b>${info1.name}</b> və ${info2.icon} <b>${info2.name}</b> paraleldir. Növbəti mərhələyə nə vaxt keçsin?</div>
+      
       <div style="display:flex;flex-direction:column;gap:10px">
         <button type="button" onclick="setParallelMode('${mergedKey}','all')" style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:14px 16px;background:var(--lt);border:2px solid var(--tl);border-radius:12px;cursor:pointer;font-family:inherit;text-align:left">
           <span style="font-size:14px;font-weight:700;color:var(--tl)">✓✓ Hər ikisi tamamlansın</span>
-          <span style="font-size:12px;color:var(--t2)">Hər iki şöbə bitirəndə növbətiyə keçsin (tövsiyə)</span>
+          <span style="font-size:12px;color:var(--t2)">Hər iki şöbə bitirəndə növbətiyə keçsin</span>
         </button>
+        
         <button type="button" onclick="setParallelMode('${mergedKey}','any')" style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:14px 16px;background:var(--lo);border:2px solid var(--or);border-radius:12px;cursor:pointer;font-family:inherit;text-align:left">
-          <span style="font-size:14px;font-weight:700;color:var(--or)">⚡ Biri tamamlansın bəsdir</span>
-          <span style="font-size:12px;color:var(--t2)">Şöbələrdən biri bitirən kimi növbətiyə keçsin</span>
+          <span style="font-size:14px;font-weight:700;color:var(--or)">⚡ Birinci tamamlanan bitsin bəsdir</span>
+          <span style="font-size:12px;color:var(--t2)">Fərqi yoxdur hansı şöbə — biri bitsə dərhal keçsin</span>
         </button>
+        
+        <div style="padding:14px 16px;background:rgba(17,24,32,.03);border:2px solid var(--bd);border-radius:12px">
+          <div style="font-size:14px;font-weight:700;margin-bottom:8px">🎯 Xüsusi şöbə seç</div>
+          <div style="font-size:12px;color:var(--t2);margin-bottom:10px">Məhz seçilmiş şöbə tamamlananda keçsin (digəri gecikə bilər)</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button type="button" onclick="setParallelMode('${mergedKey}','specific:${parts[0]}')" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#fff;border:1px solid var(--bd);border-radius:8px;cursor:pointer;font-family:inherit;text-align:left">
+              <span style="font-size:18px">${info1.icon}</span>
+              <span style="flex:1;font-size:13px;font-weight:600">${info1.name}</span>
+              <span style="font-size:11px;color:var(--t3)">birinci bitsin</span>
+            </button>
+            <button type="button" onclick="setParallelMode('${mergedKey}','specific:${parts[1]}')" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#fff;border:1px solid var(--bd);border-radius:8px;cursor:pointer;font-family:inherit;text-align:left">
+              <span style="font-size:18px">${info2.icon}</span>
+              <span style="flex:1;font-size:13px;font-weight:600">${info2.name}</span>
+              <span style="font-size:11px;color:var(--t3)">birinci bitsin</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -3655,7 +3684,6 @@ function askParallelMode(mergedKey, keys){
 }
 
 function setParallelMode(mergedKey, mode){
-  // mode-u ayrıca yadda saxla (stage obyektində istifadə olunacaq)
   if(!window._parallelModes) window._parallelModes = {};
   window._parallelModes[mergedKey] = mode;
   
@@ -3663,7 +3691,16 @@ function setParallelMode(mergedKey, mode){
   if(m) m.remove();
   
   renderDeptChecklist(window._currentStageOrder || []);
-  toast(mode === 'all' ? '✓ Hər ikisi tamamlanmalıdır' : '⚡ Biri bəsdir');
+  
+  let msg = '';
+  if(mode === 'all') msg = '✓ Hər ikisi tamamlanmalıdır';
+  else if(mode === 'any') msg = '⚡ Biri bəsdir';
+  else if(mode.startsWith('specific:')){
+    const key = mode.split(':')[1];
+    const info = DEPT_INFO[key] || {name:key};
+    msg = '🎯 "'+info.name+'" bitirən kimi keçəcək';
+  }
+  toast(msg);
 }
 
 function closeParallelModal(){
