@@ -2134,11 +2134,21 @@ function dStart(oid,si,key,dept){
     timerEl.dataset.intervalId = int;
   }
   
-  sb.from('task_logs').upsert({
-    order_id:oid, stage_index:parseInt(si)-1,
-    worker_id:currentUser.id, worker_name:currentUser.name,
-    dept_key:dept, action:'started', started_at:now
-  },{onConflict:'order_id,stage_index,dept_key'}).then();
+  // Köhnəni sil, təzəni yaz
+  (async()=>{
+    try{
+      await sb.from('task_logs')
+        .delete()
+        .eq('order_id', oid)
+        .eq('stage_index', parseInt(si)-1)
+        .eq('dept_key', dept);
+      await sb.from('task_logs').insert({
+        order_id:oid, stage_index:parseInt(si)-1,
+        worker_id:currentUser.id, worker_name:currentUser.name,
+        dept_key:dept, action:'started', started_at:now
+      });
+    }catch(e){console.error('[dStart] log error:',e);}
+  })();
   toast('▶ Başladı — vaxt sayılır');
 }
 
@@ -2321,9 +2331,17 @@ async function dDone(oid, si, key, dept, totalStages){
   const isParallel = currentStage?.dept?.includes('||');
   const parallelMode = isParallel ? (currentStage.mode || 'all') : null;
   
-  // === ADDIM 3: Task_logs-a yaz ===
+  // === ADDIM 3: Task_logs-a yaz (köhnə rekordu silib yenisini yaz) ===
   try{
-    await sb.from('task_logs').upsert({
+    // Əvvəl bu üçlüyə uyğun rekordu sil
+    await sb.from('task_logs')
+      .delete()
+      .eq('order_id', oid)
+      .eq('stage_index', stageIndex)
+      .eq('dept_key', dept);
+    
+    // İndi təzə rekord yaz
+    await sb.from('task_logs').insert({
       order_id: oid,
       stage_index: stageIndex,
       worker_id: currentUser.id,
@@ -2333,7 +2351,7 @@ async function dDone(oid, si, key, dept, totalStages){
       started_at: startTime || now,
       completed_at: now,
       duration_minutes: durMin
-    }, {onConflict: 'order_id,stage_index,dept_key'});
+    });
   }catch(e){
     console.error('[dDone] log xətası:', e);
   }
