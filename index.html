@@ -529,6 +529,7 @@ textarea{resize:vertical;min-height:80px}
           <div class="ami" onclick="adminSec('pins')"><div class="ami-icon">🔑</div><div class="ami-name">PIN Kodlar</div><div class="ami-sub">Şöbə girişi</div></div>
           <div class="ami" onclick="adminSec('models')"><div class="ami-icon">🛋️</div><div class="ami-name">Modellər</div><div class="ami-sub" id="ami-m">—</div></div>
           <div class="ami" onclick="adminSec('workers')"><div class="ami-icon">🧑‍🔧</div><div class="ami-name">İşçilər</div><div class="ami-sub" id="ami-w">—</div></div>
+          <div class="ami" onclick="adminSec('deptanalytics')"><div class="ami-icon">🏭</div><div class="ami-name">Şöbə analitikası</div><div class="ami-sub">Detallı</div></div>
           <div class="ami" onclick="adminSec('settings')"><div class="ami-icon">⚙️</div><div class="ami-name">Parametrlər</div><div class="ami-sub">Limit & ayarlar</div></div>
         </div>
         <div id="admin-sec"></div>
@@ -2325,8 +2326,8 @@ async function dDone(oid,si,key,dept,totalStages){
   }catch(e){console.error('log error',e);}
   
   // XÜSUSİ HAL: sifariş current_stage-i artıq bu mərhələdən irəlidə getdisə
-  // (yəni bu paralel şöbə "fon" rejimindədir — A sifarişi irəli aparıb, B hələ işləyir)
-  if(orderCurrentStage > parseInt(si)){
+  // VƏ bu mərhələ paraleldirsə - yəni B paraleldi fon işi bitirdi
+  if(orderCurrentStage > parseInt(si) && isParallel){
     const card = document.getElementById('tcard-'+oid);
     if(card){
       card.style.transition='all .4s';
@@ -2917,6 +2918,185 @@ async function adminSec(sec){
   if(sec==='models') await renderModelsSection(el);
   if(sec==='workers') await renderWorkersSection(el);
   if(sec==='settings') await renderSettingsSection(el);
+  if(sec==='deptanalytics') await renderDeptAnalytics(el);
+}
+
+async function renderDeptAnalytics(el){
+  const today = new Date().toISOString().split('T')[0];
+  el.innerHTML = `
+    <div class="slbl" style="margin-top:0">🏭 Şöbə analitikası</div>
+    <div class="sec-card card-pad" style="margin-bottom:14px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px">
+        <div style="flex:1;min-width:140px">
+          <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Şöbə</label>
+          <select id="da-dept" onchange="loadDeptAnalytics()" style="width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px">
+            <option value="">— Şöbə seçin —</option>
+            ${Object.entries(DEPT_INFO).map(([k,info])=>`<option value="${k}">${info.icon} ${info.name}</option>`).join('')}
+          </select>
+        </div>
+        <div style="min-width:130px">
+          <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Tarix</label>
+          <input type="date" id="da-date" value="${today}" onchange="loadDeptAnalytics()" style="width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px">
+        </div>
+        <div style="min-width:90px">
+          <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Saat-dan</label>
+          <input type="time" id="da-from" value="09:00" onchange="loadDeptAnalytics()" style="width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px">
+        </div>
+        <div style="min-width:90px">
+          <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Saat-a</label>
+          <input type="time" id="da-to" value="18:00" onchange="loadDeptAnalytics()" style="width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px">
+        </div>
+      </div>
+      <div id="da-results">
+        <div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Şöbə seçin və nəticələri görün</div>
+      </div>
+    </div>
+  `;
+}
+
+async function loadDeptAnalytics(){
+  const dept = document.getElementById('da-dept').value;
+  const date = document.getElementById('da-date').value;
+  const timeFrom = document.getElementById('da-from').value;
+  const timeTo = document.getElementById('da-to').value;
+  const target = document.getElementById('da-results');
+  
+  if(!dept){
+    target.innerHTML = `<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Şöbə seçin</div>`;
+    return;
+  }
+  
+  showLoader();
+  
+  // Tarix range
+  const startDT = date + 'T' + timeFrom + ':00';
+  const endDT = date + 'T' + timeTo + ':59';
+  
+  // Task logs yüklə - bu şöbədə, bu vaxt aralığında tamamlanmış
+  const {data:logs} = await sb.from('task_logs')
+    .select('*')
+    .eq('dept_key', dept)
+    .gte('completed_at', startDT)
+    .lte('completed_at', endDT)
+    .not('completed_at','is',null);
+  
+  // Sifariş və model məlumatı
+  const orderIds = [...new Set((logs||[]).map(l=>l.order_id))];
+  const [{data:orders},{data:models}] = await Promise.all([
+    orderIds.length ? sb.from('orders').select('id,order_number,qty,model_id,client').in('id',orderIds) : Promise.resolve({data:[]}),
+    sb.from('models').select('id,name,emoji'),
+  ]);
+  
+  hideLoader();
+  
+  const allLogs = logs || [];
+  const allOrders = orders || [];
+  const allModels = models || [];
+  
+  if(!allLogs.length){
+    target.innerHTML = `<div style="padding:32px;text-align:center;color:var(--t3)"><div style="font-size:36px;margin-bottom:10px">📊</div><div style="font-size:14px">Bu vaxt aralığında tamamlanmış iş yoxdur</div></div>`;
+    return;
+  }
+  
+  // Orders map
+  const orderMap = {};
+  allOrders.forEach(o=>{
+    const m = allModels.find(x=>x.id===o.model_id);
+    orderMap[o.id] = {...o, modelName: m?.name || '?', modelEmoji: m?.emoji || '📦'};
+  });
+  
+  // Hesabat
+  const totalTasks = allLogs.length;
+  const totalMin = allLogs.reduce((s,l)=>s+(l.duration_minutes||0), 0);
+  const totalHours = (totalMin/60).toFixed(1);
+  const avgMin = Math.round(totalMin/totalTasks);
+  
+  // Unikal modellər
+  const uniqueModels = new Set();
+  let totalQty = 0;
+  allLogs.forEach(l=>{
+    const o = orderMap[l.order_id];
+    if(o){
+      uniqueModels.add(o.modelName);
+      totalQty += o.qty || 0;
+    }
+  });
+  
+  // İşçilər üzrə qruplama
+  const workers = {};
+  allLogs.forEach(l=>{
+    const wn = l.worker_name || 'Naməlum';
+    if(!workers[wn]) workers[wn] = {tasks:0, min:0, qty:0};
+    workers[wn].tasks++;
+    workers[wn].min += l.duration_minutes || 0;
+    const o = orderMap[l.order_id];
+    if(o) workers[wn].qty += o.qty || 0;
+  });
+  const workersList = Object.entries(workers)
+    .map(([name,w])=>({name, ...w, hours:(w.min/60).toFixed(1)}))
+    .sort((a,b)=>b.tasks-a.tasks);
+  
+  const deptInfo = DEPT_INFO[dept] || {name:dept, icon:'🏭'};
+  
+  target.innerHTML = `
+    <div style="background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:12px;padding:16px;margin-bottom:14px">
+      <div style="font-size:18px;font-weight:700;margin-bottom:4px">${deptInfo.icon} ${deptInfo.name}</div>
+      <div style="font-size:12px;color:var(--t2)">${date} · ${timeFrom} - ${timeTo}</div>
+    </div>
+    
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px">
+      <div style="background:var(--sf);border:1px solid var(--bd);padding:14px;border-radius:10px">
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Tamamlanan iş</div>
+        <div style="font-size:28px;font-weight:700;color:var(--tl);margin-top:4px">${totalTasks}</div>
+      </div>
+      <div style="background:var(--sf);border:1px solid var(--bd);padding:14px;border-radius:10px">
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Unikal model</div>
+        <div style="font-size:28px;font-weight:700;color:var(--tl);margin-top:4px">${uniqueModels.size}</div>
+      </div>
+      <div style="background:var(--sf);border:1px solid var(--bd);padding:14px;border-radius:10px">
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Ümumi ədəd</div>
+        <div style="font-size:28px;font-weight:700;color:var(--or);margin-top:4px">${totalQty}</div>
+      </div>
+      <div style="background:var(--sf);border:1px solid var(--bd);padding:14px;border-radius:10px">
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Cəmi vaxt</div>
+        <div style="font-size:22px;font-weight:700;color:var(--dk);margin-top:4px">${totalHours} saat</div>
+        <div style="font-size:11px;color:var(--t3)">orta ${avgMin} dəq/iş</div>
+      </div>
+    </div>
+    
+    <div class="sec-card" style="margin-bottom:14px">
+      <div class="sec-card-hd"><h3>👷 İşçilər üzrə bölgü</h3></div>
+      ${workersList.length ? workersList.map((w,i)=>{
+        const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+        return `<div style="padding:12px 16px;border-bottom:1px solid rgba(17,24,32,.05)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:14px;font-weight:600">${medal} ${w.name}</span>
+            <span style="font-size:13px;font-weight:700;color:var(--tl)">${w.tasks} iş</span>
+          </div>
+          <div style="font-size:12px;color:var(--t2)">⏱ ${w.hours} saat · 📦 ${w.qty} ədəd</div>
+        </div>`;
+      }).join('') : '<div style="padding:18px;text-align:center;color:var(--t3);font-size:13px">İşçi məlumatı yoxdur</div>'}
+    </div>
+    
+    <div class="sec-card">
+      <div class="sec-card-hd"><h3>📋 Tamamlanan tapşırıqlar</h3></div>
+      ${allLogs.slice(0,20).map(l=>{
+        const o = orderMap[l.order_id] || {order_number:'?', modelName:'?', modelEmoji:'📦', qty:'-', client:'?'};
+        const time = l.completed_at ? new Date(l.completed_at).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'}) : '—';
+        return `<div style="padding:10px 16px;border-bottom:1px solid rgba(17,24,32,.05);display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600">${o.modelEmoji} ${o.modelName.split('—')[0].trim()}</div>
+            <div style="font-size:11px;color:var(--t2)">${o.order_number} · ${o.client} · ${o.qty} ədəd · ${l.worker_name||'—'}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:13px;font-weight:700;color:var(--tl);font-family:'DM Mono',monospace">${l.duration_minutes?fmtTime(l.duration_minutes):'—'}</div>
+            <div style="font-size:10px;color:var(--t3)">${time}</div>
+          </div>
+        </div>`;
+      }).join('')}
+      ${allLogs.length>20 ? `<div style="padding:10px;text-align:center;font-size:11px;color:var(--t3)">+${allLogs.length-20} daha çox...</div>`:''}
+    </div>
+  `;
 }
 
 async function renderSettingsSection(el){
