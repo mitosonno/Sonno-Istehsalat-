@@ -651,17 +651,16 @@ textarea{resize:vertical;min-height:80px}
   </div>
 </div>
 
-<!-- Client add sheet -->
-<div class="sheet-overlay" id="add-client-ov" onclick="closeSheet('add-client')" style="z-index:900"></div>
-<div class="sheet" id="add-client-sheet" style="max-width:400px;z-index:901">
-  <div class="sheet-title">Yeni müştəri əlavə et</div>
-  <div class="sheet-body">
+<!-- Client add MODAL (not sheet) -->
+<div id="add-client-modal" style="display:none;position:fixed;inset:0;background:rgba(17,24,32,.55);z-index:9999;align-items:center;justify-content:center;padding:20px" onclick="if(event.target.id==='add-client-modal')closeAddClientModal()">
+  <div style="background:#fff;border-radius:16px;padding:20px;max-width:400px;width:100%;max-height:90vh;overflow-y:auto" onclick="event.stopPropagation()">
+    <div style="font-size:17px;font-weight:700;margin-bottom:16px">Yeni müştəri əlavə et</div>
     <div class="fg"><label>Ad / Şirkət</label><input id="ac-name" type="text" autocomplete="off" placeholder="Məs: Kapital Bank və ya Elçin Məmmədov"></div>
     <div class="fg"><label>Əlaqə nömrəsi</label><input id="ac-phone" type="tel" autocomplete="off" inputmode="tel" placeholder="+994 XX XXX XX XX"></div>
-  </div>
-  <div class="sheet-footer">
-    <button class="btn btn-ln" style="flex:1" onclick="closeSheet('add-client')">Ləğv et</button>
-    <button class="btn btn-t" style="flex:2" onclick="saveNewClient()">💾 Yadda saxla</button>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-ln" style="flex:1" onclick="closeAddClientModal()">Ləğv et</button>
+      <button class="btn btn-t" style="flex:2" onclick="saveNewClient()">💾 Yadda saxla</button>
+    </div>
   </div>
 </div>
 
@@ -820,7 +819,12 @@ function onClientSelect(){
 function openAddClient(){
   document.getElementById('ac-name').value = '';
   document.getElementById('ac-phone').value = '';
-  openSheet('add-client');
+  document.getElementById('add-client-modal').style.display = 'flex';
+  setTimeout(()=>document.getElementById('ac-name').focus(), 100);
+}
+
+function closeAddClientModal(){
+  document.getElementById('add-client-modal').style.display = 'none';
 }
 
 async function saveNewClient(){
@@ -838,7 +842,7 @@ async function saveNewClient(){
     // Yeni müştərini avtomatik seç
     document.getElementById('o-client-sel').value = data.id;
     onClientSelect();
-    closeSheet('add-client');
+    closeAddClientModal();
     toast('✓ Müştəri əlavə edildi: '+name);
   }catch(e){
     hideLoader();
@@ -1864,36 +1868,58 @@ async function renderDeptTasks(dept){
   });
 
   if(curDeptTab==='active'){
-    // Bu şöbədə artıq tamamlanmış tapşırıqları tap (paralel üçün)
-    const {data:completedLogs} = await sb.from('task_logs')
-      .select('order_id,stage_index,dept_key')
-      .eq('dept_key', dept)
-      .not('completed_at','is',null);
-    const completedSet = new Set((completedLogs||[]).map(l=>l.order_id+'_'+l.stage_index));
+    // Bu şöbədə tamamlanmış və başlanmış tapşırıqları tap
+    const {data:allLogsForDept} = await sb.from('task_logs')
+      .select('order_id,stage_index,dept_key,started_at,completed_at')
+      .eq('dept_key', dept);
+    const completedSet = new Set((allLogsForDept||[]).filter(l=>l.completed_at).map(l=>l.order_id+'_'+l.stage_index));
     
     const tasks=[];
-    orders.filter(o=>['in_progress','created','late'].includes(o.status)).forEach(o=>{
+    const addedStages = new Set(); // duplicate qarşısı
+    
+    orders.filter(o=>!['delivered','delivering'].includes(o.status)).forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);
       if(!m){console.warn('Model tapilmadi:',o.model_id,o.order_number);return;}
       const stages=m.stages||[];
+      
+      // 1) Cari mərhələ
       const si=o.current_stage-1;
-      if(si>=0&&si<stages.length){
+      if(si>=0 && si<stages.length){
         const stage=stages[si];
         const stageKey = o.id+'_'+si;
         
-        // Əgər bu şöbə bu stage-i artıq tamamlayıbsa — göstərmə
-        if(completedSet.has(stageKey)) return;
-        
-        // Check if current dept matches (parallel or single)
-        if(stage.dept===dept || (stage.dept.includes('||') && stage.dept.split('||').includes(dept))){
-          tasks.push({o,m,s:stage,si:o.current_stage});
+        if(!completedSet.has(stageKey)){
+          if(stage.dept===dept || (stage.dept.includes('||') && stage.dept.split('||').includes(dept))){
+            tasks.push({o,m,s:stage,si:o.current_stage});
+            addedStages.add(stageKey);
+          }
         }
+      }
+      
+      // 2) Əvvəlki paralel mərhələlərdə hələ tamamlanmamış tapşırıqlar
+      // (məsələn A birinci bitirdi, current_stage irəli getdi, amma B hələ işləyir)
+      for(let i=0; i<si; i++){
+        const stage = stages[i];
+        if(!stage.dept.includes('||')) continue;
+        const parts = stage.dept.split('||');
+        if(!parts.includes(dept)) continue;
+        
+        const stageKey = o.id+'_'+i;
+        if(completedSet.has(stageKey)) continue; // bu şöbə bu stage-ni artıq bitirib
+        if(addedStages.has(stageKey)) continue;
+        
+        // Bu paralel stage-də bu şöbə hələ işləmir — əlavə et
+        tasks.push({o,m,s:stage,si:i+1,isBackground:true});
+        addedStages.add(stageKey);
       }
     });
 
     console.log('['+dept+'] tasks:',tasks.length);
 
     tasks.sort((a,b)=>{
+      // Fon (background) olanlar sona gəlsin
+      if(a.isBackground && !b.isBackground) return 1;
+      if(!a.isBackground && b.isBackground) return -1;
       if(a.o.deadline&&b.o.deadline)return new Date(a.o.deadline)-new Date(b.o.deadline);
       if(a.o.deadline)return -1;if(b.o.deadline)return 1;
       return new Date(a.o.created_at||0)-new Date(b.o.created_at||0);
@@ -1908,15 +1934,16 @@ async function renderDeptTasks(dept){
       return;
     }
 
-    tl.innerHTML=vis.map(({o,m,s,si})=>{
+    tl.innerHTML=vis.map(({o,m,s,si,isBackground})=>{
       const key=`ts_${o.id}_${si}`;
-      const logKey = o.id + '_' + (si-1); // stage_index 0-dan başlayır
+      const logKey = o.id + '_' + (si-1);
       const log = logMap[logKey];
       
-      // Supabase log əsas, localStorage backup
-      const started = (log && log.started_at) || localStorage.getItem(key+'_s');
-      const done = (log && log.completed_at) || localStorage.getItem(key+'_d');
-      const startTime = (log && log.started_at) || localStorage.getItem(key+'_t');
+      // Dept-specific localStorage oxu
+      const dKey = key+'_'+dept;
+      const started = (log && log.started_at) || localStorage.getItem(dKey+'_s') || localStorage.getItem(key+'_s');
+      const done = (log && log.completed_at) || localStorage.getItem(dKey+'_d') || localStorage.getItem(key+'_d');
+      const startTime = (log && log.started_at) || localStorage.getItem(dKey+'_t') || localStorage.getItem(key+'_t');
       
       const total=(m.stages||[]).length;
       const dots=(m.stages||[]).map((_,i)=>`<div class="sdot${i+1<si?' done':i+1===si?' cur':''}"></div>`).join('');
@@ -1935,11 +1962,11 @@ async function renderDeptTasks(dept){
       const modelImg=m.img_url?`<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
 
       return`<div class="task-card" id="tcard-${o.id}">
-        <div class="task-card-top${isLate?' late':''}">
+        <div class="task-card-top${isLate?' late':''}${isBackground?' bg-task':''}" ${isBackground?'style="opacity:.75"':''}>
           <div style="display:flex;align-items:center;gap:10px;flex:1">
             ${modelImg}
             <div style="flex:1">
-              <div style="font-size:15px;font-weight:700">${s.name}</div>
+              <div style="font-size:15px;font-weight:700">${s.name}${isBackground?' <span style="font-size:10px;padding:2px 6px;background:var(--or);color:#fff;border-radius:10px;margin-left:4px">FON İŞİ</span>':''}</div>
               <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${m.name.split('—')[0].trim()}</div>
             </div>
           </div>
@@ -2259,16 +2286,18 @@ async function dDone(oid,si,key,dept,totalStages){
   const startTime = localStorage.getItem(key+'_'+dept+'_t') || localStorage.getItem(key+'_t');
   const durMin=startTime?Math.max(0, Math.round((new Date(now)-new Date(startTime))/60000)):null;
   
-  // Model və sifarişi yüklə
+  // Cari sifarişi yüklə
+  let orderCurrentStage = parseInt(si);
   let stages = [];
   let currentStageData = null;
   let isParallel = false;
-  let parallelMode = 'all'; // 'all' = hər ikisi bitsin, 'any' = biri bitsin
+  let parallelMode = 'all';
   
   try{
-    const {data:order} = await sb.from('orders').select('model_id').eq('id',oid).single();
+    const {data:order} = await sb.from('orders').select('model_id,current_stage').eq('id',oid).single();
     const {data:model} = await sb.from('models').select('stages').eq('id',order.model_id).single();
     stages = model?.stages || [];
+    orderCurrentStage = order.current_stage;
     currentStageData = stages[parseInt(si)-1];
     if(currentStageData && currentStageData.dept && currentStageData.dept.includes('||')){
       isParallel = true;
@@ -2280,28 +2309,42 @@ async function dDone(oid,si,key,dept,totalStages){
   localStorage.setItem(key+'_'+dept+'_d','1');
   localStorage.setItem(key+'_'+dept+'_dt',now);
   
+  // Task_logs-a yaz (həmişə)
+  try{
+    await sb.from('task_logs').upsert({
+      order_id: oid,
+      stage_index: parseInt(si)-1,
+      worker_id: currentUser.id,
+      worker_name: currentUser.name,
+      dept_key: dept,
+      action: 'completed',
+      started_at: startTime || now,
+      completed_at: now,
+      duration_minutes: durMin
+    }, {onConflict:'order_id,stage_index,dept_key'});
+  }catch(e){console.error('log error',e);}
+  
+  // XÜSUSİ HAL: sifariş current_stage-i artıq bu mərhələdən irəlidə getdisə
+  // (yəni bu paralel şöbə "fon" rejimindədir — A sifarişi irəli aparıb, B hələ işləyir)
+  if(orderCurrentStage > parseInt(si)){
+    const card = document.getElementById('tcard-'+oid);
+    if(card){
+      card.style.transition='all .4s';
+      card.style.opacity='0';
+      card.style.transform='translateX(20px)';
+    }
+    toast('✅ Tamamlandı (fon iş) — sifariş artıq irəli gedib');
+    setTimeout(()=>renderDeptTasks(dept),400);
+    return;
+  }
+  
   let shouldAdvance = true;
   
   // Paralel mərhələdə yoxla
   if(isParallel){
     const parallelDepts = currentStageData.dept.split('||');
     
-    // Bu şöbə üçün log yaz
-    try{
-      await sb.from('task_logs').upsert({
-        order_id: oid,
-        stage_index: parseInt(si)-1,
-        worker_id: currentUser.id,
-        worker_name: currentUser.name,
-        dept_key: dept, // yalnız bu şöbə, paralel deyil
-        action: 'completed',
-        started_at: startTime || now,
-        completed_at: now,
-        duration_minutes: durMin
-      }, {onConflict:'order_id,stage_index,dept_key'});
-    }catch(e){console.error('log error',e);}
-    
-    // Yoxla bütün paralel şöbələr bitibmi (və ya any mode-dursa biri bəsdir)
+    // Yoxla hansı şöbələr bitib
     const {data:logs} = await sb.from('task_logs')
       .select('dept_key,completed_at')
       .eq('order_id', oid)
@@ -2311,33 +2354,30 @@ async function dDone(oid,si,key,dept,totalStages){
     const completedDepts = new Set((logs||[]).map(l=>l.dept_key));
     
     if(parallelMode === 'all'){
-      // Hamsı bitməlidir
       const allDone = parallelDepts.every(d=>completedDepts.has(d));
       shouldAdvance = allDone;
     } else if(parallelMode === 'any'){
-      // Biri bəsdir - artıq bitib
       shouldAdvance = true;
     } else if(parallelMode.startsWith('specific:')){
-      // Xüsusi şöbə tamamlanmalıdır
       const requiredDept = parallelMode.split(':')[1];
       shouldAdvance = completedDepts.has(requiredDept);
-      
-      if(!shouldAdvance && dept !== requiredDept){
-        // İndi tamamlayan şöbə tələb olunan şöbə deyil — hələ keçmir
-      }
     } else {
-      shouldAdvance = true; // fallback
+      shouldAdvance = true;
     }
     
     if(!shouldAdvance){
-      // Yalnız bu şöbənin kartını gizlət, sifariş stage-ni dəyişmə
       const card = document.getElementById('tcard-'+oid);
       if(card){
         card.style.transition='all .4s';
         card.style.opacity='0';
         card.style.transform='translateX(20px)';
       }
-      toast('✅ '+DEPT_INFO[dept]?.name+' tamamlandı — digər paralel şöbə gözlənilir');
+      const msg = parallelMode === 'all' 
+        ? 'digər paralel şöbə gözlənilir'
+        : parallelMode.startsWith('specific:')
+          ? 'xüsusi şöbə gözlənilir'
+          : 'gözlənilir';
+      toast('✅ '+DEPT_INFO[dept]?.name+' tamamlandı — '+msg);
       setTimeout(()=>renderDeptTasks(dept),400);
       return;
     }
