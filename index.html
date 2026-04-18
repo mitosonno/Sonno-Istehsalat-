@@ -2306,14 +2306,13 @@ async function dDone(oid, si, key, dept, totalStages){
   let model = null;
   let order = null;
   try{
-    const [orderRes, modelRes] = await Promise.all([
-      sb.from('orders').select('model_id, current_stage, status').eq('id', oid).single(),
-      null
-    ]);
+    const orderRes = await sb.from('orders').select('model_id, current_stage, status').eq('id', oid).single();
     order = orderRes.data;
+    console.log('[dDone] order yüklendi:', order);
     if(order?.model_id){
       const mr = await sb.from('models').select('stages').eq('id', order.model_id).single();
       model = mr.data;
+      console.log('[dDone] model yüklendi:', model?.stages?.length, 'stage');
     }
   }catch(e){
     console.error('[dDone] data yükləmə xətası:', e);
