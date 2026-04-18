@@ -1796,6 +1796,9 @@ function showDV(v){
 async function renderDeptTasks(dept){
   // Xüsusi hal: Logistika — "ready" sifarişləri göstər
   if(dept === 'logistics'){
+    if(curDeptTab === 'done'){
+      return renderLogisticsDone();
+    }
     return renderLogisticsDept();
   }
   
@@ -1820,6 +1823,13 @@ async function renderDeptTasks(dept){
   });
 
   if(curDeptTab==='active'){
+    // Bu şöbədə artıq tamamlanmış tapşırıqları tap (paralel üçün)
+    const {data:completedLogs} = await sb.from('task_logs')
+      .select('order_id,stage_index,dept_key')
+      .eq('dept_key', dept)
+      .not('completed_at','is',null);
+    const completedSet = new Set((completedLogs||[]).map(l=>l.order_id+'_'+l.stage_index));
+    
     const tasks=[];
     orders.filter(o=>['in_progress','created','late'].includes(o.status)).forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);
@@ -1828,6 +1838,11 @@ async function renderDeptTasks(dept){
       const si=o.current_stage-1;
       if(si>=0&&si<stages.length){
         const stage=stages[si];
+        const stageKey = o.id+'_'+si;
+        
+        // Əgər bu şöbə bu stage-i artıq tamamlayıbsa — göstərmə
+        if(completedSet.has(stageKey)) return;
+        
         // Check if current dept matches (parallel or single)
         if(stage.dept===dept || (stage.dept.includes('||') && stage.dept.split('||').includes(dept))){
           tasks.push({o,m,s:stage,si:o.current_stage});
@@ -1898,6 +1913,14 @@ async function renderDeptTasks(dept){
             <div class="tm-i"><div class="tm-k">Plan vaxt</div><div class="tm-v">${s.hours} saat</div></div>
             <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v" style="${isLate?'color:#E24B4A;font-weight:600':''}">${o.deadline||'—'}</div></div>
           </div>
+          ${(o.fabric||o.color||o.fabric_company||o.legs||o.notes) ? `
+          <div style="background:var(--lt);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:12px;line-height:1.7">
+            ${o.fabric ? `<div><b>🧶 Parça:</b> ${o.fabric}</div>` : ''}
+            ${o.color ? `<div><b>🏷️ Parça kodu:</b> ${o.color}</div>` : ''}
+            ${o.fabric_company ? `<div><b>🏭 Parça satan:</b> ${o.fabric_company}</div>` : ''}
+            ${o.legs ? `<div><b>🦵 Ayaq rəngi:</b> ${o.legs}</div>` : ''}
+            ${o.notes ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)"><b>📝 Qeyd:</b> ${o.notes}</div>` : ''}
+          </div>` : ''}
           ${wHtml}
           <div class="ts-box ${stCls}" id="ts-${o.id}">${stTxt}</div>
           ${started&&!done?`<div style="font-size:14px;font-weight:600;color:var(--or);text-align:center;margin:8px 0" id="timer-${o.id}">⏱ 0 dəq</div>`:''}
@@ -2044,6 +2067,60 @@ function dStart(oid,si,key,dept){
   toast('▶ Başladı — vaxt sayılır');
 }
 
+async function renderLogisticsDone(){
+  showLoader();
+  const [{data:orders},{data:models}] = await Promise.all([
+    sb.from('orders').select('*').eq('status','delivered').order('updated_at',{ascending:false}),
+    sb.from('models').select('*'),
+  ]);
+  hideLoader();
+  
+  const allModels = models || [];
+  const all = orders || [];
+  
+  document.getElementById('dt-cnt').textContent = all.length;
+  const tl = document.getElementById('dept-task-list');
+  
+  if(!all.length){
+    tl.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:14px">Hələ təslim edilən sifariş yoxdur</div></div>`;
+    return;
+  }
+  
+  tl.innerHTML = all.map(o=>{
+    const m = allModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
+    const modelImg = m.img_url 
+      ? `<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`
+      : `<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
+    
+    const deliveryDate = o.updated_at ? new Date(o.updated_at).toLocaleString('az-AZ') : '—';
+    
+    return `<div class="task-card">
+      <div class="task-card-top" style="background:var(--lt)">
+        <div style="display:flex;align-items:center;gap:10px;flex:1">
+          ${modelImg}
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:700">✓ Təslim edildi</div>
+            <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${o.client}</div>
+          </div>
+        </div>
+        <span class="badge bG">Delivered</span>
+      </div>
+      <div class="task-card-body">
+        <div class="task-meta">
+          <div class="tm-i"><div class="tm-k">Model</div><div class="tm-v">${m.name.split('—')[0].trim()}</div></div>
+          <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div>
+          <div class="tm-i"><div class="tm-k">Məbləğ</div><div class="tm-v">${o.final_price?o.final_price+' ₼':'—'}</div></div>
+        </div>
+        <div style="font-size:11px;color:var(--t3);margin-top:6px">Təslim: ${deliveryDate}</div>
+        ${o.signature ? `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--bd)">
+          <div style="font-size:11px;color:var(--t2);margin-bottom:6px">İmza:</div>
+          <img src="${o.signature}" style="width:100%;max-width:300px;background:#fff;border:1px solid var(--bd);border-radius:8px">
+        </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 async function renderLogisticsDept(){
   showLoader();
   const [{data:orders},{data:models}] = await Promise.all([
@@ -2133,31 +2210,92 @@ async function dDone(oid,si,key,dept,totalStages){
   const now=new Date().toISOString();
   const startTime=localStorage.getItem(key+'_t');
   const durMin=startTime?Math.round((new Date(now)-new Date(startTime))/60000):null;
-  localStorage.setItem(key+'_d','1');
-  localStorage.setItem(key+'_dt',now);
   
-  // Model-ə bax — növbəti mərhələ logistics-dirsə, atla
-  let newStage = parseInt(si) + 1;
-  let newStatus = 'in_progress';
+  // Model və sifarişi yüklə
+  let stages = [];
+  let currentStageData = null;
+  let isParallel = false;
+  let parallelMode = 'all'; // 'all' = hər ikisi bitsin, 'any' = biri bitsin
   
   try{
     const {data:order} = await sb.from('orders').select('model_id').eq('id',oid).single();
     const {data:model} = await sb.from('models').select('stages').eq('id',order.model_id).single();
-    const stages = model?.stages || [];
-    
-    // Növbəti mərhələ yoxdursa → ready
-    if(newStage > parseInt(totalStages)){
-      newStatus = 'ready';
-    } else {
-      // Növbəti mərhələ logistics-dirsə → status=ready, amma stage orada saxlansın
-      const nextStage = stages[newStage-1];
-      if(nextStage && nextStage.dept === 'logistics'){
-        newStatus = 'ready';
-      }
+    stages = model?.stages || [];
+    currentStageData = stages[parseInt(si)-1];
+    if(currentStageData && currentStageData.dept && currentStageData.dept.includes('||')){
+      isParallel = true;
+      parallelMode = currentStageData.mode || 'all';
     }
-  }catch(e){
-    // Fallback
-    newStatus = newStage > parseInt(totalStages) ? 'ready' : 'in_progress';
+  }catch(e){}
+  
+  // Bu şöbə üçün localStorage-ə yadda saxla
+  localStorage.setItem(key+'_'+dept+'_d','1');
+  localStorage.setItem(key+'_'+dept+'_dt',now);
+  
+  let shouldAdvance = true;
+  
+  // Paralel mərhələdə yoxla
+  if(isParallel){
+    const parallelDepts = currentStageData.dept.split('||');
+    
+    // Bu şöbə üçün log yaz
+    try{
+      await sb.from('task_logs').upsert({
+        order_id: oid,
+        stage_index: parseInt(si)-1,
+        worker_id: currentUser.id,
+        worker_name: currentUser.name,
+        dept_key: dept, // yalnız bu şöbə, paralel deyil
+        action: 'completed',
+        started_at: startTime || now,
+        completed_at: now,
+        duration_minutes: durMin
+      }, {onConflict:'order_id,stage_index,dept_key'});
+    }catch(e){console.error('log error',e);}
+    
+    // Yoxla bütün paralel şöbələr bitibmi (və ya any mode-dursa biri bəsdir)
+    const {data:logs} = await sb.from('task_logs')
+      .select('dept_key,completed_at')
+      .eq('order_id', oid)
+      .eq('stage_index', parseInt(si)-1)
+      .not('completed_at','is',null);
+    
+    const completedDepts = new Set((logs||[]).map(l=>l.dept_key));
+    
+    if(parallelMode === 'all'){
+      // Hamsı bitməlidir
+      const allDone = parallelDepts.every(d=>completedDepts.has(d));
+      shouldAdvance = allDone;
+    } else {
+      // Biri bəsdir - artıq bitib
+      shouldAdvance = true;
+    }
+    
+    if(!shouldAdvance){
+      // Yalnız bu şöbənin kartını gizlət, sifariş stage-ni dəyişmə
+      const card = document.getElementById('tcard-'+oid);
+      if(card){
+        card.style.transition='all .4s';
+        card.style.opacity='0';
+        card.style.transform='translateX(20px)';
+      }
+      toast('✅ '+DEPT_INFO[dept]?.name+' tamamlandı — digər paralel şöbə gözlənilir');
+      setTimeout(()=>renderDeptTasks(dept),400);
+      return;
+    }
+  }
+  
+  // Stage-ni artır
+  let newStage = parseInt(si) + 1;
+  let newStatus = 'in_progress';
+  
+  if(newStage > parseInt(totalStages)){
+    newStatus = 'ready';
+  } else {
+    const nextStage = stages[newStage-1];
+    if(nextStage && nextStage.dept === 'logistics'){
+      newStatus = 'ready';
+    }
   }
   
   // Timer interval təmizlə
@@ -2180,12 +2318,13 @@ async function dDone(oid,si,key,dept,totalStages){
   try{
     await Promise.all([
       sb.from('orders').update({current_stage:newStage,status:newStatus}).eq('id',oid),
-      sb.from('task_logs').upsert({
-        order_id:oid, stage_index:parseInt(si),
+      !isParallel ? sb.from('task_logs').upsert({
+        order_id:oid, stage_index:parseInt(si)-1,
         worker_id:currentUser.id, worker_name:currentUser.name,
         dept_key:dept, action:'completed',
+        started_at: startTime || now,
         completed_at:now, duration_minutes:durMin
-      },{onConflict:'order_id,stage_index'}),
+      },{onConflict:'order_id,stage_index,dept_key'}) : Promise.resolve(),
     ]);
   }catch(e){
     console.error('dDone xəta:', e);
@@ -3238,6 +3377,7 @@ function openAddModel(){
   document.getElementById('am-cost-price').value='';
   document.getElementById('am-prev').innerHTML='🛋️';
   window._currentStageOrder = [];
+  window._parallelModes = {};
   renderDeptChecklist([]);
   openSheet('add-model');
 }
@@ -3257,6 +3397,15 @@ async function editModel(id){
   else prev.innerHTML=m.emoji||'🛋️';
   const selectedKeys=(m.stages||[]).map(s=>s.dept);
   window._currentStageOrder = selectedKeys;
+  
+  // Paralel modeları oxu
+  window._parallelModes = {};
+  (m.stages||[]).forEach(s=>{
+    if(s.dept.includes('||')){
+      window._parallelModes[s.dept] = s.mode || 'all';
+    }
+  });
+  
   renderDeptChecklist(selectedKeys);
   openSheet('add-model');
 }
@@ -3380,9 +3529,9 @@ function updateStageOrder(keys){
       <span style="font-size:14px">${d.icon}</span>
       <span style="flex:1;font-size:13px;font-weight:500">${d.name}</span>
       <span style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${d.hours}s</span>
-      <button class="so-move" style="padding:3px 8px;font-size:11px;background:var(--lo);color:var(--or)" onclick="mergeStages(${i})">+ Paralel</button>
-      <button class="so-move" onclick="moveStage('${k}',-1)" ${i===0?'disabled':''}>↑</button>
-      <button class="so-move" onclick="moveStage('${k}',1)" ${i===keys.length-1?'disabled':''}>↓</button>
+      <button type="button" class="so-move" style="padding:8px 14px;font-size:12px;background:var(--lo);color:var(--or);font-weight:600;min-height:36px;min-width:80px;cursor:pointer" onclick="event.stopPropagation();mergeStages(${i})">+ Paralel</button>
+      <button type="button" class="so-move" style="min-height:36px" onclick="event.stopPropagation();moveStage('${k}',-1)" ${i===0?'disabled':''}>↑</button>
+      <button type="button" class="so-move" style="min-height:36px" onclick="event.stopPropagation();moveStage('${k}',1)" ${i===keys.length-1?'disabled':''}>↓</button>
     </div>`;
   }).join('');
 }
@@ -3459,7 +3608,6 @@ function confirmParallel(idx, selectedKey){
   const existingIdx = keys.findIndex(k=>k===selectedKey || (k.includes('||') && k.split('||').includes(selectedKey)));
   if(existingIdx > -1 && existingIdx !== idx){
     if(keys[existingIdx].includes('||')){
-      // Paralel içindəysə — çıxar
       const parts = keys[existingIdx].split('||').filter(p=>p!==selectedKey);
       if(parts.length===1) keys[existingIdx] = parts[0];
       else keys[existingIdx] = parts.join('||');
@@ -3468,14 +3616,54 @@ function confirmParallel(idx, selectedKey){
     }
   }
   
-  // Yeni idx-i yenidən tap
   const newIdx = keys.indexOf(currentKey);
   if(newIdx > -1) keys[newIdx] = merged;
   
   window._currentStageOrder = keys;
   closeParallelModal();
-  renderDeptChecklist(keys);
-  toast('✓ Paralel birləşdirildi');
+  
+  // İndi mode soruş: hər ikisi bitsin yoxsa biri?
+  askParallelMode(merged, keys);
+}
+
+function askParallelMode(mergedKey, keys){
+  const parts = mergedKey.split('||');
+  const info1 = DEPT_INFO[parts[0]] || {name:parts[0],icon:'🏭'};
+  const info2 = DEPT_INFO[parts[1]] || {name:parts[1],icon:'🏭'};
+  
+  const modal = document.createElement('div');
+  modal.id = 'mode-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+  
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:20px;max-width:420px;width:100%">
+      <div style="font-size:17px;font-weight:700;margin-bottom:8px">Paralel işləmə rejimi</div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:16px">${info1.icon} <b>${info1.name}</b> və ${info2.icon} <b>${info2.name}</b> paraleldir. Növbəti mərhələyə keçmək üçün:</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button type="button" onclick="setParallelMode('${mergedKey}','all')" style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:14px 16px;background:var(--lt);border:2px solid var(--tl);border-radius:12px;cursor:pointer;font-family:inherit;text-align:left">
+          <span style="font-size:14px;font-weight:700;color:var(--tl)">✓✓ Hər ikisi tamamlansın</span>
+          <span style="font-size:12px;color:var(--t2)">Hər iki şöbə bitirəndə növbətiyə keçsin (tövsiyə)</span>
+        </button>
+        <button type="button" onclick="setParallelMode('${mergedKey}','any')" style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:14px 16px;background:var(--lo);border:2px solid var(--or);border-radius:12px;cursor:pointer;font-family:inherit;text-align:left">
+          <span style="font-size:14px;font-weight:700;color:var(--or)">⚡ Biri tamamlansın bəsdir</span>
+          <span style="font-size:12px;color:var(--t2)">Şöbələrdən biri bitirən kimi növbətiyə keçsin</span>
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function setParallelMode(mergedKey, mode){
+  // mode-u ayrıca yadda saxla (stage obyektində istifadə olunacaq)
+  if(!window._parallelModes) window._parallelModes = {};
+  window._parallelModes[mergedKey] = mode;
+  
+  const m = document.getElementById('mode-modal');
+  if(m) m.remove();
+  
+  renderDeptChecklist(window._currentStageOrder || []);
+  toast(mode === 'all' ? '✓ Hər ikisi tamamlanmalıdır' : '⚡ Biri bəsdir');
 }
 
 function closeParallelModal(){
@@ -3508,11 +3696,13 @@ async function saveModel(){
       const parts=k.split('||');
       const d1=DEPT_INFO[parts[0]]||{name:parts[0],hours:0};
       const d2=DEPT_INFO[parts[1]]||{name:parts[1],hours:0};
+      const mode = (window._parallelModes && window._parallelModes[k]) || 'all';
       return{
         name:`${d1.name} + ${d2.name}`,
-        dept:k, // "karkaz||tikiş"
-        hours:Math.max(d1.hours,d2.hours), // Paralel olduğu üçün max vaxt
-        parallel:true
+        dept:k,
+        hours:Math.max(d1.hours,d2.hours),
+        parallel:true,
+        mode: mode // 'all' = hər ikisi, 'any' = biri
       };
     }
     const d=DEPT_INFO[k];
