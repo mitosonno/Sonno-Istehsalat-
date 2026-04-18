@@ -1861,11 +1861,11 @@ async function renderDeptTasks(dept){
   const logs=allLogs||[];
   const dws=appWorkers.filter(w=>w.dept_key===dept);
   
-  // Log-ları order_id + stage_index üzrə xəritələşdir
+  // Log-ları order_id + stage_index + dept_key üzrə xəritələşdir
   const logMap = {};
   logs.forEach(l=>{
-    const k = l.order_id + '_' + l.stage_index;
-    if(!logMap[k]) logMap[k] = l;
+    const k = l.order_id + '_' + l.stage_index + '_' + l.dept_key;
+    logMap[k] = l;
   });
 
   if(curDeptTab==='active'){
@@ -1937,14 +1937,14 @@ async function renderDeptTasks(dept){
 
     tl.innerHTML=vis.map(({o,m,s,si,isBackground})=>{
       const key=`ts_${o.id}_${si}`;
-      const logKey = o.id + '_' + (si-1);
+      const logKey = o.id + '_' + (si-1) + '_' + dept;
       const log = logMap[logKey];
       
-      // Dept-specific localStorage oxu
+      // Dept-specific localStorage oxu - paralel üçün kritikdir
       const dKey = key+'_'+dept;
-      const started = (log && log.started_at) || localStorage.getItem(dKey+'_s') || localStorage.getItem(key+'_s');
-      const done = (log && log.completed_at) || localStorage.getItem(dKey+'_d') || localStorage.getItem(key+'_d');
-      const startTime = (log && log.started_at) || localStorage.getItem(dKey+'_t') || localStorage.getItem(key+'_t');
+      const started = (log && log.started_at) || localStorage.getItem(dKey+'_s');
+      const done = (log && log.completed_at) || localStorage.getItem(dKey+'_d');
+      const startTime = (log && log.started_at) || localStorage.getItem(dKey+'_t');
       
       const total=(m.stages||[]).length;
       const dots=(m.stages||[]).map((_,i)=>`<div class="sdot${i+1<si?' done':i+1===si?' cur':''}"></div>`).join('');
@@ -2008,13 +2008,14 @@ async function renderDeptTasks(dept){
     
     vis.forEach(({o,si})=>{
       const key=`ts_${o.id}_${si}`;
-      const logKey = o.id + '_' + (si-1);
+      const dKey = key+'_'+dept;
+      const logKey = o.id + '_' + (si-1) + '_' + dept;
       const log = logMap[logKey];
       
-      // Supabase log əsas, localStorage backup
-      const s2 = (log && log.started_at) || localStorage.getItem(key+'_s');
-      const d2 = (log && log.completed_at) || localStorage.getItem(key+'_d');
-      const t2 = (log && log.started_at) || localStorage.getItem(key+'_t');
+      // Dept-specific oxu
+      const s2 = (log && log.started_at) || localStorage.getItem(dKey+'_s');
+      const d2 = (log && log.completed_at) || localStorage.getItem(dKey+'_d');
+      const t2 = (log && log.started_at) || localStorage.getItem(dKey+'_t');
       
       if(s2&&!d2&&t2){
         const timerEl=document.getElementById('timer-'+o.id);
@@ -2051,11 +2052,12 @@ async function renderDeptTasks(dept){
     }
     tl2.innerHTML=done.map(({o,m,s,stageNum})=>{
       const key=`ts_${o.id}_${stageNum}`;
-      const logKey = o.id + '_' + (stageNum-1);
+      const dKey = key+'_'+dept;
+      const logKey = o.id + '_' + (stageNum-1) + '_' + dept;
       const log = logMap[logKey];
       
-      const t0 = (log && log.started_at) || localStorage.getItem(key+'_t');
-      const dt = (log && log.completed_at) || localStorage.getItem(key+'_dt');
+      const t0 = (log && log.started_at) || localStorage.getItem(dKey+'_t');
+      const dt = (log && log.completed_at) || localStorage.getItem(dKey+'_dt');
       let dm = log?.duration_minutes;
       if(!dm && t0 && dt) dm = Math.round((new Date(dt)-new Date(t0))/60000);
       
@@ -2092,13 +2094,10 @@ async function renderDeptTasks(dept){
 
 function dStart(oid,si,key,dept){
   const now=new Date().toISOString();
-  // Dept-specific key (paralel şöbələr üçün)
+  // Dept-specific key (paralel şöbələr üçün kritik)
   const dKey = key+'_'+dept;
   localStorage.setItem(dKey+'_s','1');
   localStorage.setItem(dKey+'_t',now);
-  // Backward compat
-  localStorage.setItem(key+'_s','1');
-  localStorage.setItem(key+'_t',now);
   
   const el=document.getElementById('ts-'+oid);
   if(el){el.className='ts-box ts-go';el.textContent='⏱ İcra olunur...';}
@@ -2377,15 +2376,29 @@ async function dDone(oid, si, key, dept, totalStages){
     
     const completedDepts = new Set((logs||[]).map(l=>l.dept_key));
     
+    console.log('[PARALEL]', {
+      order: oid,
+      stageIndex,
+      parallelDepts,
+      completedDepts: [...completedDepts],
+      parallelMode,
+      currentDept: dept
+    });
+    
     let shouldAdvance = false;
     if(parallelMode === 'all'){
       shouldAdvance = parallelDepts.every(d=>completedDepts.has(d));
     } else if(parallelMode === 'any'){
       shouldAdvance = true;
-    } else if(parallelMode.startsWith('specific:')){
+    } else if(parallelMode && parallelMode.startsWith('specific:')){
       const requiredDept = parallelMode.split(':')[1];
       shouldAdvance = completedDepts.has(requiredDept);
+    } else {
+      // Mode olmayan köhnə modellər üçün - hər ikisi bitsin
+      shouldAdvance = parallelDepts.every(d=>completedDepts.has(d));
     }
+    
+    console.log('[PARALEL] shouldAdvance:', shouldAdvance);
     
     if(!shouldAdvance){
       hideTaskCard(oid);
