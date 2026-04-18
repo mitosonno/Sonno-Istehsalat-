@@ -881,6 +881,15 @@ async function validateDeadline(input){
   const d = new Date(dateStr);
   const dow = d.getDay();
   
+  // Bu gün və ya keçmişdirsə blokla
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  if(d <= today){
+    toast('⚠ Bugün və ya keçmiş tarix seçilə bilməz');
+    input.value = '';
+    return;
+  }
+  
   // Şənbə-Bazar blokla
   if(dow === 0 || dow === 6){
     toast('⚠ Şənbə və Bazar günü seçilə bilməz');
@@ -1352,8 +1361,11 @@ async function renderDash(){
 function orderListItem(o){
   const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
   const st=ST[o.status]||ST.created;
+  const icon = m.img_url 
+    ? `<img src="${m.img_url}" style="width:100%;height:100%;object-fit:cover;border-radius:var(--r)">`
+    : m.emoji;
   return`<div class="list-item" onclick="showOD('${o.id}')">
-    <div class="li-icon" style="background:${o.status==='late'?'#FCEBEB':'rgba(17,24,32,.04)'}">${m.emoji}</div>
+    <div class="li-icon" style="background:${o.status==='late'?'#FCEBEB':'rgba(17,24,32,.04)'};overflow:hidden;padding:0">${icon}</div>
     <div class="li-body">
       <div class="li-title">${o.client} <span class="mono">${o.order_number}</span></div>
       <div class="li-sub">${m.name.split('—')[0].trim()} · ${o.qty} ədəd · ${o.deadline||''}</div>
@@ -1496,13 +1508,24 @@ async function showOD(id){
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
       <span class="badge ${st.c}">${st.t}</span>
       <span class="badge bG">${o.qty} ədəd</span>
-      <span class="badge bG">${o.fabric||''}</span>
+      ${o.sale_type==='showroom'?'<span class="badge bO">🏪 Vitrin</span>':'<span class="badge bG">💵 Nağd</span>'}
     </div>
     <div style="font-size:12px;color:var(--t2);margin-bottom:14px">
       Deadline: <b style="color:${o.status==='late'?'#E24B4A':'var(--t1)'}">${o.deadline||'—'}</b>
       · Başlanma: <b>${fmtDate(o.created_at)}</b>
     </div>
-    <div class="slbl" style="margin-top:0">Mərhələlər və vaxtlar</div>
+    
+    ${(o.fabric||o.color||o.fabric_company||o.legs||o.notes) ? `
+    <div class="slbl" style="margin-top:0">Sifariş məlumatı</div>
+    <div style="background:var(--lt);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.8">
+      ${o.fabric ? `<div><b>🧶 Parça adı:</b> ${o.fabric}</div>` : ''}
+      ${o.color ? `<div><b>🏷️ Parça kodu:</b> ${o.color}</div>` : ''}
+      ${o.fabric_company ? `<div><b>🏭 Parça satan:</b> ${o.fabric_company}</div>` : ''}
+      ${o.legs ? `<div><b>🦵 Ayaq rəngi:</b> ${o.legs}</div>` : ''}
+      ${o.notes ? `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--bd)"><b>📝 Qeyd:</b> ${o.notes}</div>` : ''}
+    </div>` : ''}
+    
+    <div class="slbl">Mərhələlər və vaxtlar</div>
     <div class="order-timeline">
       ${stages.map((s,i)=>{
         const n=i+1,isDone=n<o.current_stage,isCur=n===o.current_stage;
@@ -1530,9 +1553,13 @@ async function showOD(id){
 // ═══════════ ORDER CREATE ═══════════
 function renderOrderForm(){
   renderProductGrid(appModels);
-  if(!document.getElementById('o-dead').value){
+  const deadInput = document.getElementById('o-dead');
+  const minDate = new Date();
+  minDate.setDate(minDate.getDate()+1); // sabahdan başla
+  deadInput.min = minDate.toISOString().split('T')[0];
+  if(!deadInput.value){
     const d=new Date();d.setDate(d.getDate()+7);
-    document.getElementById('o-dead').value=d.toISOString().split('T')[0];
+    deadInput.value=d.toISOString().split('T')[0];
   }
   // Mobile: stack layout
   if(window.innerWidth<=768){
@@ -1678,9 +1705,11 @@ async function createOrder(){
   hideLoader();
   if(error){toast('Xəta: '+error.message);return;}
   toast(`✓ ${num} yaradıldı — ${total?total+' ₼ · ':''}Pipeline başladı!`);
-  ['o-client','o-fabric','o-fabric-co','o-color','o-legs','o-notes'].forEach(id=>{
+  ['o-client','o-fabric','o-fabric-co','o-color','o-legs','o-notes','o-client-sel'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
+  const phoneDisp = document.getElementById('o-client-phone-display');
+  if(phoneDisp) phoneDisp.textContent='';
   if(document.getElementById('o-discount'))document.getElementById('o-discount').value=0;
   selModel=null; qty=1;
   document.querySelectorAll('.pcard').forEach(c=>c.classList.remove('sel'));
@@ -1693,28 +1722,40 @@ async function createOrder(){
 
 // ═══════════ DEPT / PIN ═══════════
 async function renderDeptPick(){
-  const{data:orders}=await sb.from('orders').select('*').in('status',['in_progress','created','late','ready']);
+  const [{data:orders},{data:completedLogs}] = await Promise.all([
+    sb.from('orders').select('*').in('status',['in_progress','created','late','ready']),
+    sb.from('task_logs').select('order_id,stage_index,dept_key').not('completed_at','is',null),
+  ]);
+  
+  // Tamamlanmış (order_id + stage_index + dept_key) dəstini yarat
+  const completedSet = new Set((completedLogs||[]).map(l=>l.order_id+'_'+l.stage_index+'_'+l.dept_key));
+  
   const dCnt={};
   (orders||[]).forEach(o=>{
-    // Logistika üçün xüsusi: status=ready olanlar
+    // Logistika: status=ready
     if(o.status === 'ready'){
       dCnt['logistics'] = (dCnt['logistics']||0)+1;
       return;
     }
     const m=appModels.find(x=>x.id===o.model_id);if(!m)return;
-    const stages=m.stages||[];const si=o.current_stage-1;
-    if(si>=0&&si<stages.length){
+    const stages=m.stages||[];
+    const si=o.current_stage-1;
+    if(si>=0 && si<stages.length){
       const d=stages[si].dept;
-      // Paralel olsa — hər iki şöbəyə say
       if(d.includes('||')){
         d.split('||').forEach(part=>{
-          dCnt[part]=(dCnt[part]||0)+1;
+          // Bu şöbə artıq tamamlayıbsa — sayma
+          const k = o.id+'_'+si+'_'+part;
+          if(!completedSet.has(k)){
+            dCnt[part]=(dCnt[part]||0)+1;
+          }
         });
       } else {
         dCnt[d]=(dCnt[d]||0)+1;
       }
     }
   });
+  
   const{data:pins}=await sb.from('dept_pins').select('*');
   const pinMap={};(pins||[]).forEach(p=>pinMap[p.dept_key]=p.pin_code);
   document.getElementById('dept-grid').innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
@@ -2023,8 +2064,14 @@ async function renderDeptTasks(dept){
 
 function dStart(oid,si,key,dept){
   const now=new Date().toISOString();
+  // Dept-specific key (paralel şöbələr üçün)
+  const dKey = key+'_'+dept;
+  localStorage.setItem(dKey+'_s','1');
+  localStorage.setItem(dKey+'_t',now);
+  // Backward compat
   localStorage.setItem(key+'_s','1');
   localStorage.setItem(key+'_t',now);
+  
   const el=document.getElementById('ts-'+oid);
   if(el){el.className='ts-box ts-go';el.textContent='⏱ İcra olunur...';}
   document.querySelectorAll(`[onclick*="dStart('${oid}"]`).forEach(b=>b.disabled=true);
@@ -2059,11 +2106,11 @@ function dStart(oid,si,key,dept){
     timerEl.dataset.intervalId = int;
   }
   
-  sb.from('task_logs').insert({
-    order_id:oid, stage_index:parseInt(si),
+  sb.from('task_logs').upsert({
+    order_id:oid, stage_index:parseInt(si)-1,
     worker_id:currentUser.id, worker_name:currentUser.name,
     dept_key:dept, action:'started', started_at:now
-  }).then();
+  },{onConflict:'order_id,stage_index,dept_key'}).then();
   toast('▶ Başladı — vaxt sayılır');
 }
 
@@ -2208,8 +2255,9 @@ async function renderLogisticsDept(){
 
 async function dDone(oid,si,key,dept,totalStages){
   const now=new Date().toISOString();
-  const startTime=localStorage.getItem(key+'_t');
-  const durMin=startTime?Math.round((new Date(now)-new Date(startTime))/60000):null;
+  // Dept-specific oxu, yoxdursa generic oxu
+  const startTime = localStorage.getItem(key+'_'+dept+'_t') || localStorage.getItem(key+'_t');
+  const durMin=startTime?Math.max(0, Math.round((new Date(now)-new Date(startTime))/60000)):null;
   
   // Model və sifarişi yüklə
   let stages = [];
