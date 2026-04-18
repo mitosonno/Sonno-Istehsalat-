@@ -2408,29 +2408,36 @@ async function dDone(oid,si,key,dept,totalStages){
     card.style.transition = 'all .4s';
     card.style.opacity = '0';
     card.style.transform = 'translateX(20px)';
+    card.style.pointerEvents = 'none';
   }
   
   toast('✅ Tamamlandı!');
   
-  // Supabase yenilənməsi arxa planda
+  // Düymələri dərhal disable et (ikiqat klik qarşısı)
+  const startBtn = document.querySelector(`[onclick*="dStart('${oid}"]`);
+  const doneBtn = document.getElementById('td-'+oid);
+  if(startBtn) startBtn.disabled = true;
+  if(doneBtn) doneBtn.disabled = true;
+  
+  // Supabase yenilənməsi — await ediək ki DB hazır olsun
   try{
-    await Promise.all([
-      sb.from('orders').update({current_stage:newStage,status:newStatus}).eq('id',oid),
-      !isParallel ? sb.from('task_logs').upsert({
+    await sb.from('orders').update({current_stage:newStage,status:newStatus}).eq('id',oid);
+    if(!isParallel){
+      await sb.from('task_logs').upsert({
         order_id:oid, stage_index:parseInt(si)-1,
         worker_id:currentUser.id, worker_name:currentUser.name,
         dept_key:dept, action:'completed',
         started_at: startTime || now,
         completed_at:now, duration_minutes:durMin
-      },{onConflict:'order_id,stage_index,dept_key'}) : Promise.resolve(),
-    ]);
+      },{onConflict:'order_id,stage_index,dept_key'});
+    }
   }catch(e){
     console.error('dDone xəta:', e);
     toast('⚠ Xəta: '+e.message);
   }
   
-  // 400ms sonra siyahını yenilə (card fade-out bitənə qədər)
-  setTimeout(()=>renderDeptTasks(dept),400);
+  // DB update olandan sonra yenilə
+  setTimeout(()=>renderDeptTasks(dept),100);
 }
 
 // ═══════════ LOGISTICS ═══════════
