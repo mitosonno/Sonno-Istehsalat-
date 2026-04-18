@@ -652,12 +652,12 @@ textarea{resize:vertical;min-height:80px}
 </div>
 
 <!-- Client add sheet -->
-<div class="sheet-overlay" id="add-client-ov" onclick="closeSheet('add-client')"></div>
-<div class="sheet" id="add-client-sheet" style="max-width:400px">
+<div class="sheet-overlay" id="add-client-ov" onclick="closeSheet('add-client')" style="z-index:900"></div>
+<div class="sheet" id="add-client-sheet" style="max-width:400px;z-index:901">
   <div class="sheet-title">Yeni müştəri əlavə et</div>
   <div class="sheet-body">
-    <div class="fg"><label>Ad / Şirkət</label><input id="ac-name" type="text" placeholder="Məs: Kapital Bank və ya Elçin Məmmədov"></div>
-    <div class="fg"><label>Əlaqə nömrəsi</label><input id="ac-phone" type="tel" inputmode="tel" placeholder="+994 XX XXX XX XX"></div>
+    <div class="fg"><label>Ad / Şirkət</label><input id="ac-name" type="text" autocomplete="off" placeholder="Məs: Kapital Bank və ya Elçin Məmmədov"></div>
+    <div class="fg"><label>Əlaqə nömrəsi</label><input id="ac-phone" type="tel" autocomplete="off" inputmode="tel" placeholder="+994 XX XXX XX XX"></div>
   </div>
   <div class="sheet-footer">
     <button class="btn btn-ln" style="flex:1" onclick="closeSheet('add-client')">Ləğv et</button>
@@ -1981,11 +1981,11 @@ async function renderDeptTasks(dept){
           <span class="badge ${st.c}">${st.t}</span>
         </div>
         <div class="task-card-body">
-          ${dm ? `<div style="background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:12px;padding:14px;margin-bottom:10px;text-align:center;border:2px solid var(--tl)">
+          <div style="background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:12px;padding:14px;margin-bottom:10px;text-align:center;border:2px solid var(--tl)">
             <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">⏱ Sərf olunan vaxt</div>
-            <div style="font-size:32px;font-weight:700;color:var(--tl);font-family:'DM Mono',monospace;line-height:1">${fmtTime(dm)}</div>
-            <div style="font-size:11px;color:var(--t3);margin-top:4px">Plan: ${s.hours} saat</div>
-          </div>` : ''}
+            <div style="font-size:32px;font-weight:700;color:var(--tl);font-family:'DM Mono',monospace;line-height:1">${dm?fmtTime(dm):'—'}</div>
+            <div style="font-size:11px;color:var(--t3);margin-top:4px">Plan: ${s.hours} saat${dm?' · Fərq: '+(dm>s.hours*60?'+':'')+Math.round(dm-s.hours*60)+' dəq':''}</div>
+          </div>
           <div class="task-meta">
             <div class="tm-i"><div class="tm-k">Model</div><div class="tm-v">${m.name.split('—')[0].trim()}</div></div>
             <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div>
@@ -2047,12 +2047,25 @@ function dStart(oid,si,key,dept){
 async function renderLogisticsDept(){
   showLoader();
   const [{data:orders},{data:models}] = await Promise.all([
-    sb.from('orders').select('*').in('status',['ready','delivering']).order('created_at',{ascending:true}),
+    sb.from('orders').select('*').not('status', 'eq', 'delivered').order('created_at',{ascending:true}),
     sb.from('models').select('*'),
   ]);
   hideLoader();
   
-  const all = orders||[];
+  const allModels = models || [];
+  console.log('[LOGISTICS] Toplam sifariş (delivered xaric):', (orders||[]).length);
+  console.log('[LOGISTICS] Statuslar:', (orders||[]).map(o=>({id:o.id,status:o.status,stage:o.current_stage})));
+  
+  // Sifarişləri filtrlə: status=ready/delivering OR mərhələlər hamısı bitib
+  const all = (orders||[]).filter(o=>{
+    if(o.status === 'ready' || o.status === 'delivering') return true;
+    const m = allModels.find(x=>x.id===o.model_id);
+    if(!m || !m.stages) return false;
+    return o.current_stage > m.stages.length;
+  });
+  
+  console.log('[LOGISTICS] Filter sonrası:', all.length);
+  
   document.getElementById('dt-cnt').textContent = all.length;
   const tl = document.getElementById('dept-task-list');
   
@@ -2066,7 +2079,7 @@ async function renderLogisticsDept(){
   }
   
   tl.innerHTML = all.map(o=>{
-    const m = models?.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
+    const m = allModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
     const modelImg = m.img_url 
       ? `<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`
       : `<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
@@ -2103,8 +2116,30 @@ async function dDone(oid,si,key,dept,totalStages){
   const durMin=startTime?Math.round((new Date(now)-new Date(startTime))/60000):null;
   localStorage.setItem(key+'_d','1');
   localStorage.setItem(key+'_dt',now);
-  const newStage=parseInt(si)+1;
-  const newStatus=newStage>parseInt(totalStages)?'ready':'in_progress';
+  
+  // Model-ə bax — növbəti mərhələ logistics-dirsə, atla
+  let newStage = parseInt(si) + 1;
+  let newStatus = 'in_progress';
+  
+  try{
+    const {data:order} = await sb.from('orders').select('model_id').eq('id',oid).single();
+    const {data:model} = await sb.from('models').select('stages').eq('id',order.model_id).single();
+    const stages = model?.stages || [];
+    
+    // Növbəti mərhələ yoxdursa → ready
+    if(newStage > parseInt(totalStages)){
+      newStatus = 'ready';
+    } else {
+      // Növbəti mərhələ logistics-dirsə → status=ready, amma stage orada saxlansın
+      const nextStage = stages[newStage-1];
+      if(nextStage && nextStage.dept === 'logistics'){
+        newStatus = 'ready';
+      }
+    }
+  }catch(e){
+    // Fallback
+    newStatus = newStage > parseInt(totalStages) ? 'ready' : 'in_progress';
+  }
   
   // Timer interval təmizlə
   const timerEl = document.getElementById('timer-'+oid);
@@ -2930,12 +2965,14 @@ async function renderDeptMonthStats(){
   // Target element tap
   let target = document.getElementById('dept-month-stats');
   if(!target){
-    const financeSec = document.querySelector('.sec-card.card-pad');
+    const financeSec = document.querySelector('#finance-stats');
     if(!financeSec) return;
     target = document.createElement('div');
     target.id = 'dept-month-stats';
-    target.style.marginTop = '14px';
-    financeSec.appendChild(target);
+    target.style.marginTop = '20px';
+    target.style.paddingTop = '20px';
+    target.style.borderTop = '1px solid var(--bd)';
+    financeSec.parentElement.appendChild(target);
   }
   
   const sortedDepts = Object.entries(deptStats)
