@@ -2367,35 +2367,42 @@ async function dDone(oid, si, key, dept, totalStages){
   if(isParallel){
     const parallelDepts = currentStage.dept.split('||');
     
-    // Bu stage üçün tamamlanmış şöbələri yoxla
+    // localStorage-ə bu şöbəni "tamamlandı" kimi yadda saxla
+    const lsKey = 'parallel_done_'+oid+'_'+stageIndex;
+    const localDone = JSON.parse(localStorage.getItem(lsKey) || '[]');
+    if(!localDone.includes(dept)) localDone.push(dept);
+    localStorage.setItem(lsKey, JSON.stringify(localDone));
+    
+    // Supabase-dən də yoxla (backup)
     const {data:logs} = await sb.from('task_logs')
       .select('dept_key')
       .eq('order_id', oid)
       .eq('stage_index', stageIndex)
       .not('completed_at', 'is', null);
     
-    const completedDepts = new Set((logs||[]).map(l=>l.dept_key));
+    const dbDone = (logs||[]).map(l=>l.dept_key);
+    // Həm localStorage həm Supabase birləşdir
+    const completedDepts = new Set([...localDone, ...dbDone]);
     
     console.log('[PARALEL]', {
       order: oid,
       stageIndex,
       parallelDepts,
+      localDone,
+      dbDone,
       completedDepts: [...completedDepts],
       parallelMode,
       currentDept: dept
     });
     
     let shouldAdvance = false;
-    if(parallelMode === 'all'){
+    if(parallelMode === 'all' || !parallelMode){
       shouldAdvance = parallelDepts.every(d=>completedDepts.has(d));
     } else if(parallelMode === 'any'){
       shouldAdvance = true;
-    } else if(parallelMode && parallelMode.startsWith('specific:')){
+    } else if(parallelMode.startsWith('specific:')){
       const requiredDept = parallelMode.split(':')[1];
       shouldAdvance = completedDepts.has(requiredDept);
-    } else {
-      // Mode olmayan köhnə modellər üçün - hər ikisi bitsin
-      shouldAdvance = parallelDepts.every(d=>completedDepts.has(d));
     }
     
     console.log('[PARALEL] shouldAdvance:', shouldAdvance);
@@ -2406,6 +2413,9 @@ async function dDone(oid, si, key, dept, totalStages){
       setTimeout(()=>renderDeptTasks(dept), 300);
       return;
     }
+    
+    // Hər ikisi bitdi — localStorage təmizlə
+    localStorage.removeItem(lsKey);
   }
   
   // === ADDIM 6: Növbəti stage hesabla ===
