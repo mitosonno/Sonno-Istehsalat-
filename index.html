@@ -2050,21 +2050,40 @@ async function renderLogisticsDept(){
     sb.from('orders').select('*').not('status', 'eq', 'delivered').order('created_at',{ascending:true}),
     sb.from('models').select('*'),
   ]);
-  hideLoader();
   
   const allModels = models || [];
   console.log('[LOGISTICS] Toplam sifariş (delivered xaric):', (orders||[]).length);
-  console.log('[LOGISTICS] Statuslar:', (orders||[]).map(o=>({id:o.id,status:o.status,stage:o.current_stage})));
+  console.log('[LOGISTICS] Statuslar:', (orders||[]).map(o=>({id:o.id,num:o.order_number,status:o.status,stage:o.current_stage})));
   
-  // Sifarişləri filtrlə: status=ready/delivering OR mərhələlər hamısı bitib
-  const all = (orders||[]).filter(o=>{
-    if(o.status === 'ready' || o.status === 'delivering') return true;
+  // Avtomatik düzəliş: mərhələsi bitib amma status=ready deyilsə → düzəlt
+  const stuckOrders = (orders||[]).filter(o=>{
+    if(o.status === 'ready' || o.status === 'delivering') return false;
     const m = allModels.find(x=>x.id===o.model_id);
     if(!m || !m.stages) return false;
+    // Sonuncu mərhələ logistics-dirsə və current_stage onun üzərindədirsə
+    const lastStage = m.stages[m.stages.length-1];
+    if(lastStage?.dept === 'logistics' && o.current_stage >= m.stages.length){
+      return true;
+    }
+    // Bütün mərhələlər bitib
     return o.current_stage > m.stages.length;
   });
   
-  console.log('[LOGISTICS] Filter sonrası:', all.length);
+  if(stuckOrders.length){
+    console.log('[LOGISTICS] Ready-ə keçirilir:', stuckOrders.map(o=>o.order_number));
+    await Promise.all(stuckOrders.map(o=>
+      sb.from('orders').update({status:'ready'}).eq('id',o.id)
+    ));
+    // Status-ları yerli dəyiş
+    stuckOrders.forEach(o=>o.status='ready');
+  }
+  
+  hideLoader();
+  
+  // İndi filter
+  const all = (orders||[]).filter(o=>o.status === 'ready' || o.status === 'delivering');
+  
+  console.log('[LOGISTICS] Göstərilir:', all.length);
   
   document.getElementById('dt-cnt').textContent = all.length;
   const tl = document.getElementById('dept-task-list');
