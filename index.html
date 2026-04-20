@@ -883,27 +883,27 @@ async function validateDeadline(input){
   const dateStr = input.value;
   if(!dateStr) return;
   
-  const d = new Date(dateStr);
-  const dow = d.getDay();
-  
-  // Bu gün və ya keçmişdirsə blokla
+  let d = new Date(dateStr);
   const today = new Date();
   today.setHours(0,0,0,0);
+  
+  // Bu gün və ya keçmişdirsə növbəti iş gününə keç
   if(d <= today){
-    toast('⚠ Bugün və ya keçmiş tarix seçilə bilməz');
-    input.value = '';
-    return;
+    d = new Date(today);
+    d.setDate(d.getDate()+1);
+    toast('⚠ Keçmiş tarix seçilə bilməz — sabaha köçürüldü');
   }
   
-  // Şənbə-Bazar blokla
-  if(dow === 0 || dow === 6){
-    toast('⚠ Şənbə və Bazar günü seçilə bilməz');
-    input.value = '';
-    return;
+  // Şənbə-Bazar — növbəti iş gününə keç
+  while(d.getDay() === 0 || d.getDay() === 6){
+    d.setDate(d.getDate()+1);
+    toast('⚠ Həftə sonu — növbəti iş gününə köçürüldü');
   }
+  
+  input.value = d.toISOString().split('T')[0];
   
   // Günlük limit yoxla
-  await checkDailyLimit(dateStr, input);
+  await checkDailyLimit(input.value, input);
 }
 
 async function getDailyLimit(){
@@ -1551,11 +1551,35 @@ async function showOD(id){
         </div>`;
       }).join('')}
     </div>
-    ${totalMin>0?`<div style="margin-top:14px;padding:12px;background:var(--lt);border-radius:var(--r);font-size:13px"><b style="color:var(--tl)">Ümumi istehsal vaxtı: ${fmtTime(totalMin)}</b></div>`:''}`;
+    ${totalMin>0?`<div style="margin-top:14px;padding:12px;background:var(--lt);border-radius:var(--r);font-size:13px"><b style="color:var(--tl)">Ümumi istehsal vaxtı: ${fmtTime(totalMin)}</b></div>`:''}
+    
+    <div style="margin-top:16px;padding:14px;background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:10px;border:1px solid var(--tl)">
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px">📎 Müştəri üçün kataloq linki</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="od-link" readonly value="${location.origin}${location.pathname}?order=${o.id}" style="flex:1;padding:8px 10px;border:1px solid var(--bd);border-radius:6px;font-size:11px;font-family:'DM Mono',monospace;background:#fff">
+        <button onclick="copyOrderLink('${o.id}')" style="padding:8px 14px;background:var(--tl);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;white-space:nowrap">📋 Kopyala</button>
+      </div>
+      <div style="font-size:11px;color:var(--t3);margin-top:6px">Bu linki müştəriyə göndərsəniz — sifarişin detallarını və şəkillərini görə bilər</div>
+    </div>`;
   openSheet('order-detail');
 }
 
 // ═══════════ ORDER CREATE ═══════════
+function copyOrderLink(oid){
+  const url = location.origin + location.pathname + '?order=' + oid;
+  navigator.clipboard.writeText(url).then(()=>{
+    toast('✓ Link kopyalandı');
+  }).catch(()=>{
+    // fallback
+    const input = document.getElementById('od-link');
+    if(input){
+      input.select();
+      document.execCommand('copy');
+      toast('✓ Link kopyalandı');
+    }
+  });
+}
+
 function renderOrderForm(){
   renderProductGrid(appModels);
   const deadInput = document.getElementById('o-dead');
@@ -2022,11 +2046,20 @@ async function renderDeptTasks(dept){
     const done=[];
     orders.forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);if(!m)return;
+      const parallelDone = (o.parallel_done_depts || '').split(',').filter(x=>x);
       (m.stages||[]).forEach((s,i)=>{
         const stageDept = s.dept;
-        // Paralel və ya tam uyğun
-        if((stageDept===dept || (stageDept.includes('||') && stageDept.split('||').includes(dept))) && o.current_stage>i+1){
+        const isParallel = stageDept.includes('||');
+        const matches = stageDept===dept || (isParallel && stageDept.split('||').includes(dept));
+        if(!matches) return;
+        
+        // Mövcud mərhələdən irəlidirsə tamamlanıb
+        if(o.current_stage > i+1){
           done.push({o,m,s,stageNum:i+1});
+        }
+        // Paralel şöbə olub bu dept artıq tamamlayıb amma digər hələ işləyir
+        else if(isParallel && o.current_stage === i+1 && parallelDone.includes(dept)){
+          done.push({o,m,s,stageNum:i+1,parallelWaiting:true});
         }
       });
     });
@@ -2063,8 +2096,8 @@ async function renderDeptTasks(dept){
         <div class="task-card-body">
           <div style="background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:12px;padding:14px;margin-bottom:10px;text-align:center;border:2px solid var(--tl)">
             <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">⏱ Sərf olunan vaxt</div>
-            <div style="font-size:32px;font-weight:700;color:var(--tl);font-family:'DM Mono',monospace;line-height:1">${dm?fmtTime(dm):'—'}</div>
-            <div style="font-size:11px;color:var(--t3);margin-top:4px">Plan: ${s.hours} saat${dm?' · Fərq: '+(dm>s.hours*60?'+':'')+Math.round(dm-s.hours*60)+' dəq':''}</div>
+            <div style="font-size:32px;font-weight:700;color:var(--tl);font-family:'DM Mono',monospace;line-height:1">${dm?dm+' dəq':'—'}</div>
+            <div style="font-size:11px;color:var(--t3);margin-top:4px">Plan: ${s.hours*60} dəq${dm?' · Fərq: '+(dm>s.hours*60?'+':'')+Math.round(dm-s.hours*60)+' dəq':''}</div>
           </div>
           <div class="task-meta">
             <div class="tm-i"><div class="tm-k">Model</div><div class="tm-v">${m.name.split('—')[0].trim()}</div></div>
@@ -2266,8 +2299,16 @@ async function renderLogisticsDept(){
           <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600">${o.client}</div></div>
           <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-size:20px;font-weight:700">${o.qty}</div></div>
           <div class="tm-i"><div class="tm-k">Məbləğ</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.final_price||0} ₼</div></div>
-          <div class="tm-i"><div class="tm-k">Ünvan</div><div class="tm-v">${o.address||'—'}</div></div>
+          <div class="tm-i"><div class="tm-k">Satış</div><div class="tm-v">${o.sale_type==='showroom'?'🏪 Vitrin':'💵 Nağd'}</div></div>
         </div>
+        ${(o.fabric||o.color||o.fabric_company||o.legs||o.notes) ? `
+        <div style="background:var(--lt);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:12px;line-height:1.7">
+          ${o.fabric ? `<div><b>🧶 Parça:</b> ${o.fabric}</div>` : ''}
+          ${o.color ? `<div><b>🏷️ Parça kodu:</b> ${o.color}</div>` : ''}
+          ${o.fabric_company ? `<div><b>🏭 Parça satan:</b> ${o.fabric_company}</div>` : ''}
+          ${o.legs ? `<div><b>🦵 Ayaq rəngi:</b> ${o.legs}</div>` : ''}
+          ${o.notes ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)"><b>📝 Qeyd:</b> ${o.notes}</div>` : ''}
+        </div>` : ''}
         <div class="task-btns">
           <button class="btn btn-t btn-lg btn-full" onclick="markDel('${o.id}')">✓ Təslim et və imzala</button>
         </div>
@@ -2975,17 +3016,24 @@ async function loadDeptAnalytics(){
   
   showLoader();
   
-  // Tarix range
-  const startDT = date + 'T' + timeFrom + ':00';
-  const endDT = date + 'T' + timeTo + ':59';
+  // Tarix aralığı — lokal vaxtdan UTC-ə çevir
+  const startLocal = new Date(date + 'T' + timeFrom + ':00');
+  const endLocal = new Date(date + 'T' + timeTo + ':59');
+  const startDT = startLocal.toISOString();
+  const endDT = endLocal.toISOString();
   
-  // Task logs yüklə - bu şöbədə, bu vaxt aralığında tamamlanmış
-  const {data:logs} = await sb.from('task_logs')
+  console.log('[ANALYTICS]', {dept, startDT, endDT});
+  
+  // Task logs yüklə
+  const {data:logs, error} = await sb.from('task_logs')
     .select('*')
     .eq('dept_key', dept)
     .gte('completed_at', startDT)
     .lte('completed_at', endDT)
     .not('completed_at','is',null);
+  
+  if(error) console.error('[ANALYTICS] xəta:', error);
+  console.log('[ANALYTICS] tapılan loglar:', logs?.length);
   
   // Sifariş və model məlumatı
   const orderIds = [...new Set((logs||[]).map(l=>l.order_id))];
