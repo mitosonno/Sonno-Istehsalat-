@@ -1893,11 +1893,10 @@ async function renderDeptTasks(dept){
   // Parça alış tab - yalnız Tikiş şöbəsində görünsün
   const sharedTabBtn = document.getElementById('dept-tab-shared');
   if(sharedTabBtn){
-    if(dept === 'tikis'){
+    if(dept === 'tikis' || dept === 'tikiş'){
       sharedTabBtn.style.display = '';
     } else {
       sharedTabBtn.style.display = 'none';
-      // Əgər tikiş deyil və curDeptTab shared-dirsə, aktiv-ə qayıt
       if(curDeptTab === 'shared'){
         curDeptTab = 'active';
         switchDeptTab('active');
@@ -2158,13 +2157,18 @@ async function renderDeptTasks(dept){
   } else if(curDeptTab==='shared'){
     // PARÇA ALIŞ TAB — ötürülmüş sifarişlər
     const sharedTasks=[];
+    // Həm dept, həm alternativ variant (tikis/tikiş)
+    const altDept = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : null);
+    
     orders.filter(o=>!['delivered','delivering'].includes(o.status)).forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);
       if(!m) return;
       const stages=m.stages||[];
       const sharedWith = (o.shared_with || '').split(',').filter(x=>x);
       
-      if(sharedWith.includes(dept)){
+      const matches = sharedWith.includes(dept) || (altDept && sharedWith.includes(altDept));
+      
+      if(matches){
         const si = o.current_stage-1;
         const currentStage = stages[si] || stages[0] || {name:'?',dept:dept,hours:0};
         sharedTasks.push({o,m,s:currentStage,si:o.current_stage,isShared:true});
@@ -2240,8 +2244,9 @@ async function renderDeptTasks(dept){
     return;
   } else {
     // TAMAMLANANLAR — bu şöbənin task_logs-da completed_at olan bütün loglarına bax
+    const altDept = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : null);
     const completedLogs = (allLogs||[]).filter(l => 
-      l.dept_key === dept && l.completed_at && l.stage_index >= 0
+      (l.dept_key === dept || (altDept && l.dept_key === altDept)) && l.completed_at && l.stage_index >= 0
     );
     
     const done = [];
