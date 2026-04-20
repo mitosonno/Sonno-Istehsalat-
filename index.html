@@ -470,7 +470,8 @@ textarea{resize:vertical;min-height:80px}
           </div>
           <!-- TABS -->
           <div style="display:flex;gap:4px;margin-bottom:14px;background:rgba(17,24,32,.05);border-radius:var(--r);padding:4px">
-            <button id="dept-tab-active" onclick="switchDeptTab('active')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:var(--sf);color:var(--tl);box-shadow:0 1px 4px rgba(0,0,0,.08)">▶ Aktiv tapşırıqlar</button>
+            <button id="dept-tab-active" onclick="switchDeptTab('active')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:var(--sf);color:var(--tl);box-shadow:0 1px 4px rgba(0,0,0,.08)">▶ Aktiv</button>
+            <button id="dept-tab-shared" onclick="switchDeptTab('shared')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2)">📨 Parça alış</button>
             <button id="dept-tab-done" onclick="switchDeptTab('done')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2)">✓ Tamamlananlar</button>
           </div>
           <div id="dept-task-list"></div>
@@ -1841,14 +1842,18 @@ let curDeptTab = 'active';
 function switchDeptTab(tab){
   curDeptTab = tab;
   const ta=document.getElementById('dept-tab-active');
+  const ts=document.getElementById('dept-tab-shared');
   const td=document.getElementById('dept-tab-done');
-  if(tab==='active'){
-    ta.style.background='var(--sf)';ta.style.color='var(--tl)';ta.style.boxShadow='0 1px 4px rgba(0,0,0,.08)';
-    td.style.background='transparent';td.style.color='var(--t2)';td.style.boxShadow='none';
-  }else{
-    td.style.background='var(--sf)';td.style.color='var(--tl)';td.style.boxShadow='0 1px 4px rgba(0,0,0,.08)';
-    ta.style.background='transparent';ta.style.color='var(--t2)';ta.style.boxShadow='none';
-  }
+  
+  // Hamısını qeyri-aktiv et
+  [ta,ts,td].forEach(btn=>{
+    if(btn){btn.style.background='transparent';btn.style.color='var(--t2)';btn.style.boxShadow='none';}
+  });
+  
+  // Aktiv tab-ı vurgula
+  const active = tab==='active' ? ta : (tab==='shared' ? ts : td);
+  if(active){active.style.background='var(--sf)';active.style.color='var(--tl)';active.style.boxShadow='0 1px 4px rgba(0,0,0,.08)';}
+  
   if(pinDept) renderDeptTasks(pinDept);
 }
 
@@ -1910,6 +1915,7 @@ async function renderDeptTasks(dept){
       // Bu sifarişdə paralel mərhələdə bu şöbə tamamlanıbsa siyahıya qoyma
       const parallelDone = (o.parallel_done_depts || '').split(',').filter(x=>x);
       const sharedWith = (o.shared_with || '').split(',').filter(x=>x);
+      const sharedDoneDepts = (o.shared_done_depts || '').split(',').filter(x=>x);
       
       // 1) Cari mərhələ
       const si=o.current_stage-1;
@@ -1918,12 +1924,13 @@ async function renderDeptTasks(dept){
         const stage=stages[si];
         const stageKey = o.id+'_'+si+'_'+dept;
         
-        // Paralel stage-dədirsə və bu şöbə artıq tamamlayıbsa — göstərmə
         const isParallel = stage.dept.includes('||');
-        if(isParallel && parallelDone.includes(dept)){
-          // Bu şöbə artıq bitirib, gözləyir
-        } else {
-          if(stage.dept===dept || (isParallel && stage.dept.split('||').includes(dept))){
+        const matches = stage.dept===dept || (isParallel && stage.dept.split('||').includes(dept));
+        
+        if(matches){
+          if(isParallel && parallelDone.includes(dept)){
+            // Paralel-də artıq tamamlayıb
+          } else {
             tasks.push({o,m,s:stage,si:o.current_stage});
             addedStages.add(stageKey);
             addedAsActive = true;
@@ -1946,12 +1953,6 @@ async function renderDeptTasks(dept){
         addedStages.add(stageKey);
         addedAsActive = true;
       }
-      
-      // 3) Ötürülmüş sifariş — bu şöbəyə shared_with-də var amma özündə aktiv deyil
-      if(!addedAsActive && sharedWith.includes(dept)){
-        const currentStage = stages[si] || stages[0];
-        tasks.push({o,m,s:currentStage,si:o.current_stage,isShared:true});
-      }
     });
 
     console.log('['+dept+'] tasks:',tasks.length);
@@ -1960,12 +1961,14 @@ async function renderDeptTasks(dept){
       // Fon (background) olanlar sona gəlsin
       if(a.isBackground && !b.isBackground) return 1;
       if(!a.isBackground && b.isBackground) return -1;
+      
       if(a.o.deadline&&b.o.deadline)return new Date(a.o.deadline)-new Date(b.o.deadline);
       if(a.o.deadline)return -1;if(b.o.deadline)return 1;
       return new Date(a.o.created_at||0)-new Date(b.o.created_at||0);
     });
-    const vis=tasks.slice(0,5);
-    const hidden=tasks.length-vis.length;
+    
+    const vis = tasks.slice(0,5);
+    const hidden = tasks.length - vis.length;
     document.getElementById('dt-cnt').textContent=tasks.length;
     const tl=document.getElementById('dept-task-list');
 
@@ -2002,35 +2005,46 @@ async function renderDeptTasks(dept){
       const modelImg=m.img_url?`<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
 
       if(isShared){
-        // Ötürülmüş sifariş — info kartı, Başla/Tamamla yoxdur
-        return `<div class="task-card" id="tcard-${o.id}" style="border:2px dashed var(--or);background:linear-gradient(135deg,#fff5ed,#fff)">
-          <div class="task-card-top" style="background:var(--lo)">
+        // Ötürülmüş sifariş — "Aldım" sistemi
+        const shKey = `sh_${o.id}_${dept}`;
+        const sharedDoneDepts = (o.shared_done_depts||'').split(',').filter(x=>x);
+        const received = sharedDoneDepts.includes(dept);
+        
+        const cardStyle = received 
+          ? 'border:1px dashed var(--bd);background:#f5f5f5;opacity:0.6'
+          : 'border:2px dashed var(--or);background:linear-gradient(135deg,#fff5ed,#fff)';
+        
+        return `<div class="task-card" id="tcard-${o.id}" style="${cardStyle}">
+          <div class="task-card-top" style="background:${received?'#eee':'var(--lo)'}">
             <div style="display:flex;align-items:center;gap:10px;flex:1">
               ${modelImg}
               <div style="flex:1">
-                <div style="font-size:15px;font-weight:700">📨 ${m.name.split('—')[0].trim()}</div>
-                <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · Önəmli məlumat</div>
+                <div style="font-size:15px;font-weight:700;${received?'text-decoration:line-through;color:#888':''}">📨 ${m.name.split('—')[0].trim()}</div>
+                <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${received?'Alındı':'Önəmli məlumat'}</div>
               </div>
             </div>
-            <span class="badge" style="background:var(--or);color:#fff">📨 Ötürülüb</span>
+            <span class="badge" style="background:${received?'#aaa':'var(--or)'};color:#fff">${received?'✓ Alındı':'📨 Ötürülüb'}</span>
           </div>
           <div class="task-card-body">
-            <div style="background:var(--lo);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#854F0B">
-              <b>💡 Məlumat üçün:</b> Bu sifariş başqa şöbə tərəfindən sizə önəmli məlumat kimi ötürülüb. Əvvəlcədən hazırlığa başlaya bilərsiniz. Faktiki tapşırığınız olduqda sifariş aktiv iş kimi görünəcək.
-            </div>
+            ${!received ? `<div style="background:var(--lo);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#854F0B">
+              <b>💡 Bildiriş:</b> Bu sifariş üçün parçanı hazırla. Parçanı alandan sonra <b>✓ Aldım</b> düyməsinə bas.
+            </div>` : ''}
             <div class="task-meta">
-              <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600">${o.client}</div></div>
-              <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--or);font-size:20px;font-weight:700">${o.qty}</div></div>
+              <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600;${received?'text-decoration:line-through':''}">${o.client}</div></div>
+              <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:${received?'#888':'var(--or)'};font-size:20px;font-weight:700;${received?'text-decoration:line-through':''}">${o.qty}</div></div>
               <div class="tm-i"><div class="tm-k">Cari mərhələ</div><div class="tm-v">${si}/${total}</div></div>
               <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v">${o.deadline||'—'}</div></div>
             </div>
             ${(o.fabric||o.color||o.fabric_company||o.legs||o.notes) ? `
-            <div style="background:var(--lt);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:12px;line-height:1.7">
+            <div style="background:${received?'#f5f5f5':'var(--lt)'};border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:12px;line-height:1.7;${received?'text-decoration:line-through;color:#888':''}">
               ${o.fabric ? `<div><b>🧶 Parça:</b> ${o.fabric}</div>` : ''}
               ${o.color ? `<div><b>🏷️ Parça kodu:</b> ${o.color}</div>` : ''}
               ${o.fabric_company ? `<div><b>🏭 Parça satan:</b> ${o.fabric_company}</div>` : ''}
               ${o.legs ? `<div><b>🦵 Ayaq rəngi:</b> ${o.legs}</div>` : ''}
               ${o.notes ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)"><b>📝 Qeyd:</b> ${o.notes}</div>` : ''}
+            </div>` : ''}
+            ${!received ? `<div class="task-btns">
+              <button class="btn btn-t btn-lg btn-full" onclick="sharedReceive('${o.id}','${dept}')">✓ Aldım</button>
             </div>` : ''}
           </div>
         </div>`;
@@ -2119,8 +2133,90 @@ async function renderDeptTasks(dept){
       }
     });
 
+  } else if(curDeptTab==='shared'){
+    // PARÇA ALIŞ TAB — ötürülmüş sifarişlər
+    const sharedTasks=[];
+    orders.filter(o=>!['delivered','delivering'].includes(o.status)).forEach(o=>{
+      const m=models.find(x=>x.id===o.model_id);
+      if(!m) return;
+      const stages=m.stages||[];
+      const sharedWith = (o.shared_with || '').split(',').filter(x=>x);
+      
+      if(sharedWith.includes(dept)){
+        const si = o.current_stage-1;
+        const currentStage = stages[si] || stages[0] || {name:'?',dept:dept,hours:0};
+        sharedTasks.push({o,m,s:currentStage,si:o.current_stage,isShared:true});
+      }
+    });
+    
+    // Sort — alınmayıb yuxarıda, alınıb aşağıda
+    sharedTasks.sort((a,b)=>{
+      const aReceived = (a.o.shared_done_depts||'').split(',').includes(dept);
+      const bReceived = (b.o.shared_done_depts||'').split(',').includes(dept);
+      if(aReceived && !bReceived) return 1;
+      if(!aReceived && bReceived) return -1;
+      if(a.o.deadline&&b.o.deadline) return new Date(a.o.deadline)-new Date(b.o.deadline);
+      return 0;
+    });
+    
+    const vis = sharedTasks;
+    const hidden = 0;
+    document.getElementById('dt-cnt').textContent = sharedTasks.length;
+    const tl = document.getElementById('dept-task-list');
+    
+    if(!vis.length){
+      tl.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:48px;margin-bottom:12px">📨</div><div style="font-weight:600;color:var(--or);font-size:16px">Parça alış sifarişi yoxdur</div><div style="font-size:13px;margin-top:6px;color:var(--t3)">Başqa şöbədən ötürüldükdə burada görünəcək</div></div>`;
+      return;
+    }
+    
+    // Shared kartları render et (eyni kod aktiv tab kimi)
+    tl.innerHTML = vis.map(({o,m,s,si})=>{
+      const modelImg=m.img_url?`<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
+      const total = (m.stages||[]).length;
+      const sharedDoneDepts = (o.shared_done_depts||'').split(',').filter(x=>x);
+      const received = sharedDoneDepts.includes(dept);
+      
+      const cardStyle = received 
+        ? 'border:1px dashed var(--bd);background:#f5f5f5;opacity:0.6'
+        : 'border:2px dashed var(--or);background:linear-gradient(135deg,#fff5ed,#fff)';
+      
+      return `<div class="task-card" id="tcard-${o.id}" style="${cardStyle}">
+        <div class="task-card-top" style="background:${received?'#eee':'var(--lo)'}">
+          <div style="display:flex;align-items:center;gap:10px;flex:1">
+            ${modelImg}
+            <div style="flex:1">
+              <div style="font-size:15px;font-weight:700;${received?'text-decoration:line-through;color:#888':''}">📨 ${m.name.split('—')[0].trim()}</div>
+              <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${received?'Alındı':'Parça gözlənir'}</div>
+            </div>
+          </div>
+          <span class="badge" style="background:${received?'#aaa':'var(--or)'};color:#fff">${received?'✓ Alındı':'📨 Ötürülüb'}</span>
+        </div>
+        <div class="task-card-body">
+          ${!received ? `<div style="background:var(--lo);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#854F0B">
+            <b>💡 Bildiriş:</b> Bu sifariş üçün parçanı hazırla. Parçanı alandan sonra <b>✓ Aldım</b> düyməsinə bas.
+          </div>` : ''}
+          <div class="task-meta">
+            <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600;${received?'text-decoration:line-through':''}">${o.client}</div></div>
+            <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:${received?'#888':'var(--or)'};font-size:20px;font-weight:700;${received?'text-decoration:line-through':''}">${o.qty}</div></div>
+            <div class="tm-i"><div class="tm-k">Cari mərhələ</div><div class="tm-v">${si}/${total}</div></div>
+            <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v">${o.deadline||'—'}</div></div>
+          </div>
+          ${(o.fabric||o.color||o.fabric_company||o.legs||o.notes) ? `
+          <div style="background:${received?'#f5f5f5':'var(--lt)'};border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:12px;line-height:1.7;${received?'text-decoration:line-through;color:#888':''}">
+            ${o.fabric ? `<div><b>🧶 Parça:</b> ${o.fabric}</div>` : ''}
+            ${o.color ? `<div><b>🏷️ Parça kodu:</b> ${o.color}</div>` : ''}
+            ${o.fabric_company ? `<div><b>🏭 Parça satan:</b> ${o.fabric_company}</div>` : ''}
+            ${o.legs ? `<div><b>🦵 Ayaq rəngi:</b> ${o.legs}</div>` : ''}
+            ${o.notes ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)"><b>📝 Qeyd:</b> ${o.notes}</div>` : ''}
+          </div>` : ''}
+          ${!received ? `<div class="task-btns">
+            <button class="btn btn-t btn-lg btn-full" onclick="sharedReceive('${o.id}','${dept}')">✓ Aldım</button>
+          </div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    return;
   } else {
-    const done=[];
     orders.forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);if(!m)return;
       const parallelDone = (o.parallel_done_depts || '').split(',').filter(x=>x);
@@ -2432,6 +2528,44 @@ async function forwardToDept(oid, toDept, fromDept){
     hideLoader();
     toast('⚠ Xəta: '+(e.message||'Naməlum'));
     console.error('[forward] xətası:', e);
+  }
+}
+
+// Ötürülmüş sifarişdə "Aldım" basıldı
+async function sharedReceive(oid, dept){
+  const now = new Date().toISOString();
+  showLoader();
+  try{
+    const {data:order} = await sb.from('orders').select('shared_done_depts').eq('id', oid).maybeSingle();
+    let doneDepts = (order?.shared_done_depts||'').split(',').filter(x=>x);
+    if(!doneDepts.includes(dept)) doneDepts.push(dept);
+    
+    await sb.from('orders').update({
+      shared_done_depts: doneDepts.join(',')
+    }).eq('id', oid);
+    
+    // Log yaz
+    await sb.from('task_logs').delete()
+      .eq('order_id', oid).eq('dept_key', dept).eq('stage_index', -1);
+    await sb.from('task_logs').insert({
+      order_id: oid,
+      stage_index: -1,
+      worker_id: currentUser.id,
+      worker_name: currentUser.name,
+      dept_key: dept,
+      action: 'shared_received',
+      started_at: now,
+      completed_at: now,
+      duration_minutes: 0
+    });
+    
+    hideLoader();
+    toast('✓ Alındı qeydə alındı');
+    setTimeout(()=>renderDeptTasks(dept), 300);
+  }catch(e){
+    hideLoader();
+    toast('Xəta: '+e.message);
+    console.error('[sharedReceive] xətası:', e);
   }
 }
 
