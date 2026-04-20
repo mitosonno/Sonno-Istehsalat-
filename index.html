@@ -497,6 +497,18 @@ textarea{resize:vertical;min-height:80px}
         <!-- Stats -->
         <div class="stat-grid" id="stat-grid"></div>
 
+        <!-- Şöbə statistikası tarix filtri ilə -->
+        <div class="slbl">📊 Şöbə statistikası</div>
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div style="display:flex;gap:6px;margin-bottom:14px;background:rgba(17,24,32,.05);border-radius:var(--r);padding:4px">
+            <button class="stat-period-btn on" data-period="today" onclick="switchStatPeriod('today')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;background:var(--sf);color:var(--tl);box-shadow:0 1px 4px rgba(0,0,0,.08)">Bu gün</button>
+            <button class="stat-period-btn" data-period="week" onclick="switchStatPeriod('week')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2)">Bu həftə</button>
+            <button class="stat-period-btn" data-period="month" onclick="switchStatPeriod('month')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2)">Bu ay</button>
+            <button class="stat-period-btn" data-period="all" onclick="switchStatPeriod('all')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2)">Hamısı</button>
+          </div>
+          <div id="dept-stats-list"></div>
+        </div>
+
         <!-- AI Chat -->
         <div class="slbl">AI ilə söhbət</div>
         <div class="card card-pad" style="margin-bottom:16px">
@@ -642,7 +654,7 @@ textarea{resize:vertical;min-height:80px}
     <div class="fg"><label>Vəzifə</label><input id="aw-role" placeholder="Məs: Usta, Köməkçi, Operator"></div>
     <div class="fg">
       <label>Şöbə</label>
-      <select id="aw-dept">
+      <select id="aw-dept" style="width:100%;padding:14px 12px;border:2px solid var(--bd);border-radius:10px;font-family:inherit;font-size:15px;background:#fff;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 20 20%22><path fill=%22%23666%22 d=%22M10 12l-4-4h8z%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;background-size:20px;padding-right:35px">
         <option value="">Şöbə seçin</option>
       </select>
     </div>
@@ -880,25 +892,45 @@ function showWarningDialog(count){
 }
 
 // ═══════════ DEADLINE VALIDATION ═══════════
+// Minimum 7 iş günü (yalnız Bazar çıxılır) + sifariş günü çıxılır
+function getMinDeadlineDate(){
+  let d = new Date();
+  d.setHours(0,0,0,0);
+  let daysAdded = 0;
+  // Sifariş günündən sonra başla
+  while(daysAdded < 7){
+    d.setDate(d.getDate()+1);
+    // Bazar günü çıx (0 = Bazar)
+    if(d.getDay() !== 0){
+      daysAdded++;
+    }
+  }
+  return d;
+}
+
 async function validateDeadline(input){
   const dateStr = input.value;
   if(!dateStr) return;
   
   let d = new Date(dateStr);
-  const today = new Date();
-  today.setHours(0,0,0,0);
+  d.setHours(0,0,0,0);
+  const minDate = getMinDeadlineDate();
   
-  // Bu gün və ya keçmişdirsə növbəti iş gününə keç
-  if(d <= today){
-    d = new Date(today);
+  // Bazar günü yoxla — ən yaxın Bazar ertəsinə keç
+  if(d.getDay() === 0){
     d.setDate(d.getDate()+1);
-    toast('⚠ Keçmiş tarix seçilə bilməz — sabaha köçürüldü');
+    toast('⚠ Bazar günü — Bazar ertəsinə köçürüldü');
   }
   
-  // Şənbə-Bazar — növbəti iş gününə keç
-  while(d.getDay() === 0 || d.getDay() === 6){
-    d.setDate(d.getDate()+1);
-    toast('⚠ Həftə sonu — növbəti iş gününə köçürüldü');
+  // Admin deyilsə minimum 7 iş günü yoxla
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  if(!isAdmin && d < minDate){
+    d = new Date(minDate);
+    const minStr = minDate.toLocaleDateString('az-AZ');
+    toast('⚠ Minimum 7 iş günü tələb olunur. Ən tez: '+minStr+'. Tez deadline üçün admin icazəsi lazımdır.', 5000);
+  } else if(isAdmin && d < minDate){
+    const minStr = minDate.toLocaleDateString('az-AZ');
+    toast('⚠ Admin kimi 7 gündən az deadline qəbul etdiniz ('+minStr+' tövsiyə olunur)', 5000);
   }
   
   input.value = d.toISOString().split('T')[0];
@@ -945,7 +977,7 @@ async function suggestNextAvailable(fromDate, limit, newQty, input){
   for(let i=1; i<=60; i++){
     check.setDate(check.getDate()+1);
     const dow = check.getDay();
-    if(dow===0 || dow===6) continue; // Şənbə-Bazar
+    if(dow===0) continue; // Yalnız Bazar çıxılır
     
     const checkStr = check.toISOString().split('T')[0];
     const {data} = await sb.from('orders')
@@ -1586,12 +1618,10 @@ function copyOrderLink(oid){
 function renderOrderForm(){
   renderProductGrid(appModels);
   const deadInput = document.getElementById('o-dead');
-  const minDate = new Date();
-  minDate.setDate(minDate.getDate()+1); // sabahdan başla
+  const minDate = getMinDeadlineDate();
   deadInput.min = minDate.toISOString().split('T')[0];
   if(!deadInput.value){
-    const d=new Date();d.setDate(d.getDate()+7);
-    deadInput.value=d.toISOString().split('T')[0];
+    deadInput.value = minDate.toISOString().split('T')[0];
   }
   // Mobile: stack layout
   if(window.innerWidth<=768){
@@ -3056,6 +3086,114 @@ function openSignatureSheet(order,model){
 }
 
 // ═══════════ AI ANALİZ ═══════════
+// ═══════════ ŞÖBƏ STATİSTİKASI ═══════════
+let curStatPeriod = 'today';
+
+function switchStatPeriod(period){
+  curStatPeriod = period;
+  document.querySelectorAll('.stat-period-btn').forEach(btn=>{
+    if(btn.dataset.period === period){
+      btn.style.background = 'var(--sf)';
+      btn.style.color = 'var(--tl)';
+      btn.style.boxShadow = '0 1px 4px rgba(0,0,0,.08)';
+    } else {
+      btn.style.background = 'transparent';
+      btn.style.color = 'var(--t2)';
+      btn.style.boxShadow = 'none';
+    }
+  });
+  renderDeptStats();
+}
+
+function renderDeptStats(){
+  const orders = window._aiOrders || [];
+  const logs = window._aiLogs || [];
+  
+  const now = new Date();
+  let from;
+  if(curStatPeriod === 'today'){
+    from = new Date(); from.setHours(0,0,0,0);
+  } else if(curStatPeriod === 'week'){
+    from = new Date(); from.setDate(from.getDate()-7); from.setHours(0,0,0,0);
+  } else if(curStatPeriod === 'month'){
+    from = new Date(); from.setMonth(from.getMonth()-1); from.setHours(0,0,0,0);
+  } else {
+    from = new Date(0);
+  }
+  
+  const filteredLogs = logs.filter(l=>{
+    if(!l.completed_at || l.stage_index < 0) return false;
+    return new Date(l.completed_at) >= from;
+  });
+  
+  const deptStats = {};
+  filteredLogs.forEach(l=>{
+    const d = l.dept_key;
+    if(!deptStats[d]){
+      deptStats[d] = {orderIds:new Set(), totalQty:0, totalMin:0, plannedMin:0, taskCount:0, countedOrders:new Set()};
+    }
+    deptStats[d].orderIds.add(l.order_id);
+    deptStats[d].totalMin += (l.duration_minutes || 0);
+    deptStats[d].taskCount++;
+    
+    const o = orders.find(x=>x.id===l.order_id);
+    if(o && !deptStats[d].countedOrders.has(l.order_id)){
+      deptStats[d].totalQty += (o.qty || 0);
+      deptStats[d].countedOrders.add(l.order_id);
+    }
+    
+    const m = appModels.find(x=>x.id===o?.model_id);
+    if(m && m.stages && m.stages[l.stage_index]){
+      deptStats[d].plannedMin += (m.stages[l.stage_index].hours || 0) * 60;
+    }
+  });
+  
+  const container = document.getElementById('dept-stats-list');
+  if(!container) return;
+  
+  const entries = Object.entries(deptStats).sort((a,b)=>b[1].totalMin - a[1].totalMin);
+  
+  if(!entries.length){
+    container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Bu dövrdə məlumat yoxdur</div>';
+    return;
+  }
+  
+  container.innerHTML = entries.map(([dept, s])=>{
+    const info = DEPT_INFO[dept] || DEPT_INFO[dept==='tikis'?'tikiş':(dept==='tikiş'?'tikis':dept)] || {name:dept, icon:'🔧'};
+    const orderCount = s.orderIds.size;
+    const hours = Math.round(s.totalMin/60*10)/10;
+    const avgPerProduct = s.totalQty>0 ? Math.round(s.totalMin/s.totalQty) : 0;
+    const diffMin = Math.round(s.totalMin - s.plannedMin);
+    const diffColor = diffMin>0 ? '#E24B4A' : 'var(--tl)';
+    const diffSign = diffMin>0 ? '+' : '';
+    
+    return '<div style="padding:14px;border:1px solid var(--bd);border-radius:12px;margin-bottom:10px;background:#fff">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
+        '<div style="font-size:15px;font-weight:700">'+info.icon+' '+info.name+'</div>'+
+        '<div style="font-size:20px;font-weight:800;color:var(--tl);font-family:\'DM Mono\',monospace">'+hours+' saat</div>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">'+
+        '<div style="background:var(--lt);padding:8px;border-radius:8px;text-align:center">'+
+          '<div style="font-size:11px;color:var(--t2);font-weight:600">SİFARİŞ</div>'+
+          '<div style="font-size:18px;font-weight:700;color:var(--tl)">'+orderCount+'</div>'+
+        '</div>'+
+        '<div style="background:var(--lt);padding:8px;border-radius:8px;text-align:center">'+
+          '<div style="font-size:11px;color:var(--t2);font-weight:600">MƏHSUL</div>'+
+          '<div style="font-size:18px;font-weight:700;color:var(--tl)">'+s.totalQty+'</div>'+
+        '</div>'+
+        '<div style="background:var(--lt);padding:8px;border-radius:8px;text-align:center">'+
+          '<div style="font-size:11px;color:var(--t2);font-weight:600">ORT/MƏHSUL</div>'+
+          '<div style="font-size:18px;font-weight:700;color:var(--tl)">'+avgPerProduct+' dəq</div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="font-size:11px;color:var(--t2);display:flex;justify-content:space-between">'+
+        '<span>Plan: '+Math.round(s.plannedMin/60*10)/10+' saat</span>'+
+        '<span style="color:'+diffColor+';font-weight:600">Fərq: '+diffSign+diffMin+' dəq</span>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
 async function renderAI(){
   showLoader();
   const [{data:orders},{data:logs}]=await Promise.all([
@@ -3065,6 +3203,13 @@ async function renderAI(){
   hideLoader();
   const all=orders||[];
   const allLogs=logs||[];
+  
+  // Yaddaşa yaz — tarix filtri üçün
+  window._aiOrders = all;
+  window._aiLogs = allLogs;
+  
+  // Şöbə statistikası render
+  renderDeptStats();
 
   // Stats
   const delivered=all.filter(o=>o.status==='delivered');
