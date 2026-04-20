@@ -1870,19 +1870,16 @@ async function renderDeptTasks(dept){
 
   if(curDeptTab==='active'){
     // Bu şöbədə tamamlanmış və başlanmış tapşırıqları tap
-    const {data:allLogsForDept} = await sb.from('task_logs')
-      .select('order_id,stage_index,dept_key,started_at,completed_at')
-      .eq('dept_key', dept);
-    // Hər şöbə üçün ayrı-ayrı set (dept_key ilə)
-    const completedSet = new Set((allLogsForDept||[]).filter(l=>l.completed_at).map(l=>l.order_id+'_'+l.stage_index+'_'+l.dept_key));
-    
     const tasks=[];
-    const addedStages = new Set(); // duplicate qarşısı
+    const addedStages = new Set();
     
     orders.filter(o=>!['delivered','delivering'].includes(o.status)).forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);
       if(!m){console.warn('Model tapilmadi:',o.model_id,o.order_number);return;}
       const stages=m.stages||[];
+      
+      // Bu sifarişdə paralel mərhələdə bu şöbə tamamlanıbsa siyahıya qoyma
+      const parallelDone = (o.parallel_done_depts || '').split(',').filter(x=>x);
       
       // 1) Cari mərhələ
       const si=o.current_stage-1;
@@ -1890,30 +1887,18 @@ async function renderDeptTasks(dept){
         const stage=stages[si];
         const stageKey = o.id+'_'+si+'_'+dept;
         
-        if(!completedSet.has(stageKey)){
-          if(stage.dept===dept || (stage.dept.includes('||') && stage.dept.split('||').includes(dept))){
+        // Paralel stage-dədirsə və bu şöbə artıq tamamlayıbsa — göstərmə
+        const isParallel = stage.dept.includes('||');
+        if(isParallel && parallelDone.includes(dept)){
+          // Bu şöbə artıq bitirib, gözləyir
+        } else {
+          if(stage.dept===dept || (isParallel && stage.dept.split('||').includes(dept))){
             tasks.push({o,m,s:stage,si:o.current_stage});
             addedStages.add(stageKey);
           }
         }
       }
       
-      // 2) Əvvəlki paralel mərhələlərdə hələ tamamlanmamış tapşırıqlar
-      // (məsələn A birinci bitirdi, current_stage irəli getdi, amma B hələ işləyir)
-      for(let i=0; i<si; i++){
-        const stage = stages[i];
-        if(!stage.dept.includes('||')) continue;
-        const parts = stage.dept.split('||');
-        if(!parts.includes(dept)) continue;
-        
-        const stageKey = o.id+'_'+i+'_'+dept;
-        if(completedSet.has(stageKey)) continue; // bu şöbə bu stage-ni artıq bitirib
-        if(addedStages.has(stageKey)) continue;
-        
-        // Bu paralel stage-də bu şöbə hələ işləmir — əlavə et
-        tasks.push({o,m,s:stage,si:i+1,isBackground:true});
-        addedStages.add(stageKey);
-      }
     });
 
     console.log('['+dept+'] tasks:',tasks.length);
@@ -2292,35 +2277,31 @@ async function renderLogisticsDept(){
 }
 
 async function dDone(oid, si, key, dept, totalStages){
-  // === ADDIM 0: Düymələri disable et (ikiqat klik qarşısı) ===
   const doneBtn = document.getElementById('td-'+oid);
   if(doneBtn) doneBtn.disabled = true;
   
   const now = new Date().toISOString();
-  const stageIndex = parseInt(si) - 1; // 0-based (database-də belə)
+  const stageIndex = parseInt(si) - 1;
   
-  // === ADDIM 1: Vaxt hesabla ===
   const startTime = localStorage.getItem(key+'_'+dept+'_t') || localStorage.getItem(key+'_t');
   const durMin = startTime ? Math.max(0, Math.round((new Date(now) - new Date(startTime))/60000)) : null;
   
-  // === ADDIM 2: Model və sifarişi yüklə ===
+  // === Sifariş və model yüklə ===
   let model = null;
   let order = null;
   try{
-    const orderRes = await sb.from('orders').select('model_id, current_stage, status').eq('id', oid).single();
+    const orderRes = await sb.from('orders').select('*').eq('id', oid).single();
     order = orderRes.data;
-    console.log('[dDone] order yüklendi:', order);
     if(order?.model_id){
       const mr = await sb.from('models').select('stages').eq('id', order.model_id).single();
       model = mr.data;
-      console.log('[dDone] model yüklendi:', model?.stages?.length, 'stage');
     }
   }catch(e){
-    console.error('[dDone] data yükləmə xətası:', e);
+    console.error('[dDone] yükləmə xətası:', e);
   }
   
   if(!order || !model){
-    toast('⚠ Sifariş və ya model tapılmadı');
+    toast('⚠ Sifariş tapılmadı');
     if(doneBtn) doneBtn.disabled = false;
     return;
   }
@@ -2330,139 +2311,129 @@ async function dDone(oid, si, key, dept, totalStages){
   const isParallel = currentStage?.dept?.includes('||');
   const parallelMode = isParallel ? (currentStage.mode || 'all') : null;
   
-  // === ADDIM 3: Task_logs-a yaz (köhnə rekordu silib yenisini yaz) ===
+  console.log('[dDone] başlayır:', {oid, si, dept, isParallel, parallelMode, current_stage: order.current_stage});
+  
+  // === Log yaz (statistika üçün) ===
   try{
-    // Əvvəl bu üçlüyə uyğun rekordu sil
     await sb.from('task_logs')
       .delete()
       .eq('order_id', oid)
       .eq('stage_index', stageIndex)
       .eq('dept_key', dept);
-    
-    // İndi təzə rekord yaz
     await sb.from('task_logs').insert({
-      order_id: oid,
-      stage_index: stageIndex,
-      worker_id: currentUser.id,
-      worker_name: currentUser.name,
-      dept_key: dept,
-      action: 'completed',
-      started_at: startTime || now,
-      completed_at: now,
+      order_id: oid, stage_index: stageIndex,
+      worker_id: currentUser.id, worker_name: currentUser.name,
+      dept_key: dept, action: 'completed',
+      started_at: startTime || now, completed_at: now,
       duration_minutes: durMin
     });
-  }catch(e){
-    console.error('[dDone] log xətası:', e);
-  }
+  }catch(e){console.error('[dDone] log xətası:',e);}
   
-  // === ADDIM 4: "Fon iş" halı — sifariş artıq irəli getdi (paralel) ===
-  if(isParallel && order.current_stage > parseInt(si)){
-    hideTaskCard(oid);
-    toast('✅ Tamamlandı (fon iş) — sifariş artıq irəli gedib');
-    setTimeout(()=>renderDeptTasks(dept), 300);
-    return;
-  }
-  
-  // === ADDIM 5: Paralel — hamısının bitməsini gözləsin? ===
+  // === PARALEL HAL ===
   if(isParallel){
     const parallelDepts = currentStage.dept.split('||');
     
-    // localStorage-ə bu şöbəni "tamamlandı" kimi yadda saxla
-    const lsKey = 'parallel_done_'+oid+'_'+stageIndex;
-    const localDone = JSON.parse(localStorage.getItem(lsKey) || '[]');
-    if(!localDone.includes(dept)) localDone.push(dept);
-    localStorage.setItem(lsKey, JSON.stringify(localDone));
+    // Orders.parallel_done_depts sütununu oxu - format: "hazirlik,ayaq_bagla"
+    let doneDepts = (order.parallel_done_depts || '').split(',').filter(x=>x);
+    if(!doneDepts.includes(dept)) doneDepts.push(dept);
     
-    // Supabase-dən də yoxla (backup)
-    const {data:logs} = await sb.from('task_logs')
-      .select('dept_key')
-      .eq('order_id', oid)
-      .eq('stage_index', stageIndex)
-      .not('completed_at', 'is', null);
-    
-    const dbDone = (logs||[]).map(l=>l.dept_key);
-    // Həm localStorage həm Supabase birləşdir
-    const completedDepts = new Set([...localDone, ...dbDone]);
-    
-    console.log('[PARALEL]', {
-      order: oid,
-      stageIndex,
-      parallelDepts,
-      localDone,
-      dbDone,
-      completedDepts: [...completedDepts],
-      parallelMode,
-      currentDept: dept
-    });
-    
-    let shouldAdvance = false;
-    if(parallelMode === 'all' || !parallelMode){
-      shouldAdvance = parallelDepts.every(d=>completedDepts.has(d));
-    } else if(parallelMode === 'any'){
-      shouldAdvance = true;
-    } else if(parallelMode.startsWith('specific:')){
-      const requiredDept = parallelMode.split(':')[1];
-      shouldAdvance = completedDepts.has(requiredDept);
+    // Fon iş — sifariş artıq irəli gedib
+    if(order.current_stage > parseInt(si)){
+      await sb.from('orders').update({
+        parallel_done_depts: doneDepts.join(',')
+      }).eq('id', oid);
+      hideTaskCard(oid);
+      toast('✅ Tamamlandı (fon iş)');
+      setTimeout(()=>renderDeptTasks(dept), 300);
+      return;
     }
     
-    console.log('[PARALEL] shouldAdvance:', shouldAdvance);
+    // shouldAdvance hesabla
+    let shouldAdvance = false;
+    if(parallelMode === 'any'){
+      shouldAdvance = true;
+    } else if(parallelMode && parallelMode.startsWith('specific:')){
+      const req = parallelMode.split(':')[1];
+      shouldAdvance = doneDepts.includes(req);
+    } else {
+      // all
+      shouldAdvance = parallelDepts.every(d=>doneDepts.includes(d));
+    }
+    
+    console.log('[PARALEL]', {parallelDepts, doneDepts, parallelMode, shouldAdvance});
     
     if(!shouldAdvance){
+      // Hələ gözləyirik — yalnız parallel_done_depts yadda saxla
+      await sb.from('orders').update({
+        parallel_done_depts: doneDepts.join(',')
+      }).eq('id', oid);
       hideTaskCard(oid);
       toast('✅ '+DEPT_INFO[dept]?.name+' tamamlandı — paralel gözlənilir');
       setTimeout(()=>renderDeptTasks(dept), 300);
       return;
     }
     
-    // Hər ikisi bitdi — localStorage təmizlə
-    localStorage.removeItem(lsKey);
+    // Hər ikisi bitdi — növbəti stage-ə keç, parallel_done sıfırla
+    const newStage = parseInt(si) + 1;
+    let newStatus = 'in_progress';
+    if(newStage > parseInt(totalStages)){
+      newStatus = 'ready';
+    } else {
+      const next = stages[newStage-1];
+      if(next?.dept === 'logistics') newStatus = 'ready';
+    }
+    
+    try{
+      await sb.from('orders').update({
+        current_stage: newStage,
+        status: newStatus,
+        parallel_done_depts: '' // sıfırla
+      }).eq('id', oid);
+    }catch(e){
+      toast('⚠ Xəta: '+e.message);
+      if(doneBtn) doneBtn.disabled = false;
+      return;
+    }
+    
+    hideTaskCard(oid);
+    toast('✅ Paralel bitdi — növbəti mərhələyə keçdi!');
+    setTimeout(()=>renderDeptTasks(dept), 300);
+    return;
   }
   
-  // === ADDIM 6: Növbəti stage hesabla ===
+  // === ADİ (paralel deyil) ===
   const newStage = parseInt(si) + 1;
   let newStatus = 'in_progress';
-  
   if(newStage > parseInt(totalStages)){
-    // Son stage idi → hazır
     newStatus = 'ready';
   } else {
-    // Növbəti stage logistics-dirsə → hazır (logistics-i atla)
-    const nextStage = stages[newStage - 1];
-    if(nextStage && nextStage.dept === 'logistics'){
-      newStatus = 'ready';
-    }
+    const next = stages[newStage-1];
+    if(next?.dept === 'logistics') newStatus = 'ready';
   }
   
-  // === ADDIM 7: Orders-i yenilə ===
   try{
     const {error} = await sb.from('orders')
       .update({current_stage: newStage, status: newStatus})
       .eq('id', oid);
-    
     if(error){
-      console.error('[dDone] orders update xəta:', error);
       toast('⚠ Xəta: '+error.message);
       if(doneBtn) doneBtn.disabled = false;
       return;
     }
   }catch(e){
-    console.error('[dDone] orders update exception:', e);
     toast('⚠ Xəta: '+e.message);
     if(doneBtn) doneBtn.disabled = false;
     return;
   }
   
-  // === ADDIM 8: UI yenilə ===
   hideTaskCard(oid);
   toast('✅ Tamamlandı!');
   
-  // Timer-i təmizlə
   const timerEl = document.getElementById('timer-'+oid);
   if(timerEl?.dataset.intervalId){
     clearInterval(parseInt(timerEl.dataset.intervalId));
   }
   
-  // Siyahını yenilə
   setTimeout(()=>renderDeptTasks(dept), 300);
 }
 
