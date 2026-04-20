@@ -1240,10 +1240,12 @@ async function initApp(){
     sb.from('models').select('*').eq('is_active',true),
     sb.from('workers').select('*').eq('status','active'),
     sb.from('clients').select('*').order('name'),
-  ]).then(([mr,wr,cr])=>{
+    getForwardingConfig(),
+  ]).then(([mr,wr,cr,fwd])=>{
     appModels=mr.data||[];
     appWorkers=wr.data||[];
     appClients=cr.data||[];
+    window.forwardingConfig = fwd || {};
     updateClientSelect();
   }).catch(e=>console.error(e));
   
@@ -1904,9 +1906,11 @@ async function renderDeptTasks(dept){
       
       // Bu sifarişdə paralel mərhələdə bu şöbə tamamlanıbsa siyahıya qoyma
       const parallelDone = (o.parallel_done_depts || '').split(',').filter(x=>x);
+      const sharedWith = (o.shared_with || '').split(',').filter(x=>x);
       
       // 1) Cari mərhələ
       const si=o.current_stage-1;
+      let addedAsActive = false;
       if(si>=0 && si<stages.length){
         const stage=stages[si];
         const stageKey = o.id+'_'+si+'_'+dept;
@@ -1919,12 +1923,12 @@ async function renderDeptTasks(dept){
           if(stage.dept===dept || (isParallel && stage.dept.split('||').includes(dept))){
             tasks.push({o,m,s:stage,si:o.current_stage});
             addedStages.add(stageKey);
+            addedAsActive = true;
           }
         }
       }
       
       // 2) Əvvəlki paralel mərhələlərdə hələ işləyən fon işləri
-      // (specific/any mode-da bir şöbə bitib sifariş keçib, amma bu şöbə hələ işləyir)
       for(let i=0; i<si; i++){
         const stage = stages[i];
         if(!stage.dept.includes('||')) continue;
@@ -1933,11 +1937,17 @@ async function renderDeptTasks(dept){
         
         const stageKey = o.id+'_'+i+'_'+dept;
         if(addedStages.has(stageKey)) continue;
-        if(parallelDone.includes(dept)) continue; // Bu şöbə artıq bitirib
+        if(parallelDone.includes(dept)) continue;
         
-        // Bu paralel stage-də bu şöbə hələ işləmir — fon iş kimi əlavə et
         tasks.push({o,m,s:stage,si:i+1,isBackground:true});
         addedStages.add(stageKey);
+        addedAsActive = true;
+      }
+      
+      // 3) Ötürülmüş sifariş — bu şöbəyə shared_with-də var amma özündə aktiv deyil
+      if(!addedAsActive && sharedWith.includes(dept)){
+        const currentStage = stages[si] || stages[0];
+        tasks.push({o,m,s:currentStage,si:o.current_stage,isShared:true});
       }
     });
 
@@ -1961,7 +1971,7 @@ async function renderDeptTasks(dept){
       return;
     }
 
-    tl.innerHTML=vis.map(({o,m,s,si,isBackground})=>{
+    tl.innerHTML=vis.map(({o,m,s,si,isBackground,isShared})=>{
       const key=`ts_${o.id}_${si}`;
       const logKey = o.id + '_' + (si-1) + '_' + dept;
       const log = logMap[logKey];
@@ -1987,6 +1997,41 @@ async function renderDeptTasks(dept){
       }).join('')}</div>`:'';
       
       const modelImg=m.img_url?`<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
+
+      if(isShared){
+        // Ötürülmüş sifariş — info kartı, Başla/Tamamla yoxdur
+        return `<div class="task-card" id="tcard-${o.id}" style="border:2px dashed var(--or);background:linear-gradient(135deg,#fff5ed,#fff)">
+          <div class="task-card-top" style="background:var(--lo)">
+            <div style="display:flex;align-items:center;gap:10px;flex:1">
+              ${modelImg}
+              <div style="flex:1">
+                <div style="font-size:15px;font-weight:700">📨 ${m.name.split('—')[0].trim()}</div>
+                <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · Önəmli məlumat</div>
+              </div>
+            </div>
+            <span class="badge" style="background:var(--or);color:#fff">📨 Ötürülüb</span>
+          </div>
+          <div class="task-card-body">
+            <div style="background:var(--lo);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#854F0B">
+              <b>💡 Məlumat üçün:</b> Bu sifariş başqa şöbə tərəfindən sizə önəmli məlumat kimi ötürülüb. Əvvəlcədən hazırlığa başlaya bilərsiniz. Faktiki tapşırığınız olduqda sifariş aktiv iş kimi görünəcək.
+            </div>
+            <div class="task-meta">
+              <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600">${o.client}</div></div>
+              <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--or);font-size:20px;font-weight:700">${o.qty}</div></div>
+              <div class="tm-i"><div class="tm-k">Cari mərhələ</div><div class="tm-v">${si}/${total}</div></div>
+              <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v">${o.deadline||'—'}</div></div>
+            </div>
+            ${(o.fabric||o.color||o.fabric_company||o.legs||o.notes) ? `
+            <div style="background:var(--lt);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:12px;line-height:1.7">
+              ${o.fabric ? `<div><b>🧶 Parça:</b> ${o.fabric}</div>` : ''}
+              ${o.color ? `<div><b>🏷️ Parça kodu:</b> ${o.color}</div>` : ''}
+              ${o.fabric_company ? `<div><b>🏭 Parça satan:</b> ${o.fabric_company}</div>` : ''}
+              ${o.legs ? `<div><b>🦵 Ayaq rəngi:</b> ${o.legs}</div>` : ''}
+              ${o.notes ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)"><b>📝 Qeyd:</b> ${o.notes}</div>` : ''}
+            </div>` : ''}
+          </div>
+        </div>`;
+      }
 
       return`<div class="task-card" id="tcard-${o.id}">
         <div class="task-card-top${isLate?' late':''}">
@@ -2023,6 +2068,19 @@ async function renderDeptTasks(dept){
             <button class="btn btn-o btn-lg" ${started||done?'disabled':''} onclick="dStart('${o.id}','${si}','${key}','${dept}')">▶ Başla</button>
             <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${total}')">✓ Tamamla</button>
           </div>
+          ${(window.forwardingConfig && window.forwardingConfig[dept] && window.forwardingConfig[dept].length) ? `
+          <div style="margin-top:8px;padding-top:10px;border-top:1px dashed var(--bd)">
+            <div style="font-size:11px;color:var(--t2);margin-bottom:6px;font-weight:600">🔀 Sifarişi digər şöbəyə önəmli məlumat kimi ötür:</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              ${window.forwardingConfig[dept].map(toK=>{
+                const toInfo = DEPT_INFO[toK] || {name:toK, icon:'📦'};
+                const already = (o.shared_with||'').split(',').includes(toK);
+                return `<button class="btn" style="font-size:11px;padding:6px 10px;background:${already?'var(--lt)':'var(--sf)'};border:1px solid ${already?'var(--tl)':'var(--bd)'};color:${already?'var(--tl)':'var(--t1)'}" onclick="forwardToDept('${o.id}','${toK}','${dept}')" ${already?'disabled':''}>
+                  ${already?'✓':'➡️'} ${toInfo.icon} ${toInfo.name}
+                </button>`;
+              }).join('')}
+            </div>
+          </div>` : ''}
         </div>
       </div>`;
     }).join('')+(hidden>0?`<div style="text-align:center;padding:18px;background:var(--lo);border-radius:var(--rl);border:2px dashed rgba(247,137,48,.3);margin-top:8px"><div style="font-size:28px;font-weight:700;color:var(--or)">${hidden}</div><div style="font-size:13px;color:#854F0B;margin-top:2px">sifariş növbədə gözləyir</div></div>`:'');
@@ -2336,6 +2394,30 @@ async function renderLogisticsDept(){
   }).join('');
 }
 
+// ═══════════ ŞÖBƏ ARASİ ÖTÜRMƏ ═══════════
+async function forwardToDept(oid, toDept, fromDept){
+  showLoader();
+  try{
+    // Mövcud shared_with oxu
+    const {data:order} = await sb.from('orders').select('shared_with').eq('id',oid).single();
+    let shared = (order?.shared_with||'').split(',').filter(x=>x);
+    if(!shared.includes(toDept)) shared.push(toDept);
+    
+    await sb.from('orders').update({
+      shared_with: shared.join(',')
+    }).eq('id', oid);
+    
+    hideLoader();
+    const toInfo = DEPT_INFO[toDept] || {name:toDept};
+    toast('✅ '+toInfo.name+'-ə ötürüldü');
+    renderDeptTasks(fromDept);
+  }catch(e){
+    hideLoader();
+    toast('Xəta: '+e.message);
+    console.error('[forward] xətası:', e);
+  }
+}
+
 async function dDone(oid, si, key, dept, totalStages){
   const doneBtn = document.getElementById('td-'+oid);
   if(doneBtn) doneBtn.disabled = true;
@@ -2462,10 +2544,11 @@ async function dDone(oid, si, key, dept, totalStages){
       const updateData = {
         current_stage: newStage,
         status: newStatus,
-        parallel_done_depts: doneDepts.join(',') // Qoru - digər şöbələr hələ işləyə bilər
+        parallel_done_depts: doneDepts.join(','), // Qoru - digər şöbələr hələ işləyə bilər
+        shared_with: '' // növbəti stage - ötürmələri sıfırla
       };
       if(shouldResetParallel){
-        updateData.parallel_done_depts = ''; // yalnız "all" modunda sıfırla
+        updateData.parallel_done_depts = '';
       }
       await sb.from('orders').update(updateData).eq('id', oid);
     }catch(e){
@@ -2492,7 +2575,7 @@ async function dDone(oid, si, key, dept, totalStages){
   
   try{
     const {error} = await sb.from('orders')
-      .update({current_stage: newStage, status: newStatus})
+      .update({current_stage: newStage, status: newStatus, shared_with: ''})
       .eq('id', oid);
     if(error){
       toast('⚠ Xəta: '+error.message);
@@ -3198,9 +3281,11 @@ async function loadDeptAnalytics(){
 
 async function renderSettingsSection(el){
   const limit = await getDailyLimit();
+  const forwardingConfig = await getForwardingConfig();
+  
   el.innerHTML = `
     <div class="slbl" style="margin-top:0">⚙️ Parametrlər</div>
-    <div class="sec-card card-pad">
+    <div class="sec-card card-pad" style="margin-bottom:14px">
       <div style="margin-bottom:16px">
         <label style="font-size:13px;font-weight:600;color:var(--dp);display:block;margin-bottom:6px">Gündəlik çatdırılma limiti (ədəd)</label>
         <p style="font-size:12px;color:var(--t2);margin-bottom:10px">Bir günə maksimum neçə ədəd məhsul çatdırıla bilər. Limit aşıldıqda menecer o günə deadline qoya bilməyəcək.</p>
@@ -3211,7 +3296,67 @@ async function renderSettingsSection(el){
         </div>
       </div>
     </div>
+    
+    <div class="sec-card card-pad">
+      <div style="margin-bottom:8px">
+        <label style="font-size:13px;font-weight:600;color:var(--dp);display:block;margin-bottom:4px">🔀 Şöbələr arası ötürmə</label>
+        <p style="font-size:12px;color:var(--t2);margin-bottom:14px">Hansı şöbə hansına sifariş "önəmli məlumatı" ötürə bilsin. Məsələn: Şkurka → Tikiş ötürmə aktiv olsa, Şkurka işçisi Tikişə məlumat göndərə bilər (Tikiş əvvəlcədən hazırlığa başlayar).</p>
+      </div>
+      <div id="forwarding-matrix" style="display:flex;flex-direction:column;gap:8px">
+        ${Object.entries(DEPT_INFO).filter(([k])=>k!=='logistics').map(([fromK, fromInfo])=>`
+          <div style="background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:8px">${fromInfo.icon} ${fromInfo.name} → ötürə bilər:</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              ${Object.entries(DEPT_INFO).filter(([k])=>k!==fromK && k!=='logistics').map(([toK, toInfo])=>{
+                const active = (forwardingConfig[fromK]||[]).includes(toK);
+                return `<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:${active?'var(--lt)':'#fff'};border:1px solid ${active?'var(--tl)':'var(--bd)'};border-radius:8px;cursor:pointer;font-size:12px">
+                  <input type="checkbox" data-from="${fromK}" data-to="${toK}" ${active?'checked':''} class="fwd-cb" style="cursor:pointer">
+                  <span>${toInfo.icon} ${toInfo.name}</span>
+                </label>`;
+              }).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <button class="btn btn-t" style="margin-top:14px;padding:10px 18px" onclick="saveForwardingConfig()">💾 Ötürmə ayarlarını yadda saxla</button>
+    </div>
   `;
+}
+
+// Ötürmə konfiqurasiyasını oxu
+async function getForwardingConfig(){
+  try{
+    const {data} = await sb.from('app_settings').select('value').eq('key','forwarding_config').single();
+    return data?.value ? JSON.parse(data.value) : {};
+  }catch(e){
+    return {};
+  }
+}
+
+async function saveForwardingConfig(){
+  const config = {};
+  document.querySelectorAll('.fwd-cb').forEach(cb=>{
+    const from = cb.dataset.from;
+    const to = cb.dataset.to;
+    if(cb.checked){
+      if(!config[from]) config[from] = [];
+      config[from].push(to);
+    }
+  });
+  
+  showLoader();
+  try{
+    await sb.from('app_settings').upsert({
+      key: 'forwarding_config',
+      value: JSON.stringify(config)
+    });
+    hideLoader();
+    toast('✓ Ötürmə ayarları yadda saxlandı');
+    renderSettingsSection(document.getElementById('admin-sec'));
+  }catch(e){
+    hideLoader();
+    toast('Xəta: '+e.message);
+  }
 }
 
 async function saveDailyLimit(){
