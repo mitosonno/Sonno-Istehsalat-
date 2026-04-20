@@ -1989,11 +1989,11 @@ async function renderDeptTasks(dept){
       const modelImg=m.img_url?`<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
 
       return`<div class="task-card" id="tcard-${o.id}">
-        <div class="task-card-top${isLate?' late':''}${isBackground?' bg-task':''}" ${isBackground?'style="opacity:.75"':''}>
+        <div class="task-card-top${isLate?' late':''}">
           <div style="display:flex;align-items:center;gap:10px;flex:1">
             ${modelImg}
             <div style="flex:1">
-              <div style="font-size:15px;font-weight:700">${s.name}${isBackground?' <span style="font-size:10px;padding:2px 6px;background:var(--or);color:#fff;border-radius:10px;margin-left:4px">FON İŞİ</span>':''}</div>
+              <div style="font-size:15px;font-weight:700">${s.name}</div>
               <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${m.name.split('—')[0].trim()}</div>
             </div>
           </div>
