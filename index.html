@@ -408,6 +408,7 @@ textarea{resize:vertical;min-height:80px}
                     <option value="showroom">🏪 Vitrin satışı</option>
                   </select>
                 </div>
+                <div class="fg"><label>Sifariş qəbul tarixi</label><input id="o-date" type="date"></div>
                 <div class="fg"><label>Deadline</label><input id="o-dead" type="date" onchange="validateDeadline(this)"></div>
               </div>
 
@@ -1593,6 +1594,11 @@ function renderOrderForm(){
     const d=new Date();d.setDate(d.getDate()+7);
     deadInput.value=d.toISOString().split('T')[0];
   }
+  // Order date - bu gün default
+  const dateInput = document.getElementById('o-date');
+  if(dateInput && !dateInput.value){
+    dateInput.value = new Date().toISOString().split('T')[0];
+  }
   // Mobile: stack layout
   if(window.innerWidth<=768){
     document.getElementById('order-layout').style.gridTemplateColumns='1fr';
@@ -1730,6 +1736,7 @@ async function createOrder(){
     color:document.getElementById('o-color').value,
     notes:document.getElementById('o-notes').value,
     deadline:document.getElementById('o-dead').value||null,
+    order_date:document.getElementById('o-date')?.value||null,
     sale_type:document.getElementById('o-sale-type')?.value||'cash',
     status:'created', current_stage:1,
     sale_price:price, discount:disc, final_price:total,
@@ -1740,6 +1747,9 @@ async function createOrder(){
   ['o-client','o-fabric','o-fabric-co','o-color','o-legs','o-notes','o-client-sel'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
+  // Sifariş qəbul tarixini yenidən bugünə qoy
+  const dInput = document.getElementById('o-date');
+  if(dInput) dInput.value = new Date().toISOString().split('T')[0];
   const phoneDisp = document.getElementById('o-client-phone-display');
   if(phoneDisp) phoneDisp.textContent='';
   if(document.getElementById('o-discount'))document.getElementById('o-discount').value=0;
@@ -2077,7 +2087,7 @@ async function renderDeptTasks(dept){
             <div style="flex:1">
               <div style="font-size:15px;font-weight:700">${s.name}</div>
               <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${m.name.split('—')[0].trim()}</div>
-              ${o.created_at?`<div style="font-size:10px;color:var(--t3);margin-top:2px">📅 ${new Date(o.created_at).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`:''}
+              ${(o.order_date||o.created_at)?`<div style="font-size:10px;color:var(--t3);margin-top:2px">📅 ${new Date(o.order_date||o.created_at).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`:''}
             </div>
           </div>
           <span class="badge ${isLate?'bR':'bO'}">${isLate?'GECİKMİŞ':'Aktiv'}</span>
@@ -2296,11 +2306,19 @@ async function renderDeptTasks(dept){
     
     tl2.innerHTML = sortedKeys.map(dateKey=>{
       const items = groups[dateKey];
-      const totalMin = items.reduce((s,i)=>s+(i.log.duration_minutes||0),0);
+      // Unikal sifariş sayı və cəm məhsul
+      const uniqueOrders = new Set(items.map(i=>i.o.id));
+      const orderCount = uniqueOrders.size;
+      let totalQty = 0;
+      uniqueOrders.forEach(oid=>{
+        const it = items.find(i=>i.o.id===oid);
+        if(it) totalQty += it.o.qty || 0;
+      });
+      
       return `
         <div style="padding:12px 16px;margin:14px 0 8px 0;background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:10px;border-left:4px solid var(--tl);display:flex;justify-content:space-between;align-items:center">
           <div style="font-weight:700;color:var(--tl);font-size:14px">${dateLabel(dateKey)}</div>
-          <div style="font-size:12px;color:var(--t2)">${items.length} iş · ${Math.round(totalMin/60*10)/10} saat</div>
+          <div style="font-size:12px;color:var(--t2)">${orderCount} sifariş · ${totalQty} məhsul</div>
         </div>
         ${items.map(({o,m,s,stageNum,log})=>{
           const t0 = log.started_at;
@@ -2311,6 +2329,9 @@ async function renderDeptTasks(dept){
           const st=ST[o.status]||ST.created;
           const modelImg=m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
           const completedTime = new Date(dt).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'});
+          
+          // Sifariş qəbul tarixi: order_date (menecerin verdiyi) yoxdursa created_at
+          const orderDate = o.order_date || o.created_at;
           
           return `<div class="task-card">
             <div class="task-card-top" style="background:var(--lt)">
@@ -2324,10 +2345,10 @@ async function renderDeptTasks(dept){
               <span class="badge ${st.c}">${st.t}</span>
             </div>
             <div class="task-card-body">
-              <div style="background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:12px;padding:14px;margin-bottom:10px;text-align:center;border:2px solid var(--tl)">
-                <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">⏱ Sərf olunan vaxt</div>
-                <div style="font-size:32px;font-weight:700;color:var(--tl);font-family:'DM Mono',monospace;line-height:1">${dm?dm+' dəq':'—'}</div>
-                <div style="font-size:11px;color:var(--t3);margin-top:4px">Plan: ${s.hours*60} dəq${dm?' · Fərq: '+(dm>s.hours*60?'+':'')+Math.round(dm-s.hours*60)+' dəq':''}</div>
+              <div style="background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:12px;padding:18px;margin-bottom:10px;text-align:center;border:2px solid var(--tl)">
+                <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">⏱ Sərf olunan vaxt</div>
+                <div style="font-size:40px;font-weight:800;color:var(--tl);font-family:'DM Mono',monospace;line-height:1">${dm!==null&&dm!==undefined?dm+' dəq':'—'}</div>
+                <div style="font-size:11px;color:var(--t3);margin-top:6px">Plan: ${s.hours*60} dəq${dm?' · Fərq: '+(dm>s.hours*60?'+':'')+Math.round(dm-s.hours*60)+' dəq':''}</div>
                 <div style="font-size:11px;color:var(--t3);margin-top:4px">🕐 Tamamlandı: ${completedTime}</div>
               </div>
               <div class="task-meta">
@@ -2335,7 +2356,7 @@ async function renderDeptTasks(dept){
                 <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div>
                 <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v">${o.client}</div></div>
               </div>
-              ${o.created_at?`<div style="font-size:11px;color:var(--t3);margin-top:6px">📅 Sifariş alındı: ${new Date(o.created_at).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`:''}
+              ${orderDate?`<div style="font-size:11px;color:var(--t3);margin-top:6px">📅 Sifariş qəbul olundu: ${new Date(orderDate).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`:''}
             </div>
           </div>`;
         }).join('')}
