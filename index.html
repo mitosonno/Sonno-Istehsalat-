@@ -2396,16 +2396,30 @@ async function renderLogisticsDept(){
 
 // ═══════════ ŞÖBƏ ARASİ ÖTÜRMƏ ═══════════
 async function forwardToDept(oid, toDept, fromDept){
+  console.log('[forward] başlayır:', {oid, toDept, fromDept});
   showLoader();
   try{
     // Mövcud shared_with oxu
-    const {data:order} = await sb.from('orders').select('shared_with').eq('id',oid).single();
+    const {data:order, error:fetchErr} = await sb.from('orders').select('shared_with').eq('id',oid).maybeSingle();
+    if(fetchErr){
+      console.error('[forward] fetch xətası:', fetchErr);
+      throw fetchErr;
+    }
+    console.log('[forward] cari shared_with:', order?.shared_with);
+    
     let shared = (order?.shared_with||'').split(',').filter(x=>x);
     if(!shared.includes(toDept)) shared.push(toDept);
     
-    await sb.from('orders').update({
+    const {error:updateErr} = await sb.from('orders').update({
       shared_with: shared.join(',')
     }).eq('id', oid);
+    
+    if(updateErr){
+      console.error('[forward] update xətası:', updateErr);
+      throw updateErr;
+    }
+    
+    console.log('[forward] yazıldı:', shared.join(','));
     
     hideLoader();
     const toInfo = DEPT_INFO[toDept] || {name:toDept};
@@ -2413,7 +2427,7 @@ async function forwardToDept(oid, toDept, fromDept){
     renderDeptTasks(fromDept);
   }catch(e){
     hideLoader();
-    toast('Xəta: '+e.message);
+    toast('⚠ Xəta: '+(e.message||'Naməlum'));
     console.error('[forward] xətası:', e);
   }
 }
@@ -3300,49 +3314,85 @@ async function renderSettingsSection(el){
     <div class="sec-card card-pad">
       <div style="margin-bottom:8px">
         <label style="font-size:13px;font-weight:600;color:var(--dp);display:block;margin-bottom:4px">🔀 Şöbələr arası ötürmə</label>
-        <p style="font-size:12px;color:var(--t2);margin-bottom:14px">Hansı şöbə hansına sifariş "önəmli məlumatı" ötürə bilsin. Məsələn: Şkurka → Tikiş ötürmə aktiv olsa, Şkurka işçisi Tikişə məlumat göndərə bilər (Tikiş əvvəlcədən hazırlığa başlayar).</p>
+        <p style="font-size:12px;color:var(--t2);margin-bottom:14px">Şöbəni seçin və hansı şöbələrə ötürmə icazəsi olduğunu təyin edin. Məsələn: Şkurka işçisi, Tikiş və Rəngləmə şöbələrinə sifariş ötürə bilər.</p>
       </div>
-      <div id="forwarding-matrix" style="display:flex;flex-direction:column;gap:8px">
-        ${Object.entries(DEPT_INFO).filter(([k])=>k!=='logistics').map(([fromK, fromInfo])=>`
-          <div style="background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px">
-            <div style="font-size:13px;font-weight:600;margin-bottom:8px">${fromInfo.icon} ${fromInfo.name} → ötürə bilər:</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px">
-              ${Object.entries(DEPT_INFO).filter(([k])=>k!==fromK && k!=='logistics').map(([toK, toInfo])=>{
-                const active = (forwardingConfig[fromK]||[]).includes(toK);
-                return `<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:${active?'var(--lt)':'#fff'};border:1px solid ${active?'var(--tl)':'var(--bd)'};border-radius:8px;cursor:pointer;font-size:12px">
-                  <input type="checkbox" data-from="${fromK}" data-to="${toK}" ${active?'checked':''} class="fwd-cb" style="cursor:pointer">
-                  <span>${toInfo.icon} ${toInfo.name}</span>
-                </label>`;
-              }).join('')}
-            </div>
-          </div>
-        `).join('')}
+      
+      <div style="margin-bottom:14px">
+        <label style="font-size:12px;color:var(--t2);font-weight:600;display:block;margin-bottom:6px">Şöbə seçin:</label>
+        <select id="fwd-source-dept" onchange="renderForwardingTargets()" style="width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px">
+          <option value="">— Şöbə seçin —</option>
+          ${Object.entries(DEPT_INFO).filter(([k])=>k!=='logistics').map(([k,info])=>{
+            const count = (forwardingConfig[k]||[]).length;
+            return `<option value="${k}">${info.icon} ${info.name}${count?' · '+count+' şöbəyə icazə':''}</option>`;
+          }).join('')}
+        </select>
       </div>
-      <button class="btn btn-t" style="margin-top:14px;padding:10px 18px" onclick="saveForwardingConfig()">💾 Ötürmə ayarlarını yadda saxla</button>
+      
+      <div id="fwd-targets" style="display:none">
+        <div style="font-size:12px;color:var(--t2);font-weight:600;margin-bottom:8px">Ötürə biləcəyi şöbələr:</div>
+        <div id="fwd-targets-list" style="display:flex;flex-direction:column;gap:6px"></div>
+        <button class="btn btn-t" style="margin-top:14px;padding:10px 18px;width:100%" onclick="saveForwardingConfig()">💾 Yadda saxla</button>
+      </div>
     </div>
   `;
+  
+  // Qlobal olaraq saxla ki renderForwardingTargets oxuya bilsin
+  window._fwdConfig = forwardingConfig;
+}
+
+function renderForwardingTargets(){
+  const src = document.getElementById('fwd-source-dept').value;
+  const box = document.getElementById('fwd-targets');
+  const list = document.getElementById('fwd-targets-list');
+  
+  if(!src){
+    box.style.display = 'none';
+    return;
+  }
+  
+  box.style.display = 'block';
+  const active = (window._fwdConfig && window._fwdConfig[src]) || [];
+  
+  list.innerHTML = Object.entries(DEPT_INFO).filter(([k])=>k!==src && k!=='logistics').map(([k,info])=>{
+    const isActive = active.includes(k);
+    return `<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${isActive?'var(--lt)':'var(--sf)'};border:1px solid ${isActive?'var(--tl)':'var(--bd)'};border-radius:8px;cursor:pointer;font-size:13px;transition:all .15s">
+      <input type="checkbox" data-target="${k}" ${isActive?'checked':''} class="fwd-target-cb" style="cursor:pointer;width:18px;height:18px">
+      <span style="flex:1"><b>${info.icon}</b> ${info.name}</span>
+    </label>`;
+  }).join('');
 }
 
 // Ötürmə konfiqurasiyasını oxu
 async function getForwardingConfig(){
   try{
-    const {data} = await sb.from('app_settings').select('value').eq('key','forwarding_config').single();
+    const {data, error} = await sb.from('app_settings').select('value').eq('key','forwarding_config').maybeSingle();
+    if(error) console.error('[forwarding] oxuma xətası:', error);
     return data?.value ? JSON.parse(data.value) : {};
   }catch(e){
+    console.error('[forwarding] xətası:', e);
     return {};
   }
 }
 
 async function saveForwardingConfig(){
-  const config = {};
-  document.querySelectorAll('.fwd-cb').forEach(cb=>{
-    const from = cb.dataset.from;
-    const to = cb.dataset.to;
-    if(cb.checked){
-      if(!config[from]) config[from] = [];
-      config[from].push(to);
-    }
+  const src = document.getElementById('fwd-source-dept').value;
+  if(!src) return;
+  
+  // Mövcud config oxu
+  if(!window._fwdConfig) window._fwdConfig = {};
+  const config = {...window._fwdConfig};
+  
+  // Yalnız bu mənbə şöbə üçün yenilə
+  const targets = [];
+  document.querySelectorAll('.fwd-target-cb').forEach(cb=>{
+    if(cb.checked) targets.push(cb.dataset.target);
   });
+  
+  if(targets.length === 0){
+    delete config[src]; // heç bir icazə yoxdursa tamamilə sil
+  } else {
+    config[src] = targets;
+  }
   
   showLoader();
   try{
@@ -3350,8 +3400,11 @@ async function saveForwardingConfig(){
       key: 'forwarding_config',
       value: JSON.stringify(config)
     });
+    window.forwardingConfig = config;
+    window._fwdConfig = config;
     hideLoader();
     toast('✓ Ötürmə ayarları yadda saxlandı');
+    // Səhifəni yenilə
     renderSettingsSection(document.getElementById('admin-sec'));
   }catch(e){
     hideLoader();
