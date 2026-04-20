@@ -2113,7 +2113,7 @@ async function renderDeptTasks(dept){
               ${window.forwardingConfig[dept].map(toK=>{
                 const toInfo = DEPT_INFO[toK] || {name:toK, icon:'📦'};
                 const already = (o.shared_with||'').split(',').includes(toK);
-                return `<button class="btn" style="font-size:11px;padding:6px 10px;background:${already?'var(--lt)':'var(--sf)'};border:1px solid ${already?'var(--tl)':'var(--bd)'};color:${already?'var(--tl)':'var(--t1)'}" onclick="forwardToDept('${o.id}','${toK}','${dept}')" ${already?'disabled':''}>
+                return `<button class="btn" data-fwd-oid="${o.id}" data-fwd-to="${toK}" data-fwd-from="${dept}" style="font-size:11px;padding:6px 10px;background:${already?'var(--lt)':'var(--sf)'};border:1px solid ${already?'var(--tl)':'var(--bd)'};color:${already?'var(--tl)':'var(--t1)'}" onclick="forwardToDeptClick(this)" ${already?'disabled':''}>
                   ${already?'✓':'➡️'} ${toInfo.icon} ${toInfo.name}
                 </button>`;
               }).join('')}
@@ -2552,6 +2552,14 @@ async function renderLogisticsDept(){
 }
 
 // ═══════════ ŞÖBƏ ARASİ ÖTÜRMƏ ═══════════
+function forwardToDeptClick(btn){
+  const oid = btn.dataset.fwdOid;
+  const toDept = btn.dataset.fwdTo;
+  const fromDept = btn.dataset.fwdFrom;
+  console.log('[forwardToDeptClick]', {oid, toDept, fromDept});
+  if(oid && toDept && fromDept) forwardToDept(oid, toDept, fromDept);
+}
+
 async function forwardToDept(oid, toDept, fromDept){
   console.log('[forward] başlayır:', {oid, toDept, fromDept});
   showLoader();
