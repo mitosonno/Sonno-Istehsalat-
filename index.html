@@ -2397,6 +2397,16 @@ async function dDone(oid, si, key, dept, totalStages){
     let doneDepts = (order.parallel_done_depts || '').split(',').filter(x=>x);
     if(!doneDepts.includes(dept)) doneDepts.push(dept);
     
+    console.log('[PARALEL başladı]', {
+      orderParallelDone: order.parallel_done_depts,
+      currentDept: dept,
+      doneDeptsAfterAdd: doneDepts,
+      parallelMode,
+      parallelDepts,
+      orderCurrentStage: order.current_stage,
+      paramSi: si
+    });
+    
     // Fon iş — sifariş artıq irəli gedib
     if(order.current_stage > parseInt(si)){
       await sb.from('orders').update({
@@ -2506,14 +2516,18 @@ async function dDone(oid, si, key, dept, totalStages){
   setTimeout(()=>renderDeptTasks(dept), 300);
 }
 
-// Köməkçi funksiya — card-ı fade out et
+// Köməkçi funksiya — card-ı DOM-dan tamamilə sil
 function hideTaskCard(oid){
   const card = document.getElementById('tcard-'+oid);
   if(card){
-    card.style.transition = 'all .4s';
+    card.style.transition = 'all .3s';
     card.style.opacity = '0';
     card.style.transform = 'translateX(20px)';
     card.style.pointerEvents = 'none';
+    // DOM-dan 350ms sonra tamamilə sil
+    setTimeout(()=>{
+      if(card && card.parentNode) card.parentNode.removeChild(card);
+    }, 350);
   }
 }
 
