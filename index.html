@@ -408,7 +408,6 @@ textarea{resize:vertical;min-height:80px}
                     <option value="showroom">🏪 Vitrin satışı</option>
                   </select>
                 </div>
-                <div class="fg"><label>Sifariş qəbul tarixi</label><input id="o-date" type="date"></div>
                 <div class="fg"><label>Deadline</label><input id="o-dead" type="date" onchange="validateDeadline(this)"></div>
               </div>
 
@@ -1594,11 +1593,6 @@ function renderOrderForm(){
     const d=new Date();d.setDate(d.getDate()+7);
     deadInput.value=d.toISOString().split('T')[0];
   }
-  // Order date - bu gün default
-  const dateInput = document.getElementById('o-date');
-  if(dateInput && !dateInput.value){
-    dateInput.value = new Date().toISOString().split('T')[0];
-  }
   // Mobile: stack layout
   if(window.innerWidth<=768){
     document.getElementById('order-layout').style.gridTemplateColumns='1fr';
@@ -1736,7 +1730,7 @@ async function createOrder(){
     color:document.getElementById('o-color').value,
     notes:document.getElementById('o-notes').value,
     deadline:document.getElementById('o-dead').value||null,
-    order_date:document.getElementById('o-date')?.value||null,
+    order_date:new Date().toISOString(),
     sale_type:document.getElementById('o-sale-type')?.value||'cash',
     status:'created', current_stage:1,
     sale_price:price, discount:disc, final_price:total,
@@ -1747,9 +1741,6 @@ async function createOrder(){
   ['o-client','o-fabric','o-fabric-co','o-color','o-legs','o-notes','o-client-sel'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
-  // Sifariş qəbul tarixini yenidən bugünə qoy
-  const dInput = document.getElementById('o-date');
-  if(dInput) dInput.value = new Date().toISOString().split('T')[0];
   const phoneDisp = document.getElementById('o-client-phone-display');
   if(phoneDisp) phoneDisp.textContent='';
   if(document.getElementById('o-discount'))document.getElementById('o-discount').value=0;
@@ -2116,19 +2107,28 @@ async function renderDeptTasks(dept){
             <button class="btn btn-o btn-lg" ${started||done?'disabled':''} onclick="dStart('${o.id}','${si}','${key}','${dept}')">▶ Başla</button>
             <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${total}')">✓ Tamamla</button>
           </div>
-          ${(window.forwardingConfig && window.forwardingConfig[dept] && window.forwardingConfig[dept].length) ? `
-          <div style="margin-top:8px;padding-top:10px;border-top:1px dashed var(--bd)">
-            <div style="font-size:11px;color:var(--t2);margin-bottom:6px;font-weight:600">🔀 Sifarişi digər şöbəyə önəmli məlumat kimi ötür:</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px">
-              ${window.forwardingConfig[dept].map(toK=>{
-                const toInfo = DEPT_INFO[toK] || {name:toK, icon:'📦'};
-                const already = (o.shared_with||'').split(',').includes(toK);
-                return `<button class="btn" data-fwd-oid="${o.id}" data-fwd-to="${toK}" data-fwd-from="${dept}" style="font-size:11px;padding:6px 10px;background:${already?'var(--lt)':'var(--sf)'};border:1px solid ${already?'var(--tl)':'var(--bd)'};color:${already?'var(--tl)':'var(--t1)'}" onclick="forwardToDeptClick(this)" ${already?'disabled':''}>
-                  ${already?'✓':'➡️'} ${toInfo.icon} ${toInfo.name}
-                </button>`;
-              }).join('')}
-            </div>
-          </div>` : ''}
+          ${(() => {
+            const altDept = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : null);
+            const fwdTargets = (window.forwardingConfig && window.forwardingConfig[dept]) 
+              || (altDept && window.forwardingConfig && window.forwardingConfig[altDept])
+              || [];
+            if(!fwdTargets.length) return '';
+            
+            let buttonsHtml = '';
+            fwdTargets.forEach(toK=>{
+              const toInfo = DEPT_INFO[toK] || DEPT_INFO[toK==='tikis'?'tikiş':(toK==='tikiş'?'tikis':toK)] || {name:toK, icon:'📦'};
+              const sharedDone = (o.shared_with||'').split(',');
+              const already = sharedDone.includes(toK) || (toK==='tikis' && sharedDone.includes('tikiş')) || (toK==='tikiş' && sharedDone.includes('tikis'));
+              const bg = already ? 'var(--lt)' : 'var(--sf)';
+              const bd = already ? 'var(--tl)' : 'var(--bd)';
+              const col = already ? 'var(--tl)' : 'var(--t1)';
+              const icon = already ? '✓' : '➡️';
+              const dis = already ? 'disabled' : '';
+              buttonsHtml += '<button class="btn" data-fwd-oid="'+o.id+'" data-fwd-to="'+toK+'" data-fwd-from="'+dept+'" style="font-size:11px;padding:6px 10px;background:'+bg+';border:1px solid '+bd+';color:'+col+'" onclick="forwardToDeptClick(this)" '+dis+'>'+icon+' '+toInfo.icon+' '+toInfo.name+'</button>';
+            });
+            
+            return '<div style="margin-top:8px;padding-top:10px;border-top:1px dashed var(--bd)"><div style="font-size:11px;color:var(--t2);margin-bottom:6px;font-weight:600">🔀 Sifarişi digər şöbəyə önəmli məlumat kimi ötür:</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+buttonsHtml+'</div></div>';
+          })()}
         </div>
       </div>`;
     }).join('')+(hidden>0?`<div style="text-align:center;padding:18px;background:var(--lo);border-radius:var(--rl);border:2px dashed rgba(247,137,48,.3);margin-top:8px"><div style="font-size:28px;font-weight:700;color:var(--or)">${hidden}</div><div style="font-size:13px;color:#854F0B;margin-top:2px">sifariş növbədə gözləyir</div></div>`:'');
@@ -2447,32 +2447,35 @@ async function renderLogisticsDone(){
   tl.innerHTML = all.map(o=>{
     const m = allModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
     const modelImg = m.img_url 
-      ? `<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`
-      : `<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
+      ? `<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`
+      : `<div style="width:40px;height:40px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
     
-    const deliveryDate = o.updated_at ? new Date(o.updated_at).toLocaleString('az-AZ') : '—';
+    const deliveryDate = o.delivered_at || o.updated_at;
+    const delStr = deliveryDate ? new Date(deliveryDate).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    const driverName = o.delivered_by || '—';
     
-    return `<div class="task-card">
-      <div class="task-card-top" style="background:var(--lt)">
+    return `<div class="task-card" style="border:1px dashed var(--bd);background:#f5f5f5;opacity:0.7">
+      <div class="task-card-top" style="background:#eee">
         <div style="display:flex;align-items:center;gap:10px;flex:1">
           ${modelImg}
           <div style="flex:1">
-            <div style="font-size:15px;font-weight:700">✓ Təslim edildi</div>
-            <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${o.client}</div>
+            <div style="font-size:14px;font-weight:700;text-decoration:line-through;color:#666">✓ Təslim edildi</div>
+            <div style="font-size:12px;color:var(--t2);margin-top:2px;text-decoration:line-through">${o.order_number} · ${o.client}</div>
           </div>
         </div>
-        <span class="badge bG">Delivered</span>
+        <span class="badge" style="background:#aaa;color:#fff">✓ Alındı</span>
       </div>
-      <div class="task-card-body">
+      <div class="task-card-body" style="text-decoration:line-through;color:#888">
         <div class="task-meta">
           <div class="tm-i"><div class="tm-k">Model</div><div class="tm-v">${m.name.split('—')[0].trim()}</div></div>
-          <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div>
+          <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v">${o.qty}</div></div>
           <div class="tm-i"><div class="tm-k">Məbləğ</div><div class="tm-v">${o.final_price?o.final_price+' ₼':'—'}</div></div>
+          <div class="tm-i"><div class="tm-k">Sürücü</div><div class="tm-v" style="font-weight:600">${driverName}</div></div>
         </div>
-        <div style="font-size:11px;color:var(--t3);margin-top:6px">Təslim: ${deliveryDate}</div>
-        ${o.signature ? `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--bd)">
+        <div style="font-size:11px;color:var(--t3);margin-top:6px;text-decoration:none">🕐 Təslim: ${delStr}</div>
+        ${o.signature ? `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--bd);text-decoration:none">
           <div style="font-size:11px;color:var(--t2);margin-bottom:6px">İmza:</div>
-          <img src="${o.signature}" style="width:100%;max-width:300px;background:#fff;border:1px solid var(--bd);border-radius:8px">
+          <img src="${o.signature}" style="width:100%;max-width:250px;background:#fff;border:1px solid var(--bd);border-radius:8px">
         </div>` : ''}
       </div>
     </div>`;
@@ -2990,10 +2993,63 @@ function openSignatureSheet(order,model){
   document.getElementById('sig-clear-btn').onclick=()=>ctx.clearRect(0,0,canvas.width,canvas.height);
   document.getElementById('sig-confirm-btn').onclick=async ()=>{
     const signatureData=canvas.toDataURL('image/png');
-    await sb.from('orders').update({status:'delivered',signature:signatureData}).eq('id',order.id);
-    closeSheet('signature');
-    toast('✅ Təslim edildi — imza saxlanıldı!');
-    renderLogi();
+    // Sürücü seçimi — Logistika şöbəsindəki işçilər
+    const {data:drivers} = await sb.from('workers').select('*').eq('dept_key','logistics').eq('status','active');
+    const driverList = drivers || [];
+    
+    if(driverList.length === 0){
+      // Sürücü yoxdursa admin adıyla saxla
+      await sb.from('orders').update({
+        status:'delivered',
+        signature:signatureData,
+        delivered_by: currentUser.name,
+        delivered_at: new Date().toISOString()
+      }).eq('id',order.id);
+      closeSheet('signature');
+      toast('⚠ Sürücü yoxdur! Admin adı ilə saxlandı. Admin panelə Logistikaya işçi əlavə edin.');
+      renderLogi();
+      return;
+    }
+    
+    // Sürücü seçim modal
+    const driverOptions = driverList.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:16px;padding:20px;max-width:400px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.3)">
+        <div style="font-size:18px;font-weight:700;margin-bottom:6px">🚛 Sürücünü seçin</div>
+        <div style="font-size:13px;color:var(--t2);margin-bottom:14px">Bu sifarişi hansı sürücü çatdırdı?</div>
+        <select id="driver-select-modal" style="width:100%;padding:12px;border:1px solid var(--bd);border-radius:8px;font-family:inherit;font-size:14px;margin-bottom:14px">
+          <option value="">— Seçin —</option>
+          ${driverOptions}
+        </select>
+        <div style="display:flex;gap:8px">
+          <button id="driver-cancel" style="flex:1;padding:10px;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;font-family:inherit">Ləğv et</button>
+          <button id="driver-confirm" style="flex:1;padding:10px;background:var(--tl);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600">✓ Təsdiqlə</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    
+    document.getElementById('driver-cancel').onclick = ()=> modal.remove();
+    document.getElementById('driver-confirm').onclick = async ()=>{
+      const sel = document.getElementById('driver-select-modal');
+      if(!sel.value){toast('⚠ Sürücü seçin');return;}
+      const driver = driverList.find(d=>d.id===sel.value);
+      
+      await sb.from('orders').update({
+        status:'delivered',
+        signature:signatureData,
+        delivered_by: driver.name,
+        delivered_by_id: driver.id,
+        delivered_at: new Date().toISOString()
+      }).eq('id',order.id);
+      
+      modal.remove();
+      closeSheet('signature');
+      toast('✅ Təslim edildi — '+driver.name);
+      renderLogi();
+    };
   };
   
   openSheet('signature');
