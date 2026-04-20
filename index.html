@@ -740,7 +740,7 @@ const DEPT_INFO = {
   masa_rengle: {name:'Masa rəngləmə şöbəsi',   icon:'🎨', hours:2},
   rengleme:    {name:'Rənglənmə şöbəsi',       icon:'🖌️', hours:3},
   yastiqlama:  {name:'Yastıqlama / Döşəmə',    icon:'🛋️', hours:4},
-  tikiş:       {name:'Tikiş şöbəsi',           icon:'🧵', hours:3},
+  tikis:       {name:'Tikiş şöbəsi',           icon:'🧵', hours:3},
   qa:          {name:'Keyfiyyət yoxlama',       icon:'✅', hours:1},
   logistics:   {name:'Logistika / Çatdırılma', icon:'🚛', hours:1},
 };
@@ -1432,7 +1432,7 @@ async function showOrderSheet(type){
     const stageColors = {
       hazirlik:'#E3F2FD', bez_kesim:'#F3E5F5', karkaz:'#E8F5E9',
       shkurka:'#FFF3E0', masa_karkaz:'#FCE4EC', masa_rengle:'#E0F2F1',
-      rengleme:'#EDE7F6', yastiqlama:'#FFF8E1', tikiş:'#E8EAF6',
+      rengleme:'#EDE7F6', yastiqlama:'#FFF8E1', tikis:'#E8EAF6',
       qa:'#E0F7FA', logistics:'#F1F8E9'
     };
     const curStage = m.stages&&m.stages[o.current_stage-1];
@@ -1893,7 +1893,7 @@ async function renderDeptTasks(dept){
   // Parça alış tab - yalnız Tikiş şöbəsində görünsün
   const sharedTabBtn = document.getElementById('dept-tab-shared');
   if(sharedTabBtn){
-    if(dept === 'tikiş'){
+    if(dept === 'tikis'){
       sharedTabBtn.style.display = '';
     } else {
       sharedTabBtn.style.display = 'none';
