@@ -1923,6 +1923,22 @@ async function renderDeptTasks(dept){
         }
       }
       
+      // 2) Əvvəlki paralel mərhələlərdə hələ işləyən fon işləri
+      // (specific/any mode-da bir şöbə bitib sifariş keçib, amma bu şöbə hələ işləyir)
+      for(let i=0; i<si; i++){
+        const stage = stages[i];
+        if(!stage.dept.includes('||')) continue;
+        const parts = stage.dept.split('||');
+        if(!parts.includes(dept)) continue;
+        
+        const stageKey = o.id+'_'+i+'_'+dept;
+        if(addedStages.has(stageKey)) continue;
+        if(parallelDone.includes(dept)) continue; // Bu şöbə artıq bitirib
+        
+        // Bu paralel stage-də bu şöbə hələ işləmir — fon iş kimi əlavə et
+        tasks.push({o,m,s:stage,si:i+1,isBackground:true});
+        addedStages.add(stageKey);
+      }
     });
 
     console.log('['+dept+'] tasks:',tasks.length);
@@ -2053,13 +2069,16 @@ async function renderDeptTasks(dept){
         const matches = stageDept===dept || (isParallel && stageDept.split('||').includes(dept));
         if(!matches) return;
         
-        // Mövcud mərhələdən irəlidirsə tamamlanıb
-        if(o.current_stage > i+1){
-          done.push({o,m,s,stageNum:i+1});
-        }
-        // Paralel şöbə olub bu dept artıq tamamlayıb amma digər hələ işləyir
-        else if(isParallel && o.current_stage === i+1 && parallelDone.includes(dept)){
-          done.push({o,m,s,stageNum:i+1,parallelWaiting:true});
+        if(isParallel){
+          // Paralel stage-də YALNIZ parallel_done_depts-də olan şöbə tamamlanmış sayılır
+          if(parallelDone.includes(dept)){
+            done.push({o,m,s,stageNum:i+1});
+          }
+        } else {
+          // Adi (ardıcıl) stage — current_stage irəlidirsə tamamlanıb
+          if(o.current_stage > i+1){
+            done.push({o,m,s,stageNum:i+1});
+          }
         }
       });
     });
@@ -2391,17 +2410,22 @@ async function dDone(oid, si, key, dept, totalStages){
     
     // shouldAdvance hesabla
     let shouldAdvance = false;
+    let shouldResetParallel = false; // parallel_done_depts sıfırlansın?
+    
     if(parallelMode === 'any'){
       shouldAdvance = true;
+      shouldResetParallel = false; // digər şöbə hələ işləyə bilər
     } else if(parallelMode && parallelMode.startsWith('specific:')){
       const req = parallelMode.split(':')[1];
       shouldAdvance = doneDepts.includes(req);
+      shouldResetParallel = false; // digər şöbə müstəqil davam edir (fon iş)
     } else {
-      // all
+      // all - hər ikisi bitsə, artıq paralel-də iş qalmayıb
       shouldAdvance = parallelDepts.every(d=>doneDepts.includes(d));
+      shouldResetParallel = true;
     }
     
-    console.log('[PARALEL]', {parallelDepts, doneDepts, parallelMode, shouldAdvance});
+    console.log('[PARALEL]', {parallelDepts, doneDepts, parallelMode, shouldAdvance, shouldResetParallel});
     
     if(!shouldAdvance){
       // Hələ gözləyirik — yalnız parallel_done_depts yadda saxla
@@ -2414,7 +2438,7 @@ async function dDone(oid, si, key, dept, totalStages){
       return;
     }
     
-    // Hər ikisi bitdi — növbəti stage-ə keç, parallel_done sıfırla
+    // Növbəti stage-ə keç
     const newStage = parseInt(si) + 1;
     let newStatus = 'in_progress';
     if(newStage > parseInt(totalStages)){
@@ -2425,11 +2449,15 @@ async function dDone(oid, si, key, dept, totalStages){
     }
     
     try{
-      await sb.from('orders').update({
+      const updateData = {
         current_stage: newStage,
         status: newStatus,
-        parallel_done_depts: '' // sıfırla
-      }).eq('id', oid);
+        parallel_done_depts: doneDepts.join(',') // Qoru - digər şöbələr hələ işləyə bilər
+      };
+      if(shouldResetParallel){
+        updateData.parallel_done_depts = ''; // yalnız "all" modunda sıfırla
+      }
+      await sb.from('orders').update(updateData).eq('id', oid);
     }catch(e){
       toast('⚠ Xəta: '+e.message);
       if(doneBtn) doneBtn.disabled = false;
