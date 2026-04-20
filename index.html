@@ -471,7 +471,7 @@ textarea{resize:vertical;min-height:80px}
           <!-- TABS -->
           <div style="display:flex;gap:4px;margin-bottom:14px;background:rgba(17,24,32,.05);border-radius:var(--r);padding:4px">
             <button id="dept-tab-active" onclick="switchDeptTab('active')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:var(--sf);color:var(--tl);box-shadow:0 1px 4px rgba(0,0,0,.08)">▶ Aktiv</button>
-            <button id="dept-tab-shared" onclick="switchDeptTab('shared')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2)">📨 Parça alış</button>
+            <button id="dept-tab-shared" onclick="switchDeptTab('shared')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2);display:none">📨 Parça alış</button>
             <button id="dept-tab-done" onclick="switchDeptTab('done')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2)">✓ Tamamlananlar</button>
           </div>
           <div id="dept-task-list"></div>
@@ -1889,6 +1889,22 @@ async function renderDeptTasks(dept){
   ]);
   hideLoader();
   window.forwardingConfig = fwdConfig || {};
+  
+  // Parça alış tab - yalnız Tikiş şöbəsində görünsün
+  const sharedTabBtn = document.getElementById('dept-tab-shared');
+  if(sharedTabBtn){
+    if(dept === 'tikiş'){
+      sharedTabBtn.style.display = '';
+    } else {
+      sharedTabBtn.style.display = 'none';
+      // Əgər tikiş deyil və curDeptTab shared-dirsə, aktiv-ə qayıt
+      if(curDeptTab === 'shared'){
+        curDeptTab = 'active';
+        switchDeptTab('active');
+        return;
+      }
+    }
+  }
 
   const orders=allOrders||[];
   const models=allModels||[];
