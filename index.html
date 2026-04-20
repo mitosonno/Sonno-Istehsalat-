@@ -1875,12 +1875,15 @@ async function renderDeptTasks(dept){
   }
   
   showLoader();
-  const [{data:allOrders},{data:allModels},{data:allLogs}] = await Promise.all([
+  // Ötürmə konfiqurasiyasını da yüklə
+  const [{data:allOrders},{data:allModels},{data:allLogs},fwdConfig] = await Promise.all([
     sb.from('orders').select('*').order('created_at',{ascending:true}),
     sb.from('models').select('*'),
     sb.from('task_logs').select('*').eq('dept_key',dept).order('started_at',{ascending:false}),
+    getForwardingConfig(),
   ]);
   hideLoader();
+  window.forwardingConfig = fwdConfig || {};
 
   const orders=allOrders||[];
   const models=allModels||[];
@@ -2508,9 +2511,13 @@ async function dDone(oid, si, key, dept, totalStages){
       await sb.from('orders').update({
         parallel_done_depts: doneDepts.join(',')
       }).eq('id', oid);
+      localStorage.removeItem(key+'_'+dept+'_s');
+      localStorage.removeItem(key+'_'+dept+'_t');
+      localStorage.removeItem(key+'_'+dept+'_d');
+      localStorage.removeItem(key+'_'+dept+'_dt');
       hideTaskCard(oid);
       toast('✅ Tamamlandı (fon iş)');
-      setTimeout(()=>renderDeptTasks(dept), 300);
+      setTimeout(()=>renderDeptTasks(dept), 500);
       return;
     }
     
@@ -2538,9 +2545,14 @@ async function dDone(oid, si, key, dept, totalStages){
       await sb.from('orders').update({
         parallel_done_depts: doneDepts.join(',')
       }).eq('id', oid);
+      // localStorage-ı bu dept üçün təmizlə
+      localStorage.removeItem(key+'_'+dept+'_s');
+      localStorage.removeItem(key+'_'+dept+'_t');
+      localStorage.removeItem(key+'_'+dept+'_d');
+      localStorage.removeItem(key+'_'+dept+'_dt');
       hideTaskCard(oid);
       toast('✅ '+DEPT_INFO[dept]?.name+' tamamlandı — paralel gözlənilir');
-      setTimeout(()=>renderDeptTasks(dept), 300);
+      setTimeout(()=>renderDeptTasks(dept), 500);
       return;
     }
     
@@ -2571,9 +2583,15 @@ async function dDone(oid, si, key, dept, totalStages){
       return;
     }
     
+    // localStorage-ı bu dept üçün təmizlə
+    localStorage.removeItem(key+'_'+dept+'_s');
+    localStorage.removeItem(key+'_'+dept+'_t');
+    localStorage.removeItem(key+'_'+dept+'_d');
+    localStorage.removeItem(key+'_'+dept+'_dt');
+    
     hideTaskCard(oid);
     toast('✅ Paralel bitdi — növbəti mərhələyə keçdi!');
-    setTimeout(()=>renderDeptTasks(dept), 300);
+    setTimeout(()=>renderDeptTasks(dept), 500);
     return;
   }
   
@@ -2602,6 +2620,12 @@ async function dDone(oid, si, key, dept, totalStages){
     return;
   }
   
+  // localStorage təmizlə
+  localStorage.removeItem(key+'_'+dept+'_s');
+  localStorage.removeItem(key+'_'+dept+'_t');
+  localStorage.removeItem(key+'_'+dept+'_d');
+  localStorage.removeItem(key+'_'+dept+'_dt');
+  
   hideTaskCard(oid);
   toast('✅ Tamamlandı!');
   
@@ -2610,7 +2634,7 @@ async function dDone(oid, si, key, dept, totalStages){
     clearInterval(parseInt(timerEl.dataset.intervalId));
   }
   
-  setTimeout(()=>renderDeptTasks(dept), 300);
+  setTimeout(()=>renderDeptTasks(dept), 500);
 }
 
 // Köməkçi funksiya — card-ı DOM-dan tamamilə sil
