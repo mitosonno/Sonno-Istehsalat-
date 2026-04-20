@@ -1943,7 +1943,12 @@ async function renderDeptTasks(dept){
         const isParallel = stage.dept.includes('||');
         const matches = stage.dept===dept || (isParallel && stage.dept.split('||').includes(dept));
         
-        if(matches){
+        // Bu şöbənin bu stage üçün tamamlanmış log-u varmı?
+        const logKey = o.id + '_' + si + '_' + dept;
+        const existingLog = logMap[logKey];
+        const hasCompletedLog = existingLog && existingLog.completed_at;
+        
+        if(matches && !hasCompletedLog){
           if(isParallel && parallelDone.includes(dept)){
             // Paralel-də artıq tamamlayıb
           } else {
@@ -2060,7 +2065,7 @@ async function renderDeptTasks(dept){
               ${o.notes ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)"><b>📝 Qeyd:</b> ${o.notes}</div>` : ''}
             </div>` : ''}
             ${!received ? `<div class="task-btns">
-              <button class="btn btn-t btn-lg btn-full" onclick="sharedReceive('${o.id}','${dept}')">✓ Aldım</button>
+              <button class="btn btn-t btn-lg btn-full" data-sh-oid="${o.id}" data-sh-dept="${dept}" onclick="sharedReceiveClick(this)">✓ Aldım</button>
             </div>` : ''}
           </div>
         </div>`;
@@ -2227,50 +2232,44 @@ async function renderDeptTasks(dept){
             ${o.notes ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)"><b>📝 Qeyd:</b> ${o.notes}</div>` : ''}
           </div>` : ''}
           ${!received ? `<div class="task-btns">
-            <button class="btn btn-t btn-lg btn-full" onclick="sharedReceive('${o.id}','${dept}')">✓ Aldım</button>
+            <button class="btn btn-t btn-lg btn-full" data-sh-oid="${o.id}" data-sh-dept="${dept}" onclick="sharedReceiveClick(this)">✓ Aldım</button>
           </div>` : ''}
         </div>
       </div>`;
     }).join('');
     return;
   } else {
-    orders.forEach(o=>{
-      const m=models.find(x=>x.id===o.model_id);if(!m)return;
-      const parallelDone = (o.parallel_done_depts || '').split(',').filter(x=>x);
-      (m.stages||[]).forEach((s,i)=>{
-        const stageDept = s.dept;
-        const isParallel = stageDept.includes('||');
-        const matches = stageDept===dept || (isParallel && stageDept.split('||').includes(dept));
-        if(!matches) return;
-        
-        if(isParallel){
-          // Paralel stage-də YALNIZ parallel_done_depts-də olan şöbə tamamlanmış sayılır
-          if(parallelDone.includes(dept)){
-            done.push({o,m,s,stageNum:i+1});
-          }
-        } else {
-          // Adi (ardıcıl) stage — current_stage irəlidirsə tamamlanıb
-          if(o.current_stage > i+1){
-            done.push({o,m,s,stageNum:i+1});
-          }
-        }
-      });
+    // TAMAMLANANLAR — bu şöbənin task_logs-da completed_at olan bütün loglarına bax
+    const completedLogs = (allLogs||[]).filter(l => 
+      l.dept_key === dept && l.completed_at && l.stage_index >= 0
+    );
+    
+    const done = [];
+    completedLogs.forEach(log=>{
+      const o = orders.find(x=>x.id===log.order_id);
+      if(!o) return;
+      const m = models.find(x=>x.id===o.model_id);
+      if(!m) return;
+      const stages = m.stages || [];
+      const stageIdx = log.stage_index;
+      const s = stages[stageIdx];
+      if(!s) return;
+      done.push({o,m,s,stageNum:stageIdx+1,log});
     });
+    
+    // Ən yeni tamamlanmışlar yuxarıda
+    done.sort((a,b)=> new Date(b.log.completed_at) - new Date(a.log.completed_at));
+    
     document.getElementById('dt-cnt').textContent=done.length;
     const tl2=document.getElementById('dept-task-list');
     if(!done.length){
       tl2.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:14px">Hələ tamamlanan iş yoxdur</div></div>`;
       return;
     }
-    tl2.innerHTML=done.map(({o,m,s,stageNum})=>{
-      const key=`ts_${o.id}_${stageNum}`;
-      const dKey = key+'_'+dept;
-      const logKey = o.id + '_' + (stageNum-1) + '_' + dept;
-      const log = logMap[logKey];
-      
-      const t0 = (log && log.started_at) || localStorage.getItem(dKey+'_t');
-      const dt = (log && log.completed_at) || localStorage.getItem(dKey+'_dt');
-      let dm = log?.duration_minutes;
+    tl2.innerHTML=done.map(({o,m,s,stageNum,log})=>{
+      const t0 = log.started_at;
+      const dt = log.completed_at;
+      let dm = log.duration_minutes;
       if(!dm && t0 && dt) dm = Math.round((new Date(dt)-new Date(t0))/60000);
       
       const st=ST[o.status]||ST.created;
@@ -2550,6 +2549,14 @@ async function forwardToDept(oid, toDept, fromDept){
 }
 
 // Ötürülmüş sifarişdə "Aldım" basıldı
+// Button click wrapper (data-attributes ilə)
+function sharedReceiveClick(btn){
+  const oid = btn.dataset.shOid;
+  const dept = btn.dataset.shDept;
+  console.log('[sharedReceiveClick]', {oid, dept});
+  if(oid && dept) sharedReceive(oid, dept);
+}
+
 async function sharedReceive(oid, dept){
   console.log('[sharedReceive] başladı:', {oid, dept});
   showLoader();
