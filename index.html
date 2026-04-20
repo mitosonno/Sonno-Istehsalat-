@@ -2271,41 +2271,77 @@ async function renderDeptTasks(dept){
       tl2.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:14px">Hələ tamamlanan iş yoxdur</div></div>`;
       return;
     }
-    tl2.innerHTML=done.map(({o,m,s,stageNum,log})=>{
-      const t0 = log.started_at;
-      const dt = log.completed_at;
-      let dm = log.duration_minutes;
-      if(!dm && t0 && dt) dm = Math.round((new Date(dt)-new Date(t0))/60000);
-      
-      const st=ST[o.status]||ST.created;
-      const modelImg=m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
-      return`<div class="task-card">
-        <div class="task-card-top" style="background:var(--lt)">
-          <div style="display:flex;align-items:center;gap:10px;flex:1">
-            ${modelImg}
-            <div>
-              <div style="font-size:15px;font-weight:700">✓ ${s.name}</div>
-              <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${o.client}</div>
-              ${o.created_at?`<div style="font-size:10px;color:var(--t3);margin-top:2px">📅 Sifariş: ${new Date(o.created_at).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>`:''}
+    
+    // Tarixə görə qruplaşdır
+    const groups = {};
+    done.forEach(item=>{
+      const dt = new Date(item.log.completed_at);
+      const dateKey = dt.toISOString().split('T')[0]; // "2026-04-20"
+      if(!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(item);
+    });
+    
+    // Qrup açarlarını tarixə görə (yeni üstdə)
+    const sortedKeys = Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+    
+    // Bu gün, dünən üçün label
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now()-86400000).toISOString().split('T')[0];
+    const dateLabel = (k)=>{
+      if(k===today) return '📅 Bu gün';
+      if(k===yesterday) return '📅 Dünən';
+      const d = new Date(k);
+      return '📅 ' + d.toLocaleDateString('az-AZ',{day:'2-digit',month:'long',weekday:'long'});
+    };
+    
+    tl2.innerHTML = sortedKeys.map(dateKey=>{
+      const items = groups[dateKey];
+      const totalMin = items.reduce((s,i)=>s+(i.log.duration_minutes||0),0);
+      return `
+        <div style="padding:12px 16px;margin:14px 0 8px 0;background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:10px;border-left:4px solid var(--tl);display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700;color:var(--tl);font-size:14px">${dateLabel(dateKey)}</div>
+          <div style="font-size:12px;color:var(--t2)">${items.length} iş · ${Math.round(totalMin/60*10)/10} saat</div>
+        </div>
+        ${items.map(({o,m,s,stageNum,log})=>{
+          const t0 = log.started_at;
+          const dt = log.completed_at;
+          let dm = log.duration_minutes;
+          if(!dm && t0 && dt) dm = Math.round((new Date(dt)-new Date(t0))/60000);
+          
+          const st=ST[o.status]||ST.created;
+          const modelImg=m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
+          const completedTime = new Date(dt).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'});
+          
+          return `<div class="task-card">
+            <div class="task-card-top" style="background:var(--lt)">
+              <div style="display:flex;align-items:center;gap:10px;flex:1">
+                ${modelImg}
+                <div>
+                  <div style="font-size:15px;font-weight:700">✓ ${s.name}</div>
+                  <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${o.client}</div>
+                </div>
+              </div>
+              <span class="badge ${st.c}">${st.t}</span>
             </div>
-          </div>
-          <span class="badge ${st.c}">${st.t}</span>
-        </div>
-        <div class="task-card-body">
-          <div style="background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:12px;padding:14px;margin-bottom:10px;text-align:center;border:2px solid var(--tl)">
-            <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">⏱ Sərf olunan vaxt</div>
-            <div style="font-size:32px;font-weight:700;color:var(--tl);font-family:'DM Mono',monospace;line-height:1">${dm?dm+' dəq':'—'}</div>
-            <div style="font-size:11px;color:var(--t3);margin-top:4px">Plan: ${s.hours*60} dəq${dm?' · Fərq: '+(dm>s.hours*60?'+':'')+Math.round(dm-s.hours*60)+' dəq':''}</div>
-          </div>
-          <div class="task-meta">
-            <div class="tm-i"><div class="tm-k">Model</div><div class="tm-v">${m.name.split('—')[0].trim()}</div></div>
-            <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div>
-            <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v">${o.client}</div></div>
-          </div>
-          ${dt?`<div style="font-size:11px;color:var(--t3);margin-top:6px">Tamamlandı: ${new Date(dt).toLocaleString('az-AZ')}</div>`:''}
-        </div>
-      </div>`;
+            <div class="task-card-body">
+              <div style="background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:12px;padding:14px;margin-bottom:10px;text-align:center;border:2px solid var(--tl)">
+                <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">⏱ Sərf olunan vaxt</div>
+                <div style="font-size:32px;font-weight:700;color:var(--tl);font-family:'DM Mono',monospace;line-height:1">${dm?dm+' dəq':'—'}</div>
+                <div style="font-size:11px;color:var(--t3);margin-top:4px">Plan: ${s.hours*60} dəq${dm?' · Fərq: '+(dm>s.hours*60?'+':'')+Math.round(dm-s.hours*60)+' dəq':''}</div>
+                <div style="font-size:11px;color:var(--t3);margin-top:4px">🕐 Tamamlandı: ${completedTime}</div>
+              </div>
+              <div class="task-meta">
+                <div class="tm-i"><div class="tm-k">Model</div><div class="tm-v">${m.name.split('—')[0].trim()}</div></div>
+                <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div>
+                <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v">${o.client}</div></div>
+              </div>
+              ${o.created_at?`<div style="font-size:11px;color:var(--t3);margin-top:6px">📅 Sifariş alındı: ${new Date(o.created_at).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+      `;
     }).join('');
+    return;
   }
 }
 
