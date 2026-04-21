@@ -2284,6 +2284,101 @@ async function renderDeptTasks(dept){
         </div>`;
       }
 
+      // Keyfiyyət yoxlama (QA) şöbəsi üçün xüsusi kart
+      if(dept === 'qa'){
+        const stages2 = m.stages || [];
+        // Bu sifarişin keçdiyi şöbələr (logistics və qa istisna)
+        const checkedDepts = new Set();
+        stages2.forEach(st=>{
+          const depts = st.dept.split('||');
+          depts.forEach(d=>{
+            if(d !== 'logistics' && d !== 'qa') checkedDepts.add(d);
+          });
+        });
+        const checkList = Array.from(checkedDepts);
+        
+        // QA işçiləri siyahısı
+        const qaWorkers = dws.filter(w=>w.dept_key === 'qa');
+        const qaWorkerOptions = qaWorkers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('');
+        
+        // Əvvəlki təmir varsa göstər
+        const hasReworkFlag = o.rework_status === 'pending' || o.rework_status === 'done';
+        
+        return `<div class="task-card" id="tcard-${o.id}" style="${hasReworkFlag?'border:2px solid #E24B4A':''}">
+          <div class="task-card-top${isLate?' late':''}" style="${hasReworkFlag?'background:#FFEBEE':''}">
+            <div style="display:flex;align-items:center;gap:10px;flex:1">
+              ${modelImg}
+              <div style="flex:1">
+                <div style="font-size:15px;font-weight:700">${hasReworkFlag?'🔧 Təmirdən qayıdıb':'✅ Keyfiyyət yoxlaması'}</div>
+                <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${m.name.split('—')[0].trim()}</div>
+              </div>
+            </div>
+            <span class="badge ${isLate?'bR':'bO'}">${hasReworkFlag?'TƏMİR':'Yoxlama'}</span>
+          </div>
+          <div class="task-card-body">
+            <div class="task-meta">
+              <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600">${o.client}</div></div>
+              <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-size:20px;font-weight:700">${o.qty}</div></div>
+              <div class="tm-i"><div class="tm-k">Plan vaxt</div><div class="tm-v">${s.hours} saat</div></div>
+              <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v" style="${isLate?'color:#E24B4A;font-weight:600':''}">${o.deadline||'—'}</div></div>
+            </div>
+            
+            ${hasReworkFlag && o.rework_reason ? `
+            <div style="background:#FFEBEE;border:1px solid #E24B4A;border-radius:10px;padding:10px 12px;margin:10px 0">
+              <div style="font-size:11px;color:#E24B4A;font-weight:700;margin-bottom:4px">⚠️ ƏVVƏLKİ PROBLEM</div>
+              <div style="font-size:13px;color:var(--t1)">${o.rework_reason}</div>
+              ${o.rework_by ? `<div style="font-size:11px;color:var(--t3);margin-top:4px">Bildirən: ${o.rework_by}</div>` : ''}
+            </div>
+            ` : ''}
+            
+            ${(o.fabric||o.color||o.fabric_company||o.legs||o.notes) ? `
+            <div style="background:var(--lt);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:12px;line-height:1.7">
+              ${o.fabric ? `<div><b>🧶 Parça:</b> ${o.fabric}</div>` : ''}
+              ${o.color ? `<div><b>🏷️ Parça kodu:</b> ${o.color}</div>` : ''}
+              ${o.fabric_company ? `<div><b>🏭 Parça satan:</b> ${o.fabric_company}</div>` : ''}
+              ${o.legs ? `<div><b>🦵 Ayaq rəngi:</b> ${o.legs}</div>` : ''}
+              ${o.notes ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)"><b>📝 Qeyd:</b> ${o.notes}</div>` : ''}
+            </div>` : ''}
+            
+            <div style="background:var(--lt);border-radius:10px;padding:12px;margin:10px 0">
+              <label style="font-size:11px;color:var(--t2);font-weight:700;display:block;margin-bottom:6px">👤 Yoxlayan</label>
+              ${qaWorkers.length ? `
+                <select id="qa-inspector-${o.id}" style="width:100%;padding:12px;border:2px solid var(--bd);border-radius:8px;font-family:inherit;font-size:14px;background:#fff;min-height:48px">
+                  <option value="">— İşçi seçin —</option>
+                  ${qaWorkerOptions}
+                </select>
+              ` : `
+                <div style="padding:10px;background:#FFF5F5;border:1px solid #E24B4A;border-radius:8px;font-size:12px;color:#E24B4A">
+                  ⚠️ QA şöbəsində işçi yoxdur
+                </div>
+              `}
+            </div>
+            
+            <div style="background:var(--lt);border-radius:10px;padding:12px;margin:10px 0">
+              <label style="font-size:11px;color:var(--t2);font-weight:700;display:block;margin-bottom:10px">✔️ Yoxlama siyahısı (hamısı məcburi)</label>
+              ${checkList.map(dKey=>{
+                const dInfo = DEPT_INFO[dKey] || {name:dKey, icon:'🔧'};
+                return `<label style="display:flex;align-items:center;gap:10px;padding:10px;background:#fff;border:1px solid var(--bd);border-radius:8px;margin-bottom:6px;cursor:pointer">
+                  <input type="checkbox" class="qa-check-${o.id}" data-dept="${dKey}" style="width:22px;height:22px;cursor:pointer">
+                  <span style="font-size:14px;font-weight:600">${dInfo.icon} ${dInfo.name}</span>
+                </label>`;
+              }).join('')}
+            </div>
+            
+            <div style="background:var(--lt);border-radius:10px;padding:12px;margin:10px 0">
+              <label style="font-size:11px;color:var(--t2);font-weight:700;display:block;margin-bottom:6px">📝 Əlavə qeyd / problem</label>
+              <textarea id="qa-notes-${o.id}" placeholder="Problem varsa buraya yazın..." style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit;font-size:13px;min-height:70px;resize:vertical"></textarea>
+            </div>
+            
+            <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-top:12px">
+              <button onclick="qaDecision('${o.id}','deliver')" style="padding:14px;background:var(--tl);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px">✅ ÇATDIRILSIN</button>
+              <button onclick="qaDecision('${o.id}','repair')" style="padding:14px;background:var(--or);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px">🔧 TƏMİR OLUNSUN</button>
+              <button onclick="qaDecision('${o.id}','reject')" style="padding:14px;background:#E24B4A;color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px">❌ ÇATDIRILMASI QADAĞANDIR</button>
+            </div>
+          </div>
+        </div>`;
+      }
+
       return`<div class="task-card" id="tcard-${o.id}">
         <div class="task-card-top${isLate?' late':''}">
           <div style="display:flex;align-items:center;gap:10px;flex:1">
@@ -2706,12 +2801,17 @@ async function renderLogisticsDone(){
 
 async function renderLogisticsDept(){
   showLoader();
-  const [{data:orders},{data:models}] = await Promise.all([
+  const [{data:orders},{data:models},{data:drivers},{data:users}] = await Promise.all([
     sb.from('orders').select('*').not('status', 'eq', 'delivered').order('created_at',{ascending:true}),
     sb.from('models').select('*'),
+    sb.from('workers').select('*').eq('dept_key','logistics').eq('status','active'),
+    sb.from('users').select('id,name'),
   ]);
   
   const allModels = models || [];
+  const allDrivers = drivers || [];
+  const userMap = {};
+  (users||[]).forEach(u=>userMap[u.id]=u.name);
   console.log('[LOGISTICS] Toplam sifariş (delivered xaric):', (orders||[]).length);
   console.log('[LOGISTICS] Statuslar:', (orders||[]).map(o=>({id:o.id,num:o.order_number,status:o.status,stage:o.current_stage})));
   
@@ -2763,6 +2863,9 @@ async function renderLogisticsDept(){
       ? `<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`
       : `<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
     
+    const managerName = userMap[o.created_by] || '—';
+    const driverOptions = allDrivers.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+    
     return `<div class="task-card">
       <div class="task-card-top">
         <div style="display:flex;align-items:center;gap:10px;flex:1">
@@ -2777,6 +2880,7 @@ async function renderLogisticsDept(){
       <div class="task-card-body">
         <div class="task-meta">
           <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600">${o.client}</div></div>
+          <div class="tm-i"><div class="tm-k">Menecer</div><div class="tm-v" style="font-weight:600;color:var(--tl)">👤 ${managerName}</div></div>
           <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-size:20px;font-weight:700">${o.qty}</div></div>
           <div class="tm-i"><div class="tm-k">Məbləğ</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.final_price||0} ₼</div></div>
           <div class="tm-i"><div class="tm-k">Satış</div><div class="tm-v">${o.sale_type==='showroom'?'🏪 Vitrin':'💵 Nağd'}</div></div>
@@ -2789,12 +2893,43 @@ async function renderLogisticsDept(){
           ${o.legs ? `<div><b>🦵 Ayaq rəngi:</b> ${o.legs}</div>` : ''}
           ${o.notes ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)"><b>📝 Qeyd:</b> ${o.notes}</div>` : ''}
         </div>` : ''}
+        
+        <div style="background:var(--lt);border-radius:10px;padding:12px;margin:10px 0">
+          <label style="font-size:11px;color:var(--t2);font-weight:700;display:block;margin-bottom:6px">🚛 Sürücü seçimi</label>
+          ${allDrivers.length ? `
+            <select id="driver-sel-${o.id}" style="width:100%;padding:12px;border:2px solid var(--bd);border-radius:8px;font-family:inherit;font-size:14px;background:#fff;min-height:48px">
+              <option value="">— Sürücü seçin —</option>
+              ${driverOptions}
+            </select>
+          ` : `
+            <div style="padding:10px;background:#FFF5F5;border:1px solid #E24B4A;border-radius:8px;font-size:12px;color:#E24B4A">
+              ⚠️ Logistika şöbəsində aktiv sürücü yoxdur. Admin paneldə əlavə edin.
+            </div>
+          `}
+        </div>
+        
         <div class="task-btns">
-          <button class="btn btn-t btn-lg btn-full" onclick="markDel('${o.id}')">✓ Təslim et və imzala</button>
+          <button class="btn btn-t btn-lg btn-full" onclick="markDelWithDriver('${o.id}')">✓ Təslim et və imzala</button>
         </div>
       </div>
     </div>`;
   }).join('');
+}
+
+async function markDelWithDriver(oid){
+  const sel = document.getElementById('driver-sel-'+oid);
+  if(sel){
+    const driverId = sel.value;
+    if(!driverId){
+      toast('⚠ Əvvəlcə sürücü seçin');
+      sel.style.borderColor = '#E24B4A';
+      setTimeout(()=>{sel.style.borderColor='';}, 2000);
+      return;
+    }
+    // Sürücü ID-ni yadda saxla - signature-də istifadə üçün
+    window._pendingDriverId = driverId;
+  }
+  markDel(oid);
 }
 
 // ═══════════ ŞÖBƏ ARASİ ÖTÜRMƏ ═══════════
@@ -3112,6 +3247,144 @@ async function dDone(oid, si, key, dept, totalStages){
 }
 
 // Köməkçi funksiya — card-ı DOM-dan tamamilə sil
+// ═══════════ KEYFİYYƏT YOXLAMA (QA) ═══════════
+async function qaDecision(oid, action){
+  const inspectorSel = document.getElementById('qa-inspector-'+oid);
+  const notesEl = document.getElementById('qa-notes-'+oid);
+  const checks = document.querySelectorAll('.qa-check-'+oid);
+  
+  const inspectorId = inspectorSel?.value;
+  if(!inspectorId){
+    toast('⚠ Yoxlayan işçini seçin');
+    if(inspectorSel) inspectorSel.style.borderColor='#E24B4A';
+    return;
+  }
+  
+  const notes = notesEl?.value?.trim() || '';
+  const checked = [];
+  const unchecked = [];
+  checks.forEach(ch=>{
+    if(ch.checked) checked.push(ch.dataset.dept);
+    else unchecked.push(ch.dataset.dept);
+  });
+  
+  // Yoxlayan məlumatı
+  const inspector = appWorkers.find(w=>w.id===inspectorId);
+  const inspectorName = inspector?.name || currentUser.name;
+  
+  // Sifariş və model yüklə
+  const {data:order} = await sb.from('orders').select('*').eq('id', oid).single();
+  if(!order){toast('Xəta: sifariş tapılmadı'); return;}
+  
+  const {data:model} = await sb.from('models').select('*').eq('id', order.model_id).single();
+  const stages = model?.stages || [];
+  
+  // ÇATDIRILSIN
+  if(action === 'deliver'){
+    if(unchecked.length > 0){
+      const missing = unchecked.map(d => DEPT_INFO[d]?.name || d).join(', ');
+      toast('⚠ Bu şöbələr yoxlanılmayıb: '+missing, 5000);
+      return;
+    }
+    
+    if(!confirm('Bu sifarişi Logistikaya göndərmək istəyirsiniz?\n\n'+order.order_number+'\n'+order.client)) return;
+    
+    showLoader();
+    // QA stage-ni tamamla, növbəti mərhələyə keç
+    const qaStageIdx = stages.findIndex(s=>s.dept==='qa');
+    
+    // Log yaz
+    await sb.from('task_logs').delete()
+      .eq('order_id', oid).eq('stage_index', qaStageIdx).eq('dept_key', 'qa');
+    await sb.from('task_logs').insert({
+      order_id: oid, stage_index: qaStageIdx,
+      worker_id: inspectorId, worker_name: inspectorName,
+      dept_key: 'qa', action: 'qa_approved',
+      started_at: new Date().toISOString(), completed_at: new Date().toISOString(),
+      duration_minutes: 1
+    });
+    
+    // Sifarişi yenilə
+    await sb.from('orders').update({
+      current_stage: qaStageIdx + 2, // QA-dan sonrakı stage
+      status: 'ready',
+      rework_status: null,
+      rework_reason: null,
+      rework_by: null
+    }).eq('id', oid);
+    
+    hideLoader();
+    toast('✅ Çatdırılsın — Logistikaya göndərildi');
+    hideTaskCard(oid);
+    setTimeout(()=>renderDeptTasks('qa'), 500);
+    return;
+  }
+  
+  // TƏMİR OLUNSUN — Rəngləməyə qayıt
+  if(action === 'repair'){
+    if(!notes){
+      toast('⚠ Problemin səbəbini "Əlavə qeyd" sahəsinə yazın');
+      if(notesEl) notesEl.style.borderColor='#E24B4A';
+      return;
+    }
+    
+    if(!confirm('Sifariş Rəngləməyə qaytarılacaq (qırmızı problemli).\n\nƏmin sin?')) return;
+    
+    showLoader();
+    // Rəngləmə stage-ni tap
+    const renglemeIdx = stages.findIndex(s=>s.dept==='rengleme' || (s.dept.includes('||') && s.dept.split('||').includes('rengleme')));
+    
+    if(renglemeIdx < 0){
+      hideLoader();
+      toast('⚠ Modeldə Rəngləmə şöbəsi tapılmadı');
+      return;
+    }
+    
+    // Sifarişi Rəngləməyə qaytar
+    await sb.from('orders').update({
+      current_stage: renglemeIdx + 1,
+      status: 'in_progress',
+      rework_status: 'pending',
+      rework_reason: notes,
+      rework_by: inspectorName,
+      // Rəngləmə loglarını sil ki təzədən Başla/Tamamla basa bilsin
+      parallel_done_depts: ''
+    }).eq('id', oid);
+    
+    // Rəngləmə log-unu sil
+    await sb.from('task_logs').delete()
+      .eq('order_id', oid).eq('stage_index', renglemeIdx);
+    
+    hideLoader();
+    toast('🔧 Sifariş Rəngləməyə qaytarıldı');
+    hideTaskCard(oid);
+    setTimeout(()=>renderDeptTasks('qa'), 500);
+    return;
+  }
+  
+  // ÇATDIRILMASI QADAĞANDIR — cancel
+  if(action === 'reject'){
+    const reason = notes || prompt('Qadağa səbəbi:');
+    if(!reason){toast('⚠ Səbəb yazın'); return;}
+    
+    if(!confirm('Bu sifariş imtina ediləcək (çatdırılmayacaq).\n\n'+order.order_number+'\n\nƏmin sin?')) return;
+    
+    showLoader();
+    await sb.from('orders').update({
+      status: 'cancelled',
+      cancelled_at: new Date().toISOString(),
+      cancelled_by: inspectorName,
+      cancel_reason: 'QA: '+reason
+    }).eq('id', oid);
+    hideLoader();
+    
+    toast('❌ Sifariş çatdırılması qadağan edildi');
+    hideTaskCard(oid);
+    setTimeout(()=>renderDeptTasks('qa'), 500);
+    return;
+  }
+}
+
 function hideTaskCard(oid){
   const card = document.getElementById('tcard-'+oid);
   if(card){
@@ -3226,63 +3499,30 @@ function openSignatureSheet(order,model){
   document.getElementById('sig-clear-btn').onclick=()=>ctx.clearRect(0,0,canvas.width,canvas.height);
   document.getElementById('sig-confirm-btn').onclick=async ()=>{
     const signatureData=canvas.toDataURL('image/png');
-    // Sürücü seçimi — Logistika şöbəsindəki işçilər
-    const {data:drivers} = await sb.from('workers').select('*').eq('dept_key','logistics').eq('status','active');
-    const driverList = drivers || [];
+    const driverId = window._pendingDriverId;
+    let driverName = currentUser.name;
+    let driverIdFinal = null;
     
-    if(driverList.length === 0){
-      // Sürücü yoxdursa admin adıyla saxla
-      await sb.from('orders').update({
-        status:'delivered',
-        signature:signatureData,
-        delivered_by: currentUser.name,
-        delivered_at: new Date().toISOString()
-      }).eq('id',order.id);
-      closeSheet('signature');
-      toast('⚠ Sürücü yoxdur! Admin adı ilə saxlandı. Admin panelə Logistikaya işçi əlavə edin.');
-      renderLogi();
-      return;
+    if(driverId){
+      const {data:drv} = await sb.from('workers').select('*').eq('id', driverId).maybeSingle();
+      if(drv){
+        driverName = drv.name;
+        driverIdFinal = drv.id;
+      }
     }
     
-    // Sürücü seçim modal
-    const driverOptions = driverList.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
-    const modal = document.createElement('div');
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
-    modal.innerHTML = `
-      <div style="background:#fff;border-radius:16px;padding:20px;max-width:400px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.3)">
-        <div style="font-size:18px;font-weight:700;margin-bottom:6px">🚛 Sürücünü seçin</div>
-        <div style="font-size:13px;color:var(--t2);margin-bottom:14px">Bu sifarişi hansı sürücü çatdırdı?</div>
-        <select id="driver-select-modal" style="width:100%;padding:12px;border:1px solid var(--bd);border-radius:8px;font-family:inherit;font-size:14px;margin-bottom:14px">
-          <option value="">— Seçin —</option>
-          ${driverOptions}
-        </select>
-        <div style="display:flex;gap:8px">
-          <button id="driver-cancel" style="flex:1;padding:10px;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;font-family:inherit">Ləğv et</button>
-          <button id="driver-confirm" style="flex:1;padding:10px;background:var(--tl);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600">✓ Təsdiqlə</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
+    await sb.from('orders').update({
+      status:'delivered',
+      signature:signatureData,
+      delivered_by: driverName,
+      delivered_by_id: driverIdFinal,
+      delivered_at: new Date().toISOString()
+    }).eq('id',order.id);
     
-    document.getElementById('driver-cancel').onclick = ()=> modal.remove();
-    document.getElementById('driver-confirm').onclick = async ()=>{
-      const sel = document.getElementById('driver-select-modal');
-      if(!sel.value){toast('⚠ Sürücü seçin');return;}
-      const driver = driverList.find(d=>d.id===sel.value);
-      
-      await sb.from('orders').update({
-        status:'delivered',
-        signature:signatureData,
-        delivered_by: driver.name,
-        delivered_by_id: driver.id,
-        delivered_at: new Date().toISOString()
-      }).eq('id',order.id);
-      
-      modal.remove();
-      closeSheet('signature');
-      toast('✅ Təslim edildi — '+driver.name);
-      renderLogi();
-    };
+    window._pendingDriverId = null;
+    closeSheet('signature');
+    toast('✅ Təslim edildi — '+driverName);
+    renderLogi();
   };
   
   openSheet('signature');
