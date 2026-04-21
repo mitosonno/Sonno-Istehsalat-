@@ -1120,8 +1120,19 @@ async function suggestNextAvailable(fromDate, limit, newQty, input){
 }
 
 // ═══════════ HELPERS ═══════════
-const showLoader = () => document.getElementById('loader').classList.add('on');
-const hideLoader = () => document.getElementById('loader').classList.remove('on');
+const showLoader = () => {
+  document.getElementById('loader').classList.add('on');
+  // Safety: 30 saniyə sonra məcburən söndür (əgər hideLoader çağrılmasa)
+  if(window._loaderTimer) clearTimeout(window._loaderTimer);
+  window._loaderTimer = setTimeout(()=>{
+    document.getElementById('loader').classList.remove('on');
+    console.warn('[loader] Safety timeout - məcburi söndürüldü');
+  }, 30000);
+};
+const hideLoader = () => {
+  document.getElementById('loader').classList.remove('on');
+  if(window._loaderTimer){ clearTimeout(window._loaderTimer); window._loaderTimer = null; }
+};
 function toast(msg, dur=3500){
   const el=document.getElementById('toast');
   el.textContent=msg; el.classList.add('on');
