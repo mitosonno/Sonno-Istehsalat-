@@ -2330,14 +2330,15 @@ async function renderDeptTasks(dept){
             let buttonsHtml = '';
             fwdTargets.forEach(toK=>{
               const toInfo = DEPT_INFO[toK] || DEPT_INFO[toK==='tikis'?'tikiş':(toK==='tikiş'?'tikis':toK)] || {name:toK, icon:'📦'};
-              const sharedDone = (o.shared_with||'').split(',');
-              const already = sharedDone.includes(toK) || (toK==='tikis' && sharedDone.includes('tikiş')) || (toK==='tikiş' && sharedDone.includes('tikis'));
+              // Düymə həmişə basıla bilsin - indicator üçün artıq ötürülüb/ötürülməyib göstər
+              const sharedWithArr = (o.shared_with||'').split(',');
+              const already = sharedWithArr.includes(toK) || (toK==='tikis' && sharedWithArr.includes('tikiş')) || (toK==='tikiş' && sharedWithArr.includes('tikis'));
               const bg = already ? 'var(--lt)' : 'var(--sf)';
               const bd = already ? 'var(--tl)' : 'var(--bd)';
               const col = already ? 'var(--tl)' : 'var(--t1)';
               const icon = already ? '✓' : '➡️';
-              const dis = already ? 'disabled' : '';
-              buttonsHtml += '<button class="btn" data-fwd-oid="'+o.id+'" data-fwd-to="'+toK+'" data-fwd-from="'+dept+'" style="font-size:11px;padding:6px 10px;background:'+bg+';border:1px solid '+bd+';color:'+col+'" onclick="forwardToDeptClick(this)" '+dis+'>'+icon+' '+toInfo.icon+' '+toInfo.name+'</button>';
+              // disabled çıxarıldı - həmişə basıla bilsin
+              buttonsHtml += '<button class="btn" data-fwd-oid="'+o.id+'" data-fwd-to="'+toK+'" data-fwd-from="'+dept+'" style="font-size:11px;padding:6px 10px;background:'+bg+';border:1px solid '+bd+';color:'+col+'" onclick="forwardToDeptClick(this)">'+icon+' '+toInfo.icon+' '+toInfo.name+'</button>';
             });
             
             return '<div style="margin-top:8px;padding-top:10px;border-top:1px dashed var(--bd)"><div style="font-size:11px;color:var(--t2);margin-bottom:6px;font-weight:600">🔀 Sifarişi digər şöbəyə önəmli məlumat kimi ötür:</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+buttonsHtml+'</div></div>';
@@ -2813,21 +2814,26 @@ async function forwardToDept(oid, toDept, fromDept){
   console.log('[forward] başlayır:', {oid, toDept, fromDept});
   showLoader();
   try{
-    // Mövcud shared_with oxu
-    const {data:order, error:fetchErr} = await sb.from('orders').select('shared_with').eq('id',oid).maybeSingle();
+    // Mövcud shared_with və shared_done_depts oxu
+    const {data:order, error:fetchErr} = await sb.from('orders').select('shared_with, shared_done_depts').eq('id',oid).maybeSingle();
     if(fetchErr){
       console.error('[forward] fetch xətası:', fetchErr);
       throw fetchErr;
     }
-    console.log('[forward] cari shared_with:', order?.shared_with);
+    console.log('[forward] cari shared_with:', order?.shared_with, 'done:', order?.shared_done_depts);
     
     let shared = (order?.shared_with||'').split(',').filter(x=>x);
     // Köhnə 'tikiş' varsa təmizlə
     shared = shared.map(x => x === 'tikiş' ? 'tikis' : x);
     if(!shared.includes(toDept)) shared.push(toDept);
     
+    // shared_done_depts-dən də toDept-i çıxart (yenidən alınmayıb göstərilsin)
+    let sharedDone = (order?.shared_done_depts||'').split(',').filter(x=>x);
+    sharedDone = sharedDone.filter(x => x !== toDept && x !== (toDept === 'tikis' ? 'tikiş' : (toDept === 'tikiş' ? 'tikis' : null)));
+    
     const {error:updateErr} = await sb.from('orders').update({
-      shared_with: shared.join(',')
+      shared_with: shared.join(','),
+      shared_done_depts: sharedDone.join(',')
     }).eq('id', oid);
     
     if(updateErr){
@@ -3038,8 +3044,8 @@ async function dDone(oid, si, key, dept, totalStages){
       const updateData = {
         current_stage: newStage,
         status: newStatus,
-        parallel_done_depts: doneDepts.join(','), // Qoru - digər şöbələr hələ işləyə bilər
-        shared_with: '' // növbəti stage - ötürmələri sıfırla
+        parallel_done_depts: doneDepts.join(',') // Qoru - digər şöbələr hələ işləyə bilər
+        // shared_with qorunur - ötürmələr növbəti mərhələdə də aktiv qalsın
       };
       if(shouldResetParallel){
         updateData.parallel_done_depts = '';
@@ -3075,7 +3081,7 @@ async function dDone(oid, si, key, dept, totalStages){
   
   try{
     const {error} = await sb.from('orders')
-      .update({current_stage: newStage, status: newStatus, shared_with: ''})
+      .update({current_stage: newStage, status: newStatus})
       .eq('id', oid);
     if(error){
       toast('⚠ Xəta: '+error.message);
