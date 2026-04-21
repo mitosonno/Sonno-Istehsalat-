@@ -500,13 +500,40 @@ textarea{resize:vertical;min-height:80px}
         <!-- Şöbə statistikası tarix filtri ilə -->
         <div class="slbl">📊 Şöbə statistikası</div>
         <div class="card card-pad" style="margin-bottom:16px">
-          <div style="display:flex;gap:6px;margin-bottom:14px;background:rgba(17,24,32,.05);border-radius:var(--r);padding:4px">
-            <button class="stat-period-btn on" data-period="today" onclick="switchStatPeriod('today')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;background:var(--sf);color:var(--tl);box-shadow:0 1px 4px rgba(0,0,0,.08)">Bu gün</button>
-            <button class="stat-period-btn" data-period="week" onclick="switchStatPeriod('week')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2)">Bu həftə</button>
-            <button class="stat-period-btn" data-period="month" onclick="switchStatPeriod('month')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2)">Bu ay</button>
-            <button class="stat-period-btn" data-period="all" onclick="switchStatPeriod('all')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2)">Hamısı</button>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            <div>
+              <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Başlanğıc tarix</label>
+              <input type="date" id="stat-date-from" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;font-family:inherit">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Son tarix</label>
+              <input type="date" id="stat-date-to" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;font-family:inherit">
+            </div>
           </div>
-          <div id="dept-stats-list"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            <div>
+              <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Başlanğıc saat</label>
+              <input type="time" id="stat-time-from" value="00:00" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;font-family:inherit">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Son saat</label>
+              <input type="time" id="stat-time-to" value="23:59" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;font-family:inherit">
+            </div>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Şöbə</label>
+            <select id="stat-dept-filter" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit;font-size:14px;background:#fff">
+              <option value="all">Bütün şöbələr</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <button class="btn btn-ln" style="flex:1;font-size:12px" onclick="statQuickRange('today')">Bu gün</button>
+            <button class="btn btn-ln" style="flex:1;font-size:12px" onclick="statQuickRange('yesterday')">Dünən</button>
+            <button class="btn btn-ln" style="flex:1;font-size:12px" onclick="statQuickRange('week')">7 gün</button>
+            <button class="btn btn-ln" style="flex:1;font-size:12px" onclick="statQuickRange('month')">30 gün</button>
+          </div>
+          <button class="btn btn-t btn-full" onclick="renderDeptStats()">🔍 Axtar</button>
+          <div id="dept-stats-list" style="margin-top:14px"></div>
         </div>
 
         <!-- AI Chat -->
@@ -654,9 +681,11 @@ textarea{resize:vertical;min-height:80px}
     <div class="fg"><label>Vəzifə</label><input id="aw-role" placeholder="Məs: Usta, Köməkçi, Operator"></div>
     <div class="fg">
       <label>Şöbə</label>
-      <select id="aw-dept" style="width:100%;padding:14px 12px;border:2px solid var(--bd);border-radius:10px;font-family:inherit;font-size:15px;background:#fff;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 20 20%22><path fill=%22%23666%22 d=%22M10 12l-4-4h8z%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;background-size:20px;padding-right:35px">
-        <option value="">Şöbə seçin</option>
-      </select>
+      <div id="aw-dept-picker" onclick="openDeptPicker()" ontouchstart="this.style.background='#f5f5f5'" ontouchend="this.style.background='#fff';openDeptPicker()" style="width:100%;padding:16px 14px;border:2px solid var(--bd);border-radius:10px;font-family:inherit;font-size:15px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:space-between;min-height:52px;-webkit-tap-highlight-color:rgba(0,0,0,.1);user-select:none">
+        <span id="aw-dept-label" style="color:#999">Şöbə seçin</span>
+        <span style="color:#666;font-size:18px">▼</span>
+      </div>
+      <input type="hidden" id="aw-dept">
     </div>
   </div>
   <div class="sheet-footer">
@@ -1891,7 +1920,12 @@ function switchDeptTab(tab){
 function lockDept(){
   if(pinDept)pinUnlocked[pinDept]=false;
   pinDept=null;pinBuf='';
-  renderDeptPick();
+  // Admin-disə dashboard-a qayıt
+  if(currentUser && currentUser.role === 'admin'){
+    goTo('dash');
+  } else {
+    renderDeptPick();
+  }
 }
 
 function showDV(v){
@@ -1899,6 +1933,26 @@ function showDV(v){
     const el=document.getElementById(id);if(el)el.style.display='none';
   });
   const el=document.getElementById(v);if(el)el.style.display='block';
+  
+  // İşçi şöbə ekranında - topbar və sidebar tam gizlensin
+  const topbar = document.querySelector('.topbar');
+  const sidebar = document.getElementById('sidebar');
+  const mainContent = document.getElementById('main-content');
+  
+  const isDeptView = (v === 'dept-tasks' || v === 'dept-pin' || v === 'dept-pick');
+  
+  if(isDeptView){
+    if(topbar) topbar.style.display = 'none';
+    if(sidebar) sidebar.style.display = 'none';
+    if(mainContent) mainContent.style.marginLeft = '0';
+    // Body-də full-screen class əlavə et
+    document.body.classList.add('dept-mode');
+  } else {
+    if(topbar) topbar.style.display = '';
+    if(sidebar) sidebar.style.display = '';
+    if(mainContent) mainContent.style.marginLeft = '';
+    document.body.classList.remove('dept-mode');
+  }
 }
 
 async function renderDeptTasks(dept){
@@ -2197,8 +2251,10 @@ async function renderDeptTasks(dept){
   } else if(curDeptTab==='shared'){
     // PARÇA ALIŞ TAB — ötürülmüş sifarişlər
     const sharedTasks=[];
-    // Həm dept, həm alternativ variant (tikis/tikiş)
     const altDept = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : null);
+    
+    console.log('[shared tab] dept:', dept, 'altDept:', altDept);
+    console.log('[shared tab] orders count:', orders.length);
     
     orders.filter(o=>!['delivered','delivering'].includes(o.status)).forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);
@@ -2208,12 +2264,18 @@ async function renderDeptTasks(dept){
       
       const matches = sharedWith.includes(dept) || (altDept && sharedWith.includes(altDept));
       
+      if(sharedWith.length > 0){
+        console.log('[shared tab] order '+o.order_number+' sharedWith:', sharedWith, 'matches:', matches);
+      }
+      
       if(matches){
         const si = o.current_stage-1;
         const currentStage = stages[si] || stages[0] || {name:'?',dept:dept,hours:0};
         sharedTasks.push({o,m,s:currentStage,si:o.current_stage,isShared:true});
       }
     });
+    
+    console.log('[shared tab] matched:', sharedTasks.length);
     
     // Sort — alınmayıb yuxarıda, alınıb aşağıda
     sharedTasks.sort((a,b)=>{
@@ -3087,43 +3149,71 @@ function openSignatureSheet(order,model){
 
 // ═══════════ AI ANALİZ ═══════════
 // ═══════════ ŞÖBƏ STATİSTİKASI ═══════════
-let curStatPeriod = 'today';
-
-function switchStatPeriod(period){
-  curStatPeriod = period;
-  document.querySelectorAll('.stat-period-btn').forEach(btn=>{
-    if(btn.dataset.period === period){
-      btn.style.background = 'var(--sf)';
-      btn.style.color = 'var(--tl)';
-      btn.style.boxShadow = '0 1px 4px rgba(0,0,0,.08)';
-    } else {
-      btn.style.background = 'transparent';
-      btn.style.color = 'var(--t2)';
-      btn.style.boxShadow = 'none';
-    }
-  });
+function statQuickRange(range){
+  const today = new Date();
+  const toDate = today.toISOString().split('T')[0];
+  let fromDate = toDate;
+  
+  if(range === 'today'){
+    fromDate = toDate;
+  } else if(range === 'yesterday'){
+    const y = new Date(); y.setDate(y.getDate()-1);
+    fromDate = y.toISOString().split('T')[0];
+  } else if(range === 'week'){
+    const w = new Date(); w.setDate(w.getDate()-7);
+    fromDate = w.toISOString().split('T')[0];
+  } else if(range === 'month'){
+    const m = new Date(); m.setDate(m.getDate()-30);
+    fromDate = m.toISOString().split('T')[0];
+  }
+  
+  document.getElementById('stat-date-from').value = fromDate;
+  document.getElementById('stat-date-to').value = toDate;
+  document.getElementById('stat-time-from').value = '00:00';
+  document.getElementById('stat-time-to').value = '23:59';
   renderDeptStats();
+}
+
+function populateStatDeptFilter(){
+  const sel = document.getElementById('stat-dept-filter');
+  if(!sel) return;
+  sel.innerHTML = '<option value="all">Bütün şöbələr</option>' +
+    Object.entries(DEPT_INFO).map(([k,info])=>`<option value="${k}">${info.icon} ${info.name}</option>`).join('');
 }
 
 function renderDeptStats(){
   const orders = window._aiOrders || [];
   const logs = window._aiLogs || [];
   
-  const now = new Date();
-  let from;
-  if(curStatPeriod === 'today'){
-    from = new Date(); from.setHours(0,0,0,0);
-  } else if(curStatPeriod === 'week'){
-    from = new Date(); from.setDate(from.getDate()-7); from.setHours(0,0,0,0);
-  } else if(curStatPeriod === 'month'){
-    from = new Date(); from.setMonth(from.getMonth()-1); from.setHours(0,0,0,0);
+  const dateFromStr = document.getElementById('stat-date-from')?.value;
+  const dateToStr = document.getElementById('stat-date-to')?.value;
+  const timeFrom = document.getElementById('stat-time-from')?.value || '00:00';
+  const timeTo = document.getElementById('stat-time-to')?.value || '23:59';
+  const deptFilter = document.getElementById('stat-dept-filter')?.value || 'all';
+  
+  let fromTs, toTs;
+  if(dateFromStr){
+    fromTs = new Date(dateFromStr+'T'+timeFrom+':00').getTime();
   } else {
-    from = new Date(0);
+    const t = new Date(); t.setHours(0,0,0,0);
+    fromTs = t.getTime();
+  }
+  if(dateToStr){
+    toTs = new Date(dateToStr+'T'+timeTo+':59').getTime();
+  } else {
+    const t = new Date(); t.setHours(23,59,59,999);
+    toTs = t.getTime();
   }
   
   const filteredLogs = logs.filter(l=>{
     if(!l.completed_at || l.stage_index < 0) return false;
-    return new Date(l.completed_at) >= from;
+    const ts = new Date(l.completed_at).getTime();
+    if(ts < fromTs || ts > toTs) return false;
+    if(deptFilter !== 'all'){
+      const altDept = deptFilter === 'tikis' ? 'tikiş' : (deptFilter === 'tikiş' ? 'tikis' : null);
+      if(l.dept_key !== deptFilter && l.dept_key !== altDept) return false;
+    }
+    return true;
   });
   
   const deptStats = {};
@@ -3154,7 +3244,7 @@ function renderDeptStats(){
   const entries = Object.entries(deptStats).sort((a,b)=>b[1].totalMin - a[1].totalMin);
   
   if(!entries.length){
-    container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Bu dövrdə məlumat yoxdur</div>';
+    container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Seçilən dövrdə bu şöbə(lər)də məlumat yoxdur</div>';
     return;
   }
   
@@ -3207,6 +3297,14 @@ async function renderAI(){
   // Yaddaşa yaz — tarix filtri üçün
   window._aiOrders = all;
   window._aiLogs = allLogs;
+  
+  // Stat filter init
+  populateStatDeptFilter();
+  const today = new Date().toISOString().split('T')[0];
+  const dfEl = document.getElementById('stat-date-from');
+  const dtEl = document.getElementById('stat-date-to');
+  if(dfEl && !dfEl.value) dfEl.value = today;
+  if(dtEl && !dtEl.value) dtEl.value = today;
   
   // Şöbə statistikası render
   renderDeptStats();
@@ -3830,7 +3928,32 @@ async function getForwardingConfig(){
   try{
     const {data, error} = await sb.from('app_settings').select('value').eq('key','forwarding_config').maybeSingle();
     if(error) console.error('[forwarding] oxuma xətası:', error);
-    return data?.value ? JSON.parse(data.value) : {};
+    const raw = data?.value ? JSON.parse(data.value) : {};
+    
+    // Köhnə "tikiş" key-lərini "tikis"-ə çevir (avtomatik migrasiya)
+    let changed = false;
+    const normalized = {};
+    Object.entries(raw).forEach(([src, targets])=>{
+      const normSrc = src === 'tikiş' ? 'tikis' : src;
+      if(normSrc !== src) changed = true;
+      const normTargets = (targets || []).map(t => {
+        if(t === 'tikiş'){ changed = true; return 'tikis'; }
+        return t;
+      });
+      normalized[normSrc] = normTargets;
+    });
+    
+    // Dəyişiklik varsa DB-ə geri yaz
+    if(changed){
+      console.log('[forwarding] migrasiya: tikiş → tikis, DB yenilənir');
+      await sb.from('app_settings').upsert({
+        key: 'forwarding_config',
+        value: JSON.stringify(normalized),
+        updated_at: new Date().toISOString()
+      });
+    }
+    
+    return normalized;
   }catch(e){
     console.error('[forwarding] xətası:', e);
     return {};
@@ -4340,20 +4463,51 @@ async function renderWorkersSection(el){
 // ═══════════ WORKER MANAGEMENT ═══════════
 let editingWorkerId = null;
 
-function populateWorkerDeptSelect(){
-  const sel = document.getElementById('aw-dept');
-  if(!sel) return;
-  sel.innerHTML = '<option value="">Şöbə seçin</option>' + 
-    Object.entries(DEPT_INFO).map(([k,info])=>`<option value="${k}">${info.icon} ${info.name}</option>`).join('');
+function openDeptPicker(){
+  // Yeni modal yarat
+  const existingModal = document.getElementById('dept-picker-modal');
+  if(existingModal) existingModal.remove();
+  
+  const modal = document.createElement('div');
+  modal.id = 'dept-picker-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:flex-end;justify-content:center';
+  modal.onclick = (e)=>{ if(e.target === modal) modal.remove(); };
+  
+  const optionsHtml = Object.entries(DEPT_INFO).map(([k,info])=>
+    `<div onclick="selectDept('${k}','${info.icon} ${info.name}')" style="padding:16px 18px;border-bottom:1px solid var(--bd);cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px" onmouseover="this.style.background='var(--lt)'" onmouseout="this.style.background='transparent'">
+      <span style="font-size:22px">${info.icon}</span>
+      <span>${info.name}</span>
+    </div>`
+  ).join('');
+  
+  modal.innerHTML = `
+    <div style="background:#fff;width:100%;max-width:500px;border-radius:20px 20px 0 0;max-height:75vh;display:flex;flex-direction:column">
+      <div style="padding:18px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:17px;font-weight:700">Şöbə seçin</div>
+        <button onclick="document.getElementById('dept-picker-modal').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999">×</button>
+      </div>
+      <div style="overflow-y:auto;flex:1">${optionsHtml}</div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function selectDept(key, label){
+  document.getElementById('aw-dept').value = key;
+  document.getElementById('aw-dept-label').textContent = label;
+  document.getElementById('aw-dept-label').style.color = 'var(--t1)';
+  const modal = document.getElementById('dept-picker-modal');
+  if(modal) modal.remove();
 }
 
 function openAddWorker(){
   editingWorkerId = null;
-  populateWorkerDeptSelect();
   document.getElementById('aw-title').textContent = 'Yeni işçi';
   document.getElementById('aw-name').value = '';
   document.getElementById('aw-role').value = '';
   document.getElementById('aw-dept').value = '';
+  document.getElementById('aw-dept-label').textContent = 'Şöbə seçin';
+  document.getElementById('aw-dept-label').style.color = '#999';
   openSheet('add-worker');
 }
 
@@ -4361,11 +4515,16 @@ async function editWorker(id){
   const {data} = await sb.from('workers').select('*').eq('id', id).single();
   if(!data){toast('Xəta: işçi tapılmadı'); return;}
   editingWorkerId = id;
-  populateWorkerDeptSelect();
   document.getElementById('aw-title').textContent = 'İşçini düzəlt';
   document.getElementById('aw-name').value = data.name;
   document.getElementById('aw-role').value = data.role_title || '';
   document.getElementById('aw-dept').value = data.dept_key;
+  // Label-ı da yenilə
+  const info = DEPT_INFO[data.dept_key];
+  if(info){
+    document.getElementById('aw-dept-label').textContent = info.icon + ' ' + info.name;
+    document.getElementById('aw-dept-label').style.color = 'var(--t1)';
+  }
   openSheet('add-worker');
 }
 
