@@ -2054,6 +2054,11 @@ async function renderDeptTasks(dept){
         if(addedStages.has(stageKey)) continue;
         if(parallelDone.includes(dept)) continue;
         
+        // ƏSAS: bu keçmiş stage üçün log varsa (artıq bu şöbə tamamlayıb) — siyahıya qoyma
+        const prevLogKey = o.id + '_' + i + '_' + dept;
+        const prevLog = logMap[prevLogKey];
+        if(prevLog && prevLog.completed_at) continue;
+        
         tasks.push({o,m,s:stage,si:i+1,isBackground:true});
         addedStages.add(stageKey);
         addedAsActive = true;
