@@ -536,6 +536,12 @@ textarea{resize:vertical;min-height:80px}
           <div id="dept-stats-list" style="margin-top:14px"></div>
         </div>
 
+        <!-- İmtina edilmiş sifarişlər -->
+        <div class="slbl">❌ İmtina edilmiş sifarişlər</div>
+        <div class="card card-pad" style="margin-bottom:16px" id="cancelled-orders-section">
+          <div id="cancelled-orders-list">Yüklənir...</div>
+        </div>
+
         <!-- AI Chat -->
         <div class="slbl">AI ilə söhbət</div>
         <div class="card card-pad" style="margin-bottom:16px">
@@ -681,11 +687,9 @@ textarea{resize:vertical;min-height:80px}
     <div class="fg"><label>Vəzifə</label><input id="aw-role" placeholder="Məs: Usta, Köməkçi, Operator"></div>
     <div class="fg">
       <label>Şöbə</label>
-      <div id="aw-dept-picker" onclick="openDeptPicker()" ontouchstart="this.style.background='#f5f5f5'" ontouchend="this.style.background='#fff';openDeptPicker()" style="width:100%;padding:16px 14px;border:2px solid var(--bd);border-radius:10px;font-family:inherit;font-size:15px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:space-between;min-height:52px;-webkit-tap-highlight-color:rgba(0,0,0,.1);user-select:none">
-        <span id="aw-dept-label" style="color:#999">Şöbə seçin</span>
-        <span style="color:#666;font-size:18px">▼</span>
-      </div>
-      <input type="hidden" id="aw-dept">
+      <select id="aw-dept" style="width:100%;padding:16px 14px;border:2px solid var(--bd);border-radius:10px;font-family:inherit;font-size:15px;background:#fff;min-height:52px;cursor:pointer">
+        <option value="">Şöbə seçin</option>
+      </select>
     </div>
   </div>
   <div class="sheet-footer">
@@ -810,6 +814,7 @@ const ST = {
   delivering: {t:'Yolda',     c:'bO'},
   delivered:  {t:'Təslim',    c:'bGN'},
   late:       {t:'GECİKMİŞ', c:'bR'},
+  cancelled:  {t:'❌ İMTİNA', c:'bR'},
 };
 
 const NAV_ITEMS = [
@@ -1624,8 +1629,127 @@ async function showOD(id){
         <button onclick="copyOrderLink('${o.id}')" style="padding:8px 14px;background:var(--tl);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;white-space:nowrap">📋 Kopyala</button>
       </div>
       <div style="font-size:11px;color:var(--t3);margin-top:6px">Bu linki müştəriyə göndərsəniz — sifarişin detallarını və şəkillərini görə bilər</div>
-    </div>`;
+    </div>
+    
+    ${currentUser && currentUser.role === 'admin' ? `
+    <div style="margin-top:16px;padding:14px;background:#FFF5F5;border:1px solid #E24B4A;border-radius:10px">
+      <div style="font-size:12px;font-weight:700;color:#E24B4A;margin-bottom:10px">⚠️ Admin əməliyyatları</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${o.status !== 'cancelled' && o.status !== 'delivered' ? `
+          <button onclick="adminEditOrder('${o.id}')" style="flex:1;min-width:130px;padding:10px;background:var(--or);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600;font-size:13px">✏️ Düzəliş et</button>
+          <button onclick="adminCancelOrder('${o.id}','${o.order_number}')" style="flex:1;min-width:130px;padding:10px;background:#E24B4A;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600;font-size:13px">❌ İmtina et</button>
+        ` : o.status === 'cancelled' ? `
+          <div style="flex:1;padding:10px;background:#fff;border:1px dashed #E24B4A;border-radius:8px;text-align:center;font-size:12px;color:#E24B4A">
+            ❌ Bu sifariş imtina edilib${o.cancelled_at?' · '+new Date(o.cancelled_at).toLocaleDateString('az-AZ'):''}${o.cancelled_by?' · '+o.cancelled_by:''}
+            ${o.cancel_reason?`<div style="margin-top:4px;font-size:11px;color:var(--t2)">Səbəb: ${o.cancel_reason}</div>`:''}
+            <button onclick="adminRestoreOrder('${o.id}')" style="margin-top:8px;padding:6px 14px;background:var(--tl);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px">♻️ Bərpa et</button>
+          </div>
+        ` : `<div style="flex:1;padding:10px;text-align:center;font-size:12px;color:var(--t3)">Çatdırılmış sifariş — redaktə olunmur</div>`}
+      </div>
+    </div>
+    ` : ''}`;
   openSheet('order-detail');
+}
+
+// ═══════════ ADMIN ORDER OPS ═══════════
+async function adminCancelOrder(oid, orderNum){
+  const reason = prompt('Sifariş ' + orderNum + ' imtina səbəbi:');
+  if(reason === null) return;
+  
+  if(!confirm('Siz bu sifarişi imtina etmək istədiyinizə əminsiniz?\n\n' + orderNum + '\n\nBu əməliyyat geri qaytarıla bilər.')) return;
+  
+  showLoader();
+  const {error} = await sb.from('orders').update({
+    status: 'cancelled',
+    cancelled_at: new Date().toISOString(),
+    cancelled_by: currentUser.name,
+    cancel_reason: reason || null
+  }).eq('id', oid);
+  hideLoader();
+  
+  if(error){toast('Xəta: '+error.message);return;}
+  toast('✓ Sifariş imtina edildi');
+  closeSheet('order-detail');
+  renderDash();
+}
+
+async function adminRestoreOrder(oid){
+  if(!confirm('Sifarişi bərpa etmək istədiyinizə əminsiniz?')) return;
+  
+  showLoader();
+  const {error} = await sb.from('orders').update({
+    status: 'in_progress',
+    cancelled_at: null,
+    cancelled_by: null,
+    cancel_reason: null
+  }).eq('id', oid);
+  hideLoader();
+  
+  if(error){toast('Xəta: '+error.message);return;}
+  toast('✓ Sifariş bərpa edildi');
+  closeSheet('order-detail');
+  renderDash();
+}
+
+async function adminEditOrder(oid){
+  const {data:o} = await sb.from('orders').select('*').eq('id', oid).single();
+  if(!o){toast('Xəta');return;}
+  
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:20px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+      <div style="font-size:17px;font-weight:700;margin-bottom:14px">✏️ Sifariş düzəlişi — ${o.order_number}</div>
+      
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Müştəri</label>
+        <input type="text" id="ed-client" value="${o.client||''}" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Ədəd</label>
+        <input type="number" id="ed-qty" value="${o.qty||1}" min="1" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Deadline</label>
+        <input type="date" id="ed-deadline" value="${o.deadline||''}" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Parça</label>
+        <input type="text" id="ed-fabric" value="${o.fabric||''}" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Parça kodu</label>
+        <input type="text" id="ed-color" value="${o.color||''}" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Parça satan</label>
+        <input type="text" id="ed-fc" value="${o.fabric_company||''}" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Ayaq rəngi</label>
+        <input type="text" id="ed-legs" value="${o.legs||''}" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Qeyd</label>
+        <textarea id="ed-notes" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit;min-height:60px">${o.notes||''}</textarea></div>
+      <div style="margin-bottom:14px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Qiymət (₼)</label>
+        <input type="number" id="ed-price" value="${o.final_price||0}" step="0.01" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      
+      <div style="display:flex;gap:8px">
+        <button id="ed-cancel" style="flex:1;padding:10px;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;font-family:inherit">Ləğv</button>
+        <button id="ed-save" style="flex:2;padding:10px;background:var(--tl);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600">💾 Yadda saxla</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  
+  modal.querySelector('#ed-cancel').onclick = ()=>modal.remove();
+  modal.querySelector('#ed-save').onclick = async ()=>{
+    const update = {
+      client: document.getElementById('ed-client').value.trim(),
+      qty: parseInt(document.getElementById('ed-qty').value) || 1,
+      deadline: document.getElementById('ed-deadline').value || null,
+      fabric: document.getElementById('ed-fabric').value || null,
+      color: document.getElementById('ed-color').value || null,
+      fabric_company: document.getElementById('ed-fc').value || null,
+      legs: document.getElementById('ed-legs').value || null,
+      notes: document.getElementById('ed-notes').value || null,
+      final_price: parseFloat(document.getElementById('ed-price').value) || 0
+    };
+    showLoader();
+    const {error} = await sb.from('orders').update(update).eq('id', oid);
+    hideLoader();
+    if(error){toast('Xəta: '+error.message);return;}
+    toast('✓ Sifariş yeniləndi');
+    modal.remove();
+    closeSheet('order-detail');
+    renderDash();
+  };
 }
 
 // ═══════════ ORDER CREATE ═══════════
@@ -2682,6 +2806,10 @@ function forwardToDeptClick(btn){
 }
 
 async function forwardToDept(oid, toDept, fromDept){
+  // Normalize: tikiş → tikis
+  if(toDept === 'tikiş') toDept = 'tikis';
+  if(fromDept === 'tikiş') fromDept = 'tikis';
+  
   console.log('[forward] başlayır:', {oid, toDept, fromDept});
   showLoader();
   try{
@@ -2694,6 +2822,8 @@ async function forwardToDept(oid, toDept, fromDept){
     console.log('[forward] cari shared_with:', order?.shared_with);
     
     let shared = (order?.shared_with||'').split(',').filter(x=>x);
+    // Köhnə 'tikiş' varsa təmizlə
+    shared = shared.map(x => x === 'tikiş' ? 'tikis' : x);
     if(!shared.includes(toDept)) shared.push(toDept);
     
     const {error:updateErr} = await sb.from('orders').update({
@@ -3289,6 +3419,47 @@ function renderDeptStats(){
   }).join('');
 }
 
+// ═══════════ İMTİNA EDİLMİŞ SİFARİŞLƏR ═══════════
+function renderCancelledOrders(){
+  const orders = window._aiOrders || [];
+  const cancelled = orders.filter(o=>o.status === 'cancelled');
+  const container = document.getElementById('cancelled-orders-list');
+  if(!container) return;
+  
+  if(!cancelled.length){
+    container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">İmtina edilmiş sifariş yoxdur</div>';
+    return;
+  }
+  
+  // Yeni-köhnə sıra
+  cancelled.sort((a,b)=> new Date(b.cancelled_at||0) - new Date(a.cancelled_at||0));
+  
+  container.innerHTML = 
+    '<div style="padding:10px;background:#FFF5F5;border:1px solid #E24B4A;border-radius:8px;margin-bottom:12px;font-size:12px;color:#E24B4A;font-weight:600">'+
+      '⚠️ Cəmi '+cancelled.length+' sifariş imtina edilib'+
+    '</div>'+
+    cancelled.map(o=>{
+      const m = appModels.find(x=>x.id===o.model_id) || {name:'?', emoji:'📦'};
+      const modelName = m.name.split('—')[0].trim();
+      const cancelledDate = o.cancelled_at ? new Date(o.cancelled_at).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+      const orderDate = (o.order_date || o.created_at) ? new Date(o.order_date||o.created_at).toLocaleDateString('az-AZ') : '—';
+      
+      return '<div style="padding:14px;border:1px solid #E24B4A;border-radius:10px;margin-bottom:10px;background:#FFF9F9">'+
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'+
+          '<div>'+
+            '<div style="font-size:15px;font-weight:700;color:#E24B4A">❌ '+o.order_number+'</div>'+
+            '<div style="font-size:12px;color:var(--t2);margin-top:2px">'+o.client+' · '+modelName+' · '+o.qty+' ədəd</div>'+
+          '</div>'+
+          '<button onclick="adminRestoreOrder(\''+o.id+'\')" style="padding:6px 12px;background:var(--tl);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600">♻️ Bərpa et</button>'+
+        '</div>'+
+        '<div style="font-size:11px;color:var(--t3);margin-bottom:4px">📅 Sifariş tarixi: '+orderDate+'</div>'+
+        '<div style="font-size:11px;color:var(--t3);margin-bottom:4px">🕐 İmtina: '+cancelledDate+(o.cancelled_by?' · '+o.cancelled_by:'')+'</div>'+
+        (o.cancel_reason ? '<div style="margin-top:8px;padding:8px 10px;background:#fff;border-radius:6px;font-size:12px;color:var(--t1);border-left:3px solid #E24B4A"><b>Səbəb:</b> '+o.cancel_reason+'</div>' : '')+
+        (o.final_price ? '<div style="font-size:11px;color:var(--t2);margin-top:6px">💰 Məbləğ: '+o.final_price+' ₼</div>' : '')+
+      '</div>';
+    }).join('');
+}
+
 async function renderAI(){
   showLoader();
   const [{data:orders},{data:logs}]=await Promise.all([
@@ -3313,6 +3484,9 @@ async function renderAI(){
   
   // Şöbə statistikası render
   renderDeptStats();
+  
+  // İmtina edilmiş sifarişlər
+  renderCancelledOrders();
 
   // Stats
   const delivered=all.filter(o=>o.status==='delivered');
@@ -4505,14 +4679,20 @@ function selectDept(key, label){
   if(modal) modal.remove();
 }
 
+function populateWorkerDeptSelect(){
+  const sel = document.getElementById('aw-dept');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">Şöbə seçin</option>' + 
+    Object.entries(DEPT_INFO).map(([k,info])=>`<option value="${k}">${info.icon} ${info.name}</option>`).join('');
+}
+
 function openAddWorker(){
   editingWorkerId = null;
+  populateWorkerDeptSelect();
   document.getElementById('aw-title').textContent = 'Yeni işçi';
   document.getElementById('aw-name').value = '';
   document.getElementById('aw-role').value = '';
   document.getElementById('aw-dept').value = '';
-  document.getElementById('aw-dept-label').textContent = 'Şöbə seçin';
-  document.getElementById('aw-dept-label').style.color = '#999';
   openSheet('add-worker');
 }
 
@@ -4520,16 +4700,11 @@ async function editWorker(id){
   const {data} = await sb.from('workers').select('*').eq('id', id).single();
   if(!data){toast('Xəta: işçi tapılmadı'); return;}
   editingWorkerId = id;
+  populateWorkerDeptSelect();
   document.getElementById('aw-title').textContent = 'İşçini düzəlt';
   document.getElementById('aw-name').value = data.name;
   document.getElementById('aw-role').value = data.role_title || '';
   document.getElementById('aw-dept').value = data.dept_key;
-  // Label-ı da yenilə
-  const info = DEPT_INFO[data.dept_key];
-  if(info){
-    document.getElementById('aw-dept-label').textContent = info.icon + ' ' + info.name;
-    document.getElementById('aw-dept-label').style.color = 'var(--t1)';
-  }
   openSheet('add-worker');
 }
 
