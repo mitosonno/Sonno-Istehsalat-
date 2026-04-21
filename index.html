@@ -389,13 +389,12 @@ textarea{resize:vertical;min-height:80px}
             <div class="card card-pad">
               <div class="fg2">
                 <div class="fg"><label>Müştəri</label>
-                  <div style="display:flex;gap:6px">
-                    <select id="o-client-sel" style="flex:1;padding:13px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;background:#fff" onchange="onClientSelect()">
-                      <option value="">— Müştəri seçin —</option>
-                    </select>
-                    <button type="button" onclick="openAddClient()" style="padding:0 14px;background:var(--tl);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap">+ Əlavə et</button>
+                  <div style="position:relative">
+                    <input type="text" id="o-client-search" placeholder="Ad yazın — axtarır və ya yeni əlavə edir..." autocomplete="off" style="width:100%;padding:13px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:#fff" oninput="onClientSearchInput(this.value)" onfocus="onClientSearchFocus()">
+                    <div id="client-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--bd);border-radius:8px;margin-top:4px;max-height:240px;overflow-y:auto;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
                   </div>
                   <input type="hidden" id="o-client" value="">
+                  <select id="o-client-sel" style="display:none"></select>
                   <div id="o-client-phone-display" style="font-size:11px;color:var(--t3);margin-top:4px;min-height:14px"></div>
                 </div>
                 <div class="fg"><label>Parça adı</label><input id="o-fabric" placeholder="Məs: Velvet, Dəri, Linen..."></div>
@@ -575,6 +574,7 @@ textarea{resize:vertical;min-height:80px}
           <div class="ami" onclick="adminSec('pins')"><div class="ami-icon">🔑</div><div class="ami-name">PIN Kodlar</div><div class="ami-sub">Şöbə girişi</div></div>
           <div class="ami" onclick="adminSec('models')"><div class="ami-icon">🛋️</div><div class="ami-name">Modellər</div><div class="ami-sub" id="ami-m">—</div></div>
           <div class="ami" onclick="adminSec('workers')"><div class="ami-icon">🧑‍🔧</div><div class="ami-name">İşçilər</div><div class="ami-sub" id="ami-w">—</div></div>
+          <div class="ami" onclick="adminSec('clients')"><div class="ami-icon">👤</div><div class="ami-name">Müştərilər</div><div class="ami-sub" id="ami-c">—</div></div>
           <div class="ami" onclick="adminSec('deptanalytics')"><div class="ami-icon">🏭</div><div class="ami-name">Şöbə analitikası</div><div class="ami-sub">Detallı</div></div>
           <div class="ami" onclick="adminSec('settings')"><div class="ami-icon">⚙️</div><div class="ami-name">Parametrlər</div><div class="ami-sub">Limit & ayarlar</div></div>
         </div>
@@ -635,6 +635,19 @@ textarea{resize:vertical;min-height:80px}
       <div class="fg"><label>Model adı</label><input id="am-name" placeholder="Model X — Divan"></div>
       <div class="fg"><label>Qısa məlumat</label><input id="am-desc" placeholder="3+2 oturacaq"></div>
     </div>
+    <div class="fg">
+      <label>Kateqoriya <span style="color:#E24B4A">*</span></label>
+      <select id="am-category" style="width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:#fff;min-height:48px">
+        <option value="">— Kateqoriya seçin —</option>
+        <option value="divan">🛋️ Divan</option>
+        <option value="kunc_divan">🛋️ Künc divan</option>
+        <option value="oturacaq">🪑 Oturacaq</option>
+        <option value="kreslo">💺 Kreslo</option>
+        <option value="masa">🪑 Masa</option>
+        <option value="dest">🎁 Dəst (Divan+Kreslo)</option>
+        <option value="diger">📦 Digər</option>
+      </select>
+    </div>
     <!-- Qiymət -->
     <div class="fg2">
       <div class="fg">
@@ -687,9 +700,8 @@ textarea{resize:vertical;min-height:80px}
     <div class="fg"><label>Vəzifə</label><input id="aw-role" placeholder="Məs: Usta, Köməkçi, Operator"></div>
     <div class="fg">
       <label>Şöbə</label>
-      <select id="aw-dept" style="width:100%;padding:16px 14px;border:2px solid var(--bd);border-radius:10px;font-family:inherit;font-size:15px;background:#fff;min-height:52px;cursor:pointer">
-        <option value="">Şöbə seçin</option>
-      </select>
+      <div id="aw-dept-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px"></div>
+      <input type="hidden" id="aw-dept">
     </div>
   </div>
   <div class="sheet-footer">
@@ -844,23 +856,104 @@ async function loadClients(){
 }
 
 function updateClientSelect(){
+  // Köhnə select dropdown - yaddaşa saxlanır amma görünmür
   const sel = document.getElementById('o-client-sel');
-  if(!sel) return;
-  sel.innerHTML = '<option value="">— Müştəri seçin —</option>' + 
-    appClients.map(c=>`<option value="${c.id}" data-name="${c.name}" data-phone="${c.phone||''}">${c.name}${c.phone?' · '+c.phone:''}</option>`).join('');
+  if(sel){
+    sel.innerHTML = appClients.map(c=>`<option value="${c.id}" data-name="${c.name}" data-phone="${c.phone||''}">${c.name}</option>`).join('');
+  }
 }
 
-function onClientSelect(){
-  const sel = document.getElementById('o-client-sel');
-  const opt = sel.options[sel.selectedIndex];
+// AUTOCOMPLETE: müştəri axtarış
+function onClientSearchInput(val){
+  const suggBox = document.getElementById('client-suggestions');
   const hiddenInput = document.getElementById('o-client');
   const phoneDisplay = document.getElementById('o-client-phone-display');
+  
+  const searchVal = val.trim().toLowerCase();
+  hiddenInput.value = val.trim(); // müvəqqəti dəyər, seçim edilsə dəyişər
+  phoneDisplay.textContent = '';
+  
+  if(!searchVal){
+    suggBox.style.display = 'none';
+    return;
+  }
+  
+  // Uyğun müştəriləri tap
+  const matches = appClients.filter(c => 
+    c.name.toLowerCase().includes(searchVal) || 
+    (c.phone && c.phone.toLowerCase().includes(searchVal))
+  ).slice(0, 8);
+  
+  // Exact match yoxla
+  const exactMatch = appClients.find(c => c.name.toLowerCase() === searchVal);
+  
+  let html = '';
+  
+  if(matches.length){
+    html = matches.map(c => 
+      `<div onclick="selectClientFromSuggest('${c.id}')" style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center" onmouseover="this.style.background='var(--lt)'" onmouseout="this.style.background='#fff'">
+        <div>
+          <div style="font-weight:600;font-size:14px">${c.name}</div>
+          ${c.phone?`<div style="font-size:11px;color:var(--t3);margin-top:2px">📞 ${c.phone}</div>`:''}
+        </div>
+        <span style="font-size:11px;color:var(--tl);font-weight:600">Seç</span>
+      </div>`
+    ).join('');
+  }
+  
+  // "Yeni əlavə et" düyməsi
+  if(!exactMatch){
+    html += `<div onclick="addNewClientQuick('${val.trim().replace(/'/g,"\\'")}')" style="padding:10px 12px;cursor:pointer;background:var(--lt);display:flex;justify-content:space-between;align-items:center;border-top:2px solid var(--tl)">
+      <div style="font-size:13px;color:var(--tl);font-weight:600">+ Yeni: "${val.trim()}"</div>
+      <span style="font-size:11px;color:var(--tl)">Əlavə et</span>
+    </div>`;
+  }
+  
+  suggBox.innerHTML = html;
+  suggBox.style.display = 'block';
+}
+
+function onClientSearchFocus(){
+  const val = document.getElementById('o-client-search').value;
+  if(val) onClientSearchInput(val);
+}
+
+function selectClientFromSuggest(clientId){
+  const c = appClients.find(x => x.id === clientId);
+  if(!c) return;
+  document.getElementById('o-client-search').value = c.name;
+  document.getElementById('o-client').value = c.name;
+  document.getElementById('o-client-phone-display').textContent = c.phone ? '📞 '+c.phone : '';
+  document.getElementById('client-suggestions').style.display = 'none';
+}
+
+async function addNewClientQuick(name){
+  const phone = prompt('Müştərinin telefonu (istəyə bağlı):', '');
+  
+  showLoader();
+  try{
+    const {data, error} = await sb.from('clients').insert({name, phone: phone||null}).select().single();
+    hideLoader();
+    if(error){toast('Xəta: '+error.message);return;}
+    appClients.push(data);
+    appClients.sort((a,b)=>a.name.localeCompare(b.name));
+    updateClientSelect();
+    // Yeni müştərini avtomatik seç
+    selectClientFromSuggest(data.id);
+    toast('✓ '+name+' əlavə edildi');
+  }catch(e){
+    hideLoader();
+    toast('Xəta: '+e.message);
+  }
+}
+
+// Köhnə funksiyalar (compat)
+function onClientSelect(){
+  const sel = document.getElementById('o-client-sel');
+  if(!sel) return;
+  const opt = sel.options[sel.selectedIndex];
   if(opt && opt.dataset.name){
-    hiddenInput.value = opt.dataset.name;
-    phoneDisplay.textContent = opt.dataset.phone ? '📞 '+opt.dataset.phone : '';
-  } else {
-    hiddenInput.value = '';
-    phoneDisplay.textContent = '';
+    document.getElementById('o-client').value = opt.dataset.name;
   }
 }
 
@@ -887,9 +980,7 @@ async function saveNewClient(){
     appClients.push(data);
     appClients.sort((a,b)=>a.name.localeCompare(b.name));
     updateClientSelect();
-    // Yeni müştərini avtomatik seç
-    document.getElementById('o-client-sel').value = data.id;
-    onClientSelect();
+    selectClientFromSuggest(data.id);
     closeAddClientModal();
     toast('✓ Müştəri əlavə edildi: '+name);
   }catch(e){
@@ -1133,6 +1224,13 @@ window.addEventListener('popstate', (e)=>{
 (async()=>{
   showLoader();
 
+  // URL-də ?catalog=1 varsa — public katalog mode
+  if(urlParams.get('catalog') === '1'){
+    hideLoader();
+    startCatalogMode();
+    return;
+  }
+  
   // URL-də ?dept=karkaz varsa — kiosk mode
   const urlParams = new URLSearchParams(window.location.search);
   const urlDept = urlParams.get('dept');
@@ -1153,6 +1251,109 @@ window.addEventListener('popstate', (e)=>{
   }
   hideLoader();
 })();
+
+// ═══════════ KATALOG MODE (PUBLIC) ═══════════
+async function startCatalogMode(){
+  // Bütün səhifəni gizlət
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='none';
+  
+  const container = document.createElement('div');
+  container.id = 'catalog-screen';
+  container.style.cssText = 'position:fixed;inset:0;background:#fafaf9;overflow-y:auto;z-index:9999;font-family:\'DM Sans\',sans-serif';
+  container.innerHTML = `
+    <div style="background:linear-gradient(135deg,#007565,#004F51);color:#fff;padding:24px 20px;text-align:center">
+      <div style="font-size:24px;font-weight:700;letter-spacing:0.5px">🛋️ SONNO</div>
+      <div style="font-size:13px;opacity:0.8;margin-top:4px">Mebel Kataloqu</div>
+    </div>
+    <div id="catalog-body" style="max-width:800px;margin:0 auto;padding:16px">
+      <div style="text-align:center;padding:40px;color:#888">Yüklənir...</div>
+    </div>
+    <div style="text-align:center;padding:24px;color:#aaa;font-size:11px">
+      © SONNO Mebel · Əlaqə üçün menecerinizlə danışın
+    </div>
+  `;
+  document.body.appendChild(container);
+  
+  // Supabase-dən modelləri yüklə
+  try{
+    const {data:models} = await sb.from('models').select('*').eq('is_active', true).order('name');
+    const allModels = models || [];
+    renderCatalog(allModels);
+  }catch(e){
+    document.getElementById('catalog-body').innerHTML = '<div style="padding:40px;text-align:center;color:#E24B4A">Katalog yüklənmədi</div>';
+  }
+}
+
+function renderCatalog(models){
+  const body = document.getElementById('catalog-body');
+  if(!models.length){
+    body.innerHTML = '<div style="padding:40px;text-align:center;color:#888">Katalogda məhsul yoxdur</div>';
+    return;
+  }
+  
+  // Kateqoriyalar
+  const categories = {
+    divan:       {icon:'🛋️', name:'Divanlar'},
+    kunc_divan:  {icon:'🛋️', name:'Künc Divanlar'},
+    oturacaq:    {icon:'🪑', name:'Oturacaqlar'},
+    kreslo:      {icon:'💺', name:'Kreslolar'},
+    masa:        {icon:'🪑', name:'Masalar'},
+    dest:        {icon:'🎁', name:'Dəstlər'},
+    diger:       {icon:'📦', name:'Digər'},
+  };
+  
+  // Qruplaşdır
+  const grouped = {};
+  models.forEach(m=>{
+    const cat = m.category || 'diger';
+    if(!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(m);
+  });
+  
+  // Kateqoriya sırası — əvvəl məşhurlar
+  const order = ['divan','kunc_divan','oturacaq','kreslo','masa','dest','diger'];
+  
+  let html = '';
+  order.forEach(catKey => {
+    if(!grouped[catKey] || !grouped[catKey].length) return;
+    const info = categories[catKey];
+    const items = grouped[catKey];
+    
+    html += `
+      <div style="margin-bottom:32px">
+        <h2 style="font-size:20px;font-weight:700;margin:0 0 14px 0;color:#111820;padding-bottom:10px;border-bottom:2px solid #007565">
+          ${info.icon} ${info.name}
+          <span style="font-size:12px;color:#888;font-weight:500;margin-left:8px">${items.length} məhsul</span>
+        </h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">
+          ${items.map(m => `
+            <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #eee">
+              <div style="width:100%;height:200px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;overflow:hidden">
+                ${m.img_url 
+                  ? `<img src="${m.img_url}" style="width:100%;height:100%;object-fit:cover" alt="${m.name}">`
+                  : `<div style="font-size:60px">${m.emoji || '🛋️'}</div>`
+                }
+              </div>
+              <div style="padding:14px">
+                <div style="font-size:15px;font-weight:700;color:#111820;line-height:1.3">${m.name}</div>
+                ${m.description ? `<div style="font-size:12px;color:#888;margin-top:4px">${m.description}</div>` : ''}
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+                  <div style="font-size:11px;color:#888">Qiymət</div>
+                  <div style="font-size:20px;font-weight:800;color:#F78930">${(m.sale_price||0).toFixed(0)} ₼</div>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  });
+  
+  if(!html) html = '<div style="padding:40px;text-align:center;color:#888">Katalogda məhsul yoxdur</div>';
+  
+  body.innerHTML = html;
+}
 
 // ═══════════ KİOSK MODE ═══════════
 async function startKioskMode(dept){
@@ -1263,7 +1464,7 @@ async function openKioskDept(dept){
   if(nav) nav.style.display='none';
 
   // Birbaşa şöbə tapşırıqlarına get
-  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('act'));
+  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
   document.getElementById('sc-dept').classList.add('on');
   
   // Başlıq yarat
@@ -1293,6 +1494,24 @@ async function openKioskDept(dept){
 
 
 // ═══════════ INIT ═══════════
+
+// Ekran sönəndə timer-ləri dayandır, yananda yenidən başlat
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    // Ekran söndü - bütün timer-ləri dayandır
+    document.querySelectorAll('[id^="timer-"]').forEach(el=>{
+      if(el.dataset.intervalId){
+        clearInterval(parseInt(el.dataset.intervalId));
+        el.dataset.intervalId = '';
+      }
+    });
+  } else {
+    // Ekran yandı - renderi yenidən çağır (timer-lər avtomatik qurulacaq)
+    if(pinDept){
+      setTimeout(()=>renderDeptTasks(pinDept), 300);
+    }
+  }
+});
 async function initApp(){
   // UI-i dərhal göstər (data gözləmədən)
   const u=currentUser;
@@ -1921,7 +2140,7 @@ async function createOrder(){
   hideLoader();
   if(error){toast('Xəta: '+error.message);return;}
   toast(`✓ ${num} yaradıldı — ${total?total+' ₼ · ':''}Pipeline başladı!`);
-  ['o-client','o-fabric','o-fabric-co','o-color','o-legs','o-notes','o-client-sel'].forEach(id=>{
+  ['o-client','o-client-search','o-fabric','o-fabric-co','o-color','o-legs','o-notes','o-client-sel'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
   const phoneDisp = document.getElementById('o-client-phone-display');
@@ -2286,16 +2505,12 @@ async function renderDeptTasks(dept){
 
       // Keyfiyyət yoxlama (QA) şöbəsi üçün xüsusi kart
       if(dept === 'qa'){
-        const stages2 = m.stages || [];
-        // Bu sifarişin keçdiyi şöbələr (logistics və qa istisna)
-        const checkedDepts = new Set();
-        stages2.forEach(st=>{
-          const depts = st.dept.split('||');
-          depts.forEach(d=>{
-            if(d !== 'logistics' && d !== 'qa') checkedDepts.add(d);
-          });
-        });
-        const checkList = Array.from(checkedDepts);
+        // Sabit 3 yoxlama bölməsi
+        const checkList = [
+          {key:'karkaz', label:'Karkaz', icon:'🪵'},
+          {key:'tikis',  label:'Tikiş - Parça', icon:'🧵'},
+          {key:'boya',   label:'Boya', icon:'🎨'}
+        ];
         
         // QA işçiləri siyahısı
         const qaWorkers = dws.filter(w=>w.dept_key === 'qa');
@@ -2356,11 +2571,10 @@ async function renderDeptTasks(dept){
             
             <div style="background:var(--lt);border-radius:10px;padding:12px;margin:10px 0">
               <label style="font-size:11px;color:var(--t2);font-weight:700;display:block;margin-bottom:10px">✔️ Yoxlama siyahısı (hamısı məcburi)</label>
-              ${checkList.map(dKey=>{
-                const dInfo = DEPT_INFO[dKey] || {name:dKey, icon:'🔧'};
-                return `<label style="display:flex;align-items:center;gap:10px;padding:10px;background:#fff;border:1px solid var(--bd);border-radius:8px;margin-bottom:6px;cursor:pointer">
-                  <input type="checkbox" class="qa-check-${o.id}" data-dept="${dKey}" style="width:22px;height:22px;cursor:pointer">
-                  <span style="font-size:14px;font-weight:600">${dInfo.icon} ${dInfo.name}</span>
+              ${checkList.map(c=>{
+                return `<label style="display:flex;align-items:center;gap:10px;padding:12px;background:#fff;border:1px solid var(--bd);border-radius:8px;margin-bottom:6px;cursor:pointer;min-height:50px">
+                  <input type="checkbox" class="qa-check-${o.id}" data-dept="${c.key}" data-label="${c.label}" style="width:24px;height:24px;cursor:pointer">
+                  <span style="font-size:15px;font-weight:600">${c.icon} ${c.label}</span>
                 </label>`;
               }).join('')}
             </div>
@@ -2909,26 +3123,41 @@ async function renderLogisticsDept(){
         </div>
         
         <div class="task-btns">
-          <button class="btn btn-t btn-lg btn-full" onclick="markDelWithDriver('${o.id}')">✓ Təslim et və imzala</button>
+          <button class="btn btn-t btn-lg btn-full" data-del-oid="${o.id}" onclick="markDelClick(this)">✓ Təslim et və imzala</button>
         </div>
       </div>
     </div>`;
   }).join('');
 }
 
+function markDelClick(btn){
+  const oid = btn.dataset.delOid;
+  console.log('[markDelClick]', oid);
+  if(!oid){
+    toast('⚠ Sifariş ID tapılmadı');
+    return;
+  }
+  markDelWithDriver(oid);
+}
+
 async function markDelWithDriver(oid){
+  console.log('[markDelWithDriver] başlayır:', oid);
   const sel = document.getElementById('driver-sel-'+oid);
+  console.log('[markDelWithDriver] driver select:', sel);
   if(sel){
     const driverId = sel.value;
+    console.log('[markDelWithDriver] seçilmiş sürücü:', driverId);
     if(!driverId){
       toast('⚠ Əvvəlcə sürücü seçin');
       sel.style.borderColor = '#E24B4A';
       setTimeout(()=>{sel.style.borderColor='';}, 2000);
       return;
     }
-    // Sürücü ID-ni yadda saxla - signature-də istifadə üçün
     window._pendingDriverId = driverId;
+  } else {
+    console.log('[markDelWithDriver] driver select yoxdur');
   }
+  console.log('[markDelWithDriver] markDel çağrılır');
   markDel(oid);
 }
 
@@ -4073,14 +4302,16 @@ Hər bölmə 2-4 nöqtə olsun. Azərbaycan dilində yaz.`},
 
 // ═══════════ ADMIN ═══════════
 async function renderAdmin(){
-  const[{data:users},{data:models},{data:workers}]=await Promise.all([
+  const[{data:users},{data:models},{data:workers},{data:clients}]=await Promise.all([
     sb.from('users').select('count'),
     sb.from('models').select('count'),
     sb.from('workers').select('count'),
+    sb.from('clients').select('count'),
   ]);
   const uc=document.getElementById('ami-u');if(uc)uc.textContent=(users?.length||0)+' nəfər';
   const mc=document.getElementById('ami-m');if(mc)mc.textContent=(models?.length||0)+' model';
   const wc=document.getElementById('ami-w');if(wc)wc.textContent=(workers?.length||0)+' işçi';
+  const cc=document.getElementById('ami-c');if(cc)cc.textContent=(clients?.length||0)+' nəfər';
 }
 
 async function adminSec(sec){
@@ -4090,8 +4321,120 @@ async function adminSec(sec){
   if(sec==='pins') await renderPinsSection(el);
   if(sec==='models') await renderModelsSection(el);
   if(sec==='workers') await renderWorkersSection(el);
+  if(sec==='clients') await renderClientsSection(el);
   if(sec==='settings') await renderSettingsSection(el);
   if(sec==='deptanalytics') await renderDeptAnalytics(el);
+}
+
+async function renderClientsSection(el){
+  showLoader();
+  const {data:clients} = await sb.from('clients').select('*').order('name');
+  const {data:orders} = await sb.from('orders').select('client, final_price, status');
+  hideLoader();
+  
+  const allClients = clients || [];
+  const allOrders = orders || [];
+  
+  // Hər müştəri üçün statistika
+  const clientStats = {};
+  allOrders.forEach(o=>{
+    const n = o.client;
+    if(!clientStats[n]) clientStats[n] = {count:0, total:0, active:0};
+    clientStats[n].count++;
+    clientStats[n].total += (o.final_price || 0);
+    if(o.status !== 'delivered' && o.status !== 'cancelled') clientStats[n].active++;
+  });
+  
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="slbl" style="margin:0">👤 Müştərilər — ${allClients.length} nəfər</div>
+      <button class="btn btn-t" style="font-size:12px;padding:8px 14px" onclick="openAddClientFromAdmin()">+ Müştəri əlavə et</button>
+    </div>
+    <div style="margin-bottom:12px">
+      <input type="text" id="client-search-admin" placeholder="🔍 Axtarış: ad və ya telefon..." oninput="filterClientList(this.value)" style="width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;font-family:inherit;font-size:14px">
+    </div>
+    <div id="client-list-admin">
+      ${renderClientList(allClients, clientStats)}
+    </div>
+  `;
+  
+  window._adminClients = allClients;
+  window._adminClientStats = clientStats;
+}
+
+function renderClientList(list, stats){
+  if(!list.length) return '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Müştəri yoxdur</div>';
+  return list.map(c=>{
+    const s = stats[c.name] || {count:0,total:0,active:0};
+    return `<div style="padding:14px;border:1px solid var(--bd);border-radius:10px;margin-bottom:8px;background:#fff;display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;font-weight:700">${c.name}</div>
+        ${c.phone?`<div style="font-size:12px;color:var(--t2);margin-top:2px">📞 ${c.phone}</div>`:''}
+        <div style="font-size:11px;color:var(--t3);margin-top:4px">
+          ${s.count} sifariş · ${s.total.toFixed(0)} ₼ · ${s.active>0?`<span style="color:var(--or);font-weight:600">${s.active} aktiv</span>`:'0 aktiv'}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button onclick="editClientAdmin('${c.id}')" style="padding:6px 10px;border:1px solid var(--bd);background:#fff;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px">✏️</button>
+        <button onclick="delClientAdmin('${c.id}','${c.name.replace(/'/g,"\\'")}')" style="padding:6px 10px;border:1px solid #E24B4A;background:#fff;color:#E24B4A;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterClientList(val){
+  const v = val.toLowerCase().trim();
+  const filtered = (window._adminClients||[]).filter(c => 
+    c.name.toLowerCase().includes(v) || (c.phone && c.phone.toLowerCase().includes(v))
+  );
+  document.getElementById('client-list-admin').innerHTML = renderClientList(filtered, window._adminClientStats||{});
+}
+
+function openAddClientFromAdmin(){
+  const name = prompt('Müştərinin adı:');
+  if(!name || !name.trim()) return;
+  const phone = prompt('Telefon (istəyə bağlı):') || '';
+  
+  (async()=>{
+    showLoader();
+    const {error} = await sb.from('clients').insert({name:name.trim(), phone:phone.trim()||null});
+    hideLoader();
+    if(error){toast('Xəta: '+error.message);return;}
+    toast('✓ Müştəri əlavə edildi');
+    await loadClients();
+    adminSec('clients');
+  })();
+}
+
+async function editClientAdmin(id){
+  const c = (window._adminClients||[]).find(x=>x.id===id);
+  if(!c) return;
+  const newName = prompt('Ad:', c.name);
+  if(newName === null) return;
+  const newPhone = prompt('Telefon:', c.phone || '');
+  if(newPhone === null) return;
+  
+  showLoader();
+  const {error} = await sb.from('clients').update({
+    name: newName.trim(),
+    phone: newPhone.trim() || null
+  }).eq('id', id);
+  hideLoader();
+  if(error){toast('Xəta: '+error.message);return;}
+  toast('✓ Yeniləndi');
+  await loadClients();
+  adminSec('clients');
+}
+
+async function delClientAdmin(id, name){
+  if(!confirm('Müştərini silmək istəyirsiniz?\n\n'+name)) return;
+  showLoader();
+  const {error} = await sb.from('clients').delete().eq('id', id);
+  hideLoader();
+  if(error){toast('Xəta: '+error.message);return;}
+  toast('✓ Silindi');
+  await loadClients();
+  adminSec('clients');
 }
 
 async function renderDeptAnalytics(el){
@@ -4823,24 +5166,49 @@ async function savePinChg(key){
 async function renderModelsSection(el){
   const{data:models}=await sb.from('models').select('*');
   const allModels = models||[];
+  const catalogUrl = window.location.origin + window.location.pathname + '?catalog=1';
   el.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
       <div class="slbl" style="margin:0">Modellər (${allModels.length})</div>
       <button class="btn btn-t" style="font-size:12px;padding:8px 14px" onclick="openAddModel()">+ Yeni model</button>
     </div>
+    
+    <div style="background:linear-gradient(135deg,var(--lt),#E8F5E9);border:2px solid var(--tl);border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:var(--tl);margin-bottom:8px">📎 Müştəri kataloqu</div>
+      <div style="font-size:12px;color:var(--t2);margin-bottom:10px">Bu linki müştəriyə göndərin — bütün məhsulları şəkil və qiymətlə görə bilər</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="text" id="catalog-link" readonly value="${catalogUrl}" style="flex:1;padding:8px 10px;border:1px solid var(--bd);border-radius:6px;font-size:11px;font-family:'DM Mono',monospace;background:#fff">
+        <button onclick="copyCatalogLink()" style="padding:8px 14px;background:var(--tl);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;white-space:nowrap">📋 Kopyala</button>
+        <a href="${catalogUrl}" target="_blank" style="padding:8px 14px;background:var(--or);color:#fff;border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">↗ Bax</a>
+      </div>
+    </div>
+    
     <input type="text" id="models-search" placeholder="🔍 Model axtar..." style="width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;margin-bottom:10px" oninput="filterModelsList(this.value)">
     <div class="sec-card" id="models-list">${renderModelsList(allModels)}</div>`;
   window._allModelsCache = allModels;
 }
 
+function copyCatalogLink(){
+  const input = document.getElementById('catalog-link');
+  if(!input) return;
+  navigator.clipboard.writeText(input.value).then(()=>{
+    toast('✓ Katalog linki kopyalandı');
+  }).catch(()=>{
+    input.select();
+    document.execCommand('copy');
+    toast('✓ Link kopyalandı');
+  });
+}
+
 function renderModelsList(models){
   if(!models.length) return `<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Model tapılmadı</div>`;
+  const catNames = {divan:'Divan',kunc_divan:'Künc Divan',oturacaq:'Oturacaq',kreslo:'Kreslo',masa:'Masa',dest:'Dəst',diger:'Digər'};
   return models.map(m=>`
       <div class="list-item">
         <div class="li-icon" style="background:var(--lt);font-size:22px">${m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:10px">`:m.emoji}</div>
         <div class="li-body">
-          <div class="li-title">${m.name}</div>
-          <div class="li-sub">${(m.stages||[]).length} mərhələ · ${m.total_hours}s · ${m.description||''}</div>
+          <div class="li-title">${m.name} ${m.category?`<span style="font-size:10px;background:var(--lt);color:var(--tl);padding:2px 8px;border-radius:10px;margin-left:6px;font-weight:600">${catNames[m.category]||m.category}</span>`:''}</div>
+          <div class="li-sub">${(m.stages||[]).length} mərhələ · ${m.total_hours}s · ${m.sale_price?m.sale_price+' ₼':''} ${m.description?' · '+m.description:''}</div>
         </div>
         <div style="display:flex;gap:6px">
           <button onclick="editModel('${m.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:var(--tl);font-family:inherit;padding:3px 8px;border-radius:6px">Düzəlt</button>
@@ -4925,16 +5293,30 @@ function selectDept(key, label){
   if(modal) modal.remove();
 }
 
-function populateWorkerDeptSelect(){
-  const sel = document.getElementById('aw-dept');
-  if(!sel) return;
-  sel.innerHTML = '<option value="">Şöbə seçin</option>' + 
-    Object.entries(DEPT_INFO).map(([k,info])=>`<option value="${k}">${info.icon} ${info.name}</option>`).join('');
+function populateWorkerDeptSelect(selected){
+  const grid = document.getElementById('aw-dept-grid');
+  if(!grid) return;
+  grid.innerHTML = Object.entries(DEPT_INFO).map(([k,info])=>{
+    const isSel = k === selected;
+    return `<button type="button" onclick="selectWorkerDept('${k}')" id="awd-${k}" style="padding:12px 10px;border:2px solid ${isSel?'var(--tl)':'var(--bd)'};background:${isSel?'var(--lt)':'#fff'};border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:left;color:${isSel?'var(--tl)':'var(--t1)'};display:flex;align-items:center;gap:6px;min-height:48px">
+      <span style="font-size:18px">${info.icon}</span>
+      <span style="line-height:1.2">${info.name}</span>
+    </button>`;
+  }).join('');
+  if(selected){
+    document.getElementById('aw-dept').value = selected;
+  }
+}
+
+function selectWorkerDept(key){
+  document.getElementById('aw-dept').value = key;
+  // Re-render grid with selection
+  populateWorkerDeptSelect(key);
 }
 
 function openAddWorker(){
   editingWorkerId = null;
-  populateWorkerDeptSelect();
+  populateWorkerDeptSelect(null);
   document.getElementById('aw-title').textContent = 'Yeni işçi';
   document.getElementById('aw-name').value = '';
   document.getElementById('aw-role').value = '';
@@ -4946,7 +5328,7 @@ async function editWorker(id){
   const {data} = await sb.from('workers').select('*').eq('id', id).single();
   if(!data){toast('Xəta: işçi tapılmadı'); return;}
   editingWorkerId = id;
-  populateWorkerDeptSelect();
+  populateWorkerDeptSelect(data.dept_key);
   document.getElementById('aw-title').textContent = 'İşçini düzəlt';
   document.getElementById('aw-name').value = data.name;
   document.getElementById('aw-role').value = data.role_title || '';
@@ -5003,6 +5385,8 @@ function openAddModel(){
   document.getElementById('am-desc').value='';
   document.getElementById('am-sale-price').value='';
   document.getElementById('am-cost-price').value='';
+  const catEl = document.getElementById('am-category');
+  if(catEl) catEl.value = '';
   document.getElementById('am-prev').innerHTML='🛋️';
   window._currentStageOrder = [];
   window._parallelModes = {};
@@ -5020,6 +5404,8 @@ async function editModel(id){
   document.getElementById('am-desc').value=m.description||'';
   document.getElementById('am-sale-price').value=m.sale_price||'';
   document.getElementById('am-cost-price').value=m.cost_price||'';
+  const catEl = document.getElementById('am-category');
+  if(catEl) catEl.value = m.category || '';
   const prev=document.getElementById('am-prev');
   if(m.img_url)prev.innerHTML=`<img src="${m.img_url}" style="width:80px;height:64px;object-fit:cover;border-radius:var(--r)">`;
   else prev.innerHTML=m.emoji||'🛋️';
@@ -5365,14 +5751,15 @@ async function saveModel(){
   });
   
   const totalHours=stages.reduce((s,x)=>s+x.hours,0);
+  const category = document.getElementById('am-category')?.value || null;
   showLoader();
   if(editingModelId){
-    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice};
+    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category};
     if(modelImgData&&modelImgData.startsWith('data:'))upd.img_url=modelImgData;
     await sb.from('models').update(upd).eq('id',editingModelId);
     toast('✓ Model yeniləndi: '+name);
   }else{
-    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:modelImgData&&modelImgData.startsWith('data:')?modelImgData:null,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,is_active:true});
+    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:modelImgData&&modelImgData.startsWith('data:')?modelImgData:null,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:true});
     toast('✓ Model əlavə edildi: '+name);
   }
   hideLoader();
