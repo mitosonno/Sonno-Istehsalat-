@@ -316,6 +316,35 @@ textarea{resize:vertical;min-height:80px}
     <div class="lf"><label>Şifrə</label><input id="l-pass" type="password" placeholder="••••••" autocomplete="current-password"></div>
     <div class="login-err" id="l-err"></div>
     <button class="login-btn" id="login-btn" onclick="doLogin()">Daxil ol</button>
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.1);text-align:center">
+      <button onclick="showCustomerLogin()" style="background:transparent;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);padding:10px 24px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;width:100%">📦 Müştəri girişi — sifarişimi izlə</button>
+    </div>
+  </div>
+  
+  <!-- MÜŞTƏRİ GİRİŞ PANELİ -->
+  <div id="customer-login-panel" style="display:none;margin-top:16px;width:100%;max-width:360px">
+    <div class="login-card">
+      <div style="font-size:14px;font-weight:600;color:rgba(255,255,255,.8);margin-bottom:14px;text-align:center">📦 Sifariş izləmə</div>
+      <div class="lf"><label style="color:rgba(255,255,255,.6)">Telefon nömrəsi</label><input id="c-phone" type="tel" placeholder="+994 50 xxx xx xx" autocomplete="tel"></div>
+      <div class="lf"><label style="color:rgba(255,255,255,.6)">Giriş kodu</label><input id="c-code" type="text" placeholder="Kod" autocapitalize="none" style="letter-spacing:2px"></div>
+      <div class="login-err" id="c-err"></div>
+      <button class="login-btn" onclick="doCustomerLogin()" style="background:#007565">Sifarişimi gör</button>
+      <button onclick="hideCustomerLogin()" style="background:transparent;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-family:inherit;font-size:12px;width:100%;margin-top:8px;padding:6px">← Geri</button>
+    </div>
+  </div>
+</div>
+
+<!-- MÜŞTƏRİ SİFARİŞ İZLƏMƏ EKRANI -->
+<div id="customer-screen" style="display:none;position:fixed;inset:0;background:#fafaf9;z-index:9998;overflow-y:auto;font-family:'DM Sans',sans-serif">
+  <div style="background:linear-gradient(135deg,#007565,#004F51);color:#fff;padding:20px;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="font-size:18px;font-weight:700">🛋️ SONNO</div>
+      <div id="cs-welcome" style="font-size:12px;opacity:0.8;margin-top:2px">Sifarişlərim</div>
+    </div>
+    <button onclick="doCustomerLogout()" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">Çıxış</button>
+  </div>
+  <div id="customer-orders-list" style="max-width:600px;margin:0 auto;padding:16px">
+    <div style="text-align:center;padding:40px;color:#888">Yüklənir...</div>
   </div>
 </div>
 
@@ -365,8 +394,11 @@ textarea{resize:vertical;min-height:80px}
             <div class="card" id="late-card" style="max-height:280px;overflow-y:auto"></div>
           </div>
         </div>
-        <div class="slbl">Bütün sifarişlər</div>
-        <div class="tbl-wrap">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px">
+          <div class="slbl" style="margin:0">Son 10 sifariş</div>
+          <button onclick="goTo('allorders')" style="padding:8px 16px;background:var(--tl);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600">📋 Bütün sifarişlər →</button>
+        </div>
+        <div class="tbl-wrap" style="margin-top:10px">
           <table><thead><tr><th>Sifariş</th><th>Müştəri</th><th>Model</th><th>Ədəd</th><th>Mərhələ</th><th>Məbləğ</th><th>Deadline</th><th>Status</th></tr></thead>
           <tbody id="orders-tbody"></tbody></table>
         </div>
@@ -378,7 +410,10 @@ textarea{resize:vertical;min-height:80px}
         <div style="display:grid;grid-template-columns:1fr 340px;gap:20px" id="order-layout">
           <div>
             <div class="slbl" style="margin-top:0">Məhsul seçin</div>
-            <input type="text" id="product-search" placeholder="🔍 Model axtar..." style="width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;margin-bottom:12px" oninput="filterProducts(this.value)">
+            <input type="text" id="product-search" placeholder="🔍 Model axtar..." style="width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;margin-bottom:10px" oninput="filterProducts(this.value)">
+            <button type="button" onclick="copyCatalogLinkQuick()" style="width:100%;padding:12px;background:linear-gradient(135deg,#007565,#004F51);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 8px rgba(0,117,101,.2)">
+              📎 Müştəri kataloqu linkini kopyala
+            </button>
             <div class="pgrid" id="product-grid"></div>
             <div id="qty-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:12px 14px;align-items:center;gap:12px;margin-bottom:14px">
               <span id="qty-name" style="flex:1;font-size:13px;font-weight:600;color:var(--dp)">—</span>
@@ -435,6 +470,31 @@ textarea{resize:vertical;min-height:80px}
         </div>
       </div>
 
+      <!-- BÜTÜN SİFARİŞLƏR -->
+      <div id="sc-allorders" class="sc">
+        <div class="pg-hd">📋 Bütün sifarişlər</div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+          <input type="text" id="ao-search" placeholder="🔍 Sifariş kodu, müştəri, model..." style="padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px" oninput="filterAllOrdersPage()">
+          <input type="date" id="ao-from" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px" onchange="filterAllOrdersPage()">
+          <input type="date" id="ao-to" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px" onchange="filterAllOrdersPage()">
+          <select id="ao-status" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:#fff" onchange="filterAllOrdersPage()">
+            <option value="">Bütün statuslar</option>
+            <option value="created">Yaradıldı</option>
+            <option value="in_progress">İstehsalda</option>
+            <option value="ready">Hazır</option>
+            <option value="delivering">Yolda</option>
+            <option value="delivered">Təslim</option>
+            <option value="cancelled">İmtina</option>
+            <option value="late">Gecikmiş</option>
+          </select>
+        </div>
+        <div id="ao-count" style="font-size:13px;color:var(--t2);margin-bottom:10px">—</div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Sifariş</th><th>Müştəri</th><th>Model</th><th>Ədəd</th><th>Məbləğ</th><th>Deadline</th><th>Status</th></tr></thead>
+          <tbody id="ao-tbody"></tbody></table>
+        </div>
+      </div>
+
       <!-- ŞÖBƏ EKRANI -->
       <div id="sc-dept" class="sc">
         <div id="dept-pick">
@@ -485,7 +545,11 @@ textarea{resize:vertical;min-height:80px}
           <div class="kpi kO"><div class="kl">YOLDA</div><div class="kv" id="l-tr" style="color:var(--or)">—</div></div>
           <div class="kpi kD"><div class="kl">TƏSLİM</div><div class="kv" id="l-dv">—</div><div class="ks">bu həftə</div></div>
         </div>
-        <div class="slbl">Sifarişlər</div>
+        <!-- TABS -->
+        <div style="display:flex;gap:4px;background:rgba(17,24,32,.04);padding:4px;border-radius:10px;margin-bottom:14px">
+          <button id="logi-tab-active" onclick="switchLogiTab('active')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:var(--sf);color:var(--tl);box-shadow:0 1px 4px rgba(0,0,0,.08)">🚚 Aktiv</button>
+          <button id="logi-tab-done" onclick="switchLogiTab('done')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2)">✓ Təslim edilənlər</button>
+        </div>
         <div class="card" id="logi-list"></div>
       </div>
 
@@ -830,11 +894,12 @@ const ST = {
 };
 
 const NAV_ITEMS = [
-  {key:'dash',  icon:'📊',label:'Dashboard',  perm:'dashboard',    sc:'sc-dash'},
-  {key:'order', icon:'➕',label:'Sifariş',    perm:'orders_create',sc:'sc-order'},
-  {key:'dept',  icon:'🏭',label:'Şöbə',       perm:'dept_screen',  sc:'sc-dept'},
-  {key:'ai',    icon:'🤖',label:'AI Analiz',  perm:'ai',           sc:'sc-ai'},
-  {key:'admin', icon:'⚙️',label:'Admin',      perm:'admin',        sc:'sc-admin'},
+  {key:'dash',    icon:'📊',label:'Dashboard',    perm:'dashboard',    sc:'sc-dash'},
+  {key:'order',   icon:'➕',label:'Sifariş',      perm:'orders_create',sc:'sc-order'},
+  {key:'allorders',icon:'📋',label:'Sifarişlər', perm:'orders_view',  sc:'sc-allorders'},
+  {key:'dept',    icon:'🏭',label:'Şöbə',         perm:'dept_screen',  sc:'sc-dept'},
+  {key:'ai',      icon:'🤖',label:'AI Analiz',    perm:'ai',           sc:'sc-ai'},
+  {key:'admin',   icon:'⚙️',label:'Admin',        perm:'admin',        sc:'sc-admin'},
 ];
 
 // ═══════════ STATE ═══════════
@@ -1202,18 +1267,22 @@ async function tryRestoreSession(){
       localStorage.removeItem('sonno_session');
       return false;
     }
-    // Supabase-dən fresh user yüklə
-    const {data,error} = await sb.from('users').select('*').eq('id',saved.user.id).eq('is_active',true).single();
-    if(error||!data){
-      localStorage.removeItem('sonno_session');
-      return false;
-    }
-    currentUser = data;
-    localStorage.setItem('sonno_session', JSON.stringify({user:data, ts:Date.now()}));
+    // Supabase-ə sorğu etmədən localStorage-dan restore et
+    // (Supabase cold start-dan qaçmaq üçün)
+    currentUser = saved.user;
+    // Arxa planda user-i yenilə (bloklamadan)
+    sb.from('users').select('*').eq('id',saved.user.id).eq('is_active',true).single()
+      .then(({data,error})=>{
+        if(data && !error){
+          currentUser = data;
+          localStorage.setItem('sonno_session', JSON.stringify({user:data, ts:Date.now()}));
+        } else if(error){
+          console.warn('Background session refresh failed:', error.message);
+        }
+      }).catch(e=>console.warn('Background refresh error:', e));
     return true;
   }catch(e){
     console.error('Session restore error:', e);
-    localStorage.removeItem('sonno_session');
     return false;
   }
 }
@@ -1231,37 +1300,164 @@ window.addEventListener('popstate', (e)=>{
   }
 });
 
+// ═══════════ SUPABASE KEEP-ALIVE ═══════════
+// Hər 4 dəqiqədə kiçik ping göndər - Supabase yuxuya getməsin
+let _keepAliveInterval = null;
+function startKeepAlive(){
+  if(_keepAliveInterval) clearInterval(_keepAliveInterval);
+  _keepAliveInterval = setInterval(async()=>{
+    try{
+      await sb.from('app_settings').select('key').limit(1);
+      console.log('[keep-alive] Supabase ping ok');
+    }catch(e){
+      console.warn('[keep-alive] ping failed:', e.message);
+    }
+  }, 4 * 60 * 1000); // 4 dəqiqə
+}
+
+// Səhifə açılan kimi ping başla + dərhal bir ping göndər ki cold start-dan oyansın
+startKeepAlive();
+sb.from('app_settings').select('key').limit(1).then(()=>{
+  console.log('[keep-alive] İlk ping - Supabase oyandırıldı');
+});
+
 // ═══════════ PAGE LOAD ═══════════
 (async()=>{
-  showLoader();
+  const urlParams = new URLSearchParams(window.location.search);
 
-  // URL-də ?catalog=1 varsa — public katalog mode
+  // URL-də ?catalog=1 varsa — public katalog mode (login lazım deyil)
   if(urlParams.get('catalog') === '1'){
-    hideLoader();
     startCatalogMode();
     return;
   }
   
   // URL-də ?dept=karkaz varsa — kiosk mode
-  const urlParams = new URLSearchParams(window.location.search);
   const urlDept = urlParams.get('dept');
-
   if(urlDept && DEPT_INFO[urlDept]){
-    // Kiosk mode — yalnız bu şöbə
-    hideLoader();
     startKioskMode(urlDept);
     return;
   }
 
-  // Normal mode — session yoxla
+  // URL-də ?order=xxx varsa — müştəri sifariş izləmə (login lazım deyil, dərhal aç)
+  const urlOrder = urlParams.get('order');
+  if(urlOrder){
+    startOrderTrackMode(urlOrder);
+    return;
+  }
+
+  // Normal mode — session yoxla (Supabase-siz, dərhal)
   const restored = await tryRestoreSession();
   if(restored){
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').classList.add('visible');
     await initApp();
   }
-  hideLoader();
+  // Session yoxdursa login ekranı görünür (artıq hazırdır)
 })();
+
+// ═══════════ ORDER TRACK MODE (PUBLIC - link ilə) ═══════════
+async function startOrderTrackMode(orderId){
+  // Login ekranını gizlət, app-i gizlət
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='none';
+  
+  // Customer screen-i dərhal aç (UI blok olmasın)
+  const cs = document.getElementById('customer-screen');
+  cs.style.display='block';
+  document.getElementById('cs-welcome').textContent = 'Sifariş yüklənir...';
+  document.getElementById('customer-orders-list').innerHTML = 
+    '<div style="text-align:center;padding:40px;color:#888">⏳ Sifariş yüklənir...</div>';
+  
+  // Çıxış düyməsini gizlət (login olmayıb)
+  const logoutBtn = cs.querySelector('button[onclick="doCustomerLogout()"]');
+  if(logoutBtn) logoutBtn.style.display = 'none';
+  
+  try{
+    // Sifarişi və modeli paralel yüklə
+    const [orderRes, modelsRes] = await Promise.all([
+      sb.from('orders').select('*').eq('id', orderId).single(),
+      sb.from('models').select('*')
+    ]);
+    
+    if(orderRes.error || !orderRes.data){
+      document.getElementById('cs-welcome').textContent = 'Sifariş tapılmadı';
+      document.getElementById('customer-orders-list').innerHTML = 
+        '<div style="text-align:center;padding:40px;color:#E24B4A">❌ Sifariş tapılmadı və ya link səhvdir</div>';
+      return;
+    }
+    
+    const o = orderRes.data;
+    const models = modelsRes.data || [];
+    appModels = models;
+    const m = models.find(x=>x.id===o.model_id) || {name:'?', emoji:'📦', stages:[]};
+    
+    document.getElementById('cs-welcome').textContent = `${o.client} · ${o.order_number}`;
+    
+    // Status etiketi
+    const statusLabels = {
+      created: {txt:'Yeni', color:'#9CA3AF'},
+      in_progress: {txt:'İstehsalda', color:'#F78930'},
+      late: {txt:'Gecikib', color:'#E24B4A'},
+      ready: {txt:'Hazır', color:'#007565'},
+      delivering: {txt:'Yolda', color:'#F78930'},
+      delivered: {txt:'Təslim edildi', color:'#004F51'},
+      cancelled: {txt:'İmtina edilib', color:'#9CA3AF'}
+    };
+    const st = statusLabels[o.status] || {txt:o.status, color:'#9CA3AF'};
+    
+    // Mərhələlər (stages) — progress bar üçün
+    const stages = Array.isArray(m.stages) ? m.stages : [];
+    const progress = o.progress || {};
+    
+    document.getElementById('customer-orders-list').innerHTML = `
+      <div style="background:#fff;border-radius:12px;padding:20px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+          <div style="font-size:48px">${m.emoji||'📦'}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:17px;font-weight:700;margin-bottom:2px">${m.name}</div>
+            <div style="font-size:13px;color:#6B7280">${o.qty} ədəd</div>
+          </div>
+          <div style="background:${st.color};color:#fff;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap">${st.txt}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:${stages.length?'16px':'0'}">
+          <div style="background:#f4f2ed;padding:10px 12px;border-radius:8px">
+            <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Sifariş №</div>
+            <div style="font-size:14px;font-weight:600;font-family:'DM Mono',monospace">${o.order_number}</div>
+          </div>
+          <div style="background:#f4f2ed;padding:10px 12px;border-radius:8px">
+            <div style="font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Çatdırılma</div>
+            <div style="font-size:14px;font-weight:600">${o.deadline || '—'}</div>
+          </div>
+        </div>
+        ${stages.length ? `
+          <div style="font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:8px">Mərhələlər</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            ${stages.map(s=>{
+              const key = typeof s === 'string' ? s : s.key;
+              const label = typeof s === 'string' ? (DEPT_INFO[s]?.label || s) : (s.label || DEPT_INFO[s.key]?.label || s.key);
+              const done = progress[key]?.done;
+              const active = progress[key]?.started && !done;
+              const bg = done ? '#E1F5EE' : (active ? '#FFF4E8' : '#f4f2ed');
+              const color = done ? '#007565' : (active ? '#F78930' : '#9CA3AF');
+              const icon = done ? '✓' : (active ? '●' : '○');
+              return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${bg};border-radius:8px">
+                <div style="width:22px;height:22px;border-radius:50%;background:${color};color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">${icon}</div>
+                <div style="flex:1;font-size:13px;color:${color};font-weight:${active?'600':'500'}">${label}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        ` : ''}
+      </div>
+      <div style="text-align:center;padding:16px;color:#9CA3AF;font-size:11px">
+        🛋️ SONNO · Daxili sifariş izləmə sistemi
+      </div>`;
+  }catch(e){
+    console.error('Order track error:', e);
+    document.getElementById('cs-welcome').textContent = 'Xəta baş verdi';
+    document.getElementById('customer-orders-list').innerHTML = 
+      '<div style="text-align:center;padding:40px;color:#E24B4A">❌ Xəta: '+(e.message||'bilinməyən')+'</div>';
+  }
+}
 
 // ═══════════ KATALOG MODE (PUBLIC) ═══════════
 async function startCatalogMode(){
@@ -1526,7 +1722,6 @@ document.addEventListener('visibilitychange', ()=>{
 async function initApp(){
   // UI-i dərhal göstər (data gözləmədən)
   const u=currentUser;
-  const ini=u.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
   document.getElementById('topbar-av').textContent=ini;
   const rL={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
   document.getElementById('topbar-role').textContent=rL[u.role]||u.role;
@@ -1585,11 +1780,12 @@ async function goTo(key, fromHistory){
   document.getElementById(item.sc).classList.add('on');
   const sb2=document.getElementById('sbi-'+key);if(sb2)sb2.classList.add('on');
   const nb=document.getElementById('bnav-'+key);if(nb)nb.classList.add('on');
-  const titles={dash:'Dashboard',order:'Yeni Sifariş',dept:'Şöbə Ekranı',logi:'Logistika',ai:'AI Analiz',admin:'Admin'};
+  const titles={dash:'Dashboard',order:'Yeni Sifariş',allorders:'Bütün sifarişlər',dept:'Şöbə Ekranı',logi:'Logistika',ai:'AI Analiz',admin:'Admin'};
   document.getElementById('topbar-title').textContent=titles[key]||'';
   document.getElementById('main-content').scrollTo(0,0);
   if(key==='dash') await renderDash();
   if(key==='order') renderOrderForm();
+  if(key==='allorders') await renderAllOrdersPage();
   if(key==='dept') await renderDeptPick();
   if(key==='logi') await renderLogi();
   if(key==='ai') await renderAI();
@@ -1635,7 +1831,14 @@ async function renderDash(){
     const userMap = {};
     (users||[]).forEach(u=>userMap[u.id]=u.name);
     
-    document.getElementById('orders-tbody').innerHTML=all.map(o=>{
+    // Bütün sifarişləri yaddaşda saxla (Bütün sifarişlər modalı üçün)
+    window._dashAllOrders = all;
+    window._dashUserMap = userMap;
+    
+    // Yalnız ilk 10-u göstər
+    const displayed = all.slice(0, 10);
+    
+    document.getElementById('orders-tbody').innerHTML=displayed.map(o=>{
       const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦',stages:[]};
       const st=ST[o.status]||ST.created;
       const stageName=m.stages&&m.stages[o.current_stage-1]?m.stages[o.current_stage-1].name:'—';
@@ -2309,6 +2512,28 @@ function showDV(v){
   }
 }
 
+// ═══════════ CACHE SİSTEMİ ═══════════
+const _cache = {};
+const CACHE_TTL = 30000; // 30 saniyə
+
+async function cachedFetch(key, fetcher){
+  const now = Date.now();
+  if(_cache[key] && (now - _cache[key].ts) < CACHE_TTL){
+    return _cache[key].data;
+  }
+  const data = await fetcher();
+  _cache[key] = {data, ts: now};
+  return data;
+}
+
+function invalidateCache(...keys){
+  if(keys.length === 0){
+    Object.keys(_cache).forEach(k => delete _cache[k]);
+  } else {
+    keys.forEach(k => delete _cache[k]);
+  }
+}
+
 async function renderDeptTasks(dept){
   // Xüsusi hal: Logistika — "ready" sifarişləri göstər
   if(dept === 'logistics'){
@@ -2319,12 +2544,12 @@ async function renderDeptTasks(dept){
   }
   
   showLoader();
-  // Ötürmə konfiqurasiyasını da yüklə
-  const [{data:allOrders},{data:allModels},{data:allLogs},fwdConfig] = await Promise.all([
-    sb.from('orders').select('*').order('created_at',{ascending:true}),
-    sb.from('models').select('*'),
-    sb.from('task_logs').select('*').order('started_at',{ascending:false}),
-    getForwardingConfig(),
+  // Cache ilə yüklə (30 saniyə keçməyibsə yenidən sorğu etmə)
+  const [allOrders, allModels, allLogs, fwdConfig] = await Promise.all([
+    cachedFetch('orders', async()=>{ const{data}=await sb.from('orders').select('*').order('created_at',{ascending:true}); return data||[]; }),
+    cachedFetch('models', async()=>{ const{data}=await sb.from('models').select('*'); return data||[]; }),
+    cachedFetch('logs', async()=>{ const{data}=await sb.from('task_logs').select('*').order('started_at',{ascending:false}); return data||[]; }),
+    cachedFetch('fwdConfig', ()=>getForwardingConfig()),
   ]);
   hideLoader();
   window.forwardingConfig = fwdConfig || {};
@@ -2581,10 +2806,14 @@ async function renderDeptTasks(dept){
             </div>
             
             <div style="background:var(--lt);border-radius:10px;padding:12px;margin:10px 0">
-              <label style="font-size:11px;color:var(--t2);font-weight:700;display:block;margin-bottom:10px">✔️ Yoxlama siyahısı (hamısı məcburi)</label>
+              <label style="font-size:11px;color:var(--t2);font-weight:700;display:block;margin-bottom:10px">✔️ Yoxlama siyahısı</label>
+              <label onclick="qaCheckAll('${o.id}')" style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--tl);color:#fff;border-radius:8px;margin-bottom:8px;cursor:pointer;min-height:52px;font-weight:700;font-size:14px">
+                <input type="checkbox" id="qa-all-${o.id}" style="width:24px;height:24px;cursor:pointer" onclick="event.stopPropagation();qaCheckAll('${o.id}')">
+                <span>✅ Hamısını OK işarələ</span>
+              </label>
               ${checkList.map(c=>{
                 return `<label style="display:flex;align-items:center;gap:10px;padding:12px;background:#fff;border:1px solid var(--bd);border-radius:8px;margin-bottom:6px;cursor:pointer;min-height:50px">
-                  <input type="checkbox" class="qa-check-${o.id}" data-dept="${c.key}" data-label="${c.label}" style="width:24px;height:24px;cursor:pointer">
+                  <input type="checkbox" class="qa-check-${o.id}" data-dept="${c.key}" data-label="${c.label}" style="width:24px;height:24px;cursor:pointer" onclick="updateQaAllCheck('${o.id}')">
                   <span style="font-size:15px;font-weight:600">${c.icon} ${c.label}</span>
                 </label>`;
               }).join('')}
@@ -2910,7 +3139,7 @@ async function renderDeptTasks(dept){
 
 function dStart(oid,si,key,dept){
   const now=new Date().toISOString();
-  // Dept-specific key (paralel şöbələr üçün kritik)
+  invalidateCache('logs','orders'); // Cache-i yenilə
   const dKey = key+'_'+dept;
   localStorage.setItem(dKey+'_s','1');
   localStorage.setItem(dKey+'_t',now);
@@ -2969,16 +3198,28 @@ function dStart(oid,si,key,dept){
 
 async function renderLogisticsDone(){
   showLoader();
-  const [{data:orders},{data:models}] = await Promise.all([
-    sb.from('orders').select('*').eq('status','delivered').order('updated_at',{ascending:false}),
+  const [{data:orders, error:oErr},{data:models}] = await Promise.all([
+    sb.from('orders').select('*').eq('status','delivered'),
     sb.from('models').select('*'),
   ]);
   hideLoader();
   
-  const allModels = models || [];
-  const all = orders || [];
+  if(oErr) console.error('[logisticsDone] error:', oErr);
   
-  document.getElementById('dt-cnt').textContent = all.length;
+  const allModels = models || [];
+  let all = orders || [];
+  
+  // Tarixə görə sırala (ən yeni üstdə)
+  all.sort((a,b)=>{
+    const aDate = new Date(a.delivered_at || a.created_at || 0);
+    const bDate = new Date(b.delivered_at || b.created_at || 0);
+    return bDate - aDate;
+  });
+  
+  console.log('[logisticsDone] delivered sifarişlər:', all.length, all.map(o=>o.order_number));
+  
+  const cntEl = document.getElementById('dt-cnt');
+  if(cntEl) cntEl.textContent = all.length;
   const tl = document.getElementById('dept-task-list');
   
   if(!all.length){
@@ -3067,6 +3308,7 @@ async function renderLogisticsDept(){
   
   // İndi filter
   const all = (orders||[]).filter(o=>o.status === 'ready' || o.status === 'delivering');
+  window._logisticsOrders = all; // markDel üçün cache
   
   console.log('[LOGISTICS] Göstərilir:', all.length);
   
@@ -3182,6 +3424,7 @@ function forwardToDeptClick(btn){
 }
 
 async function forwardToDept(oid, toDept, fromDept){
+  invalidateCache('orders');
   // Normalize: tikiş → tikis
   if(toDept === 'tikiş') toDept = 'tikis';
   if(fromDept === 'tikiş') fromDept = 'tikis';
@@ -3273,6 +3516,7 @@ async function sharedReceive(oid, dept){
 }
 
 async function dDone(oid, si, key, dept, totalStages){
+  invalidateCache('logs','orders'); // Cache-i yenilə
   const doneBtn = document.getElementById('td-'+oid);
   if(doneBtn) doneBtn.disabled = true;
   
@@ -3487,6 +3731,222 @@ async function dDone(oid, si, key, dept, totalStages){
 }
 
 // Köməkçi funksiya — card-ı DOM-dan tamamilə sil
+// ═══════════ BÜTÜN SİFARİŞLƏR SƏHİFƏSİ ═══════════
+async function renderAllOrdersPage(){
+  showLoader();
+  const [{data:orders},{data:users}] = await Promise.all([
+    sb.from('orders').select('*').order('created_at',{ascending:false}),
+    sb.from('users').select('id,name'),
+  ]);
+  hideLoader();
+  
+  const userMap = {};
+  (users||[]).forEach(u=>userMap[u.id]=u.name);
+  
+  window._aoAllOrders = orders || [];
+  window._aoUserMap = userMap;
+  
+  filterAllOrdersPage();
+}
+
+function filterAllOrdersPage(){
+  const all = window._aoAllOrders || [];
+  
+  const search = (document.getElementById('ao-search')?.value || '').toLowerCase().trim();
+  const fromDate = document.getElementById('ao-from')?.value || '';
+  const toDate = document.getElementById('ao-to')?.value || '';
+  const statusFilter = document.getElementById('ao-status')?.value || '';
+  
+  let filtered = all.filter(o=>{
+    if(search){
+      const m = appModels.find(x=>x.id===o.model_id);
+      const modelName = m ? m.name.toLowerCase() : '';
+      const matches = (o.order_number||'').toLowerCase().includes(search) ||
+                      (o.client||'').toLowerCase().includes(search) ||
+                      modelName.includes(search);
+      if(!matches) return false;
+    }
+    
+    const oDate = o.order_date || o.created_at;
+    if(oDate){
+      const oDateStr = new Date(oDate).toISOString().split('T')[0];
+      if(fromDate && oDateStr < fromDate) return false;
+      if(toDate && oDateStr > toDate) return false;
+    }
+    
+    if(statusFilter && o.status !== statusFilter) return false;
+    
+    return true;
+  });
+  
+  const countEl = document.getElementById('ao-count');
+  if(countEl) countEl.textContent = filtered.length + ' sifariş göstərilir (cəmi ' + all.length + ')';
+  
+  const tbody = document.getElementById('ao-tbody');
+  if(!tbody) return;
+  
+  if(!filtered.length){
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--t3)">Nəticə yoxdur</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = filtered.map(o=>{
+    const m = appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
+    const st = ST[o.status]||ST.created;
+    const oDate = o.order_date || o.created_at;
+    const dateStr = oDate ? new Date(oDate).toLocaleDateString('az-AZ',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+    const rowBg = o.status === 'late' ? '#FEEEED' : o.status === 'delivered' ? '#E8F5E9' : (o.status === 'cancelled' ? '#FFF5F5' : 'transparent');
+    const modelImg = m.img_url 
+      ? `<img src="${m.img_url}" style="width:32px;height:32px;object-fit:cover;border-radius:6px">`
+      : `<div style="width:32px;height:32px;border-radius:6px;background:var(--lt);display:flex;align-items:center;justify-content:center;font-size:16px">${m.emoji||'🛋️'}</div>`;
+    
+    return `<tr onclick="showOD('${o.id}')" style="background:${rowBg};cursor:pointer">
+      <td><span class="mono">${o.order_number}</span><div style="font-size:10px;color:var(--t3);margin-top:2px">${dateStr}</div></td>
+      <td>${o.client}</td>
+      <td><div style="display:flex;align-items:center;gap:8px">${modelImg}<span>${m.name.split('—')[0].trim()}</span></div></td>
+      <td style="font-weight:600">${o.qty}</td>
+      <td style="font-weight:600;color:var(--tl)">${o.final_price?o.final_price+' ₼':'—'}</td>
+      <td style="${o.status==='late'?'color:#E24B4A;font-weight:600':''}">${o.deadline||'—'}</td>
+      <td><span class="badge ${st.c}">${st.t}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════ BÜTÜN SİFARİŞLƏR MODALI ═══════════
+function openAllOrdersModal(){
+  // Modal əvəzinə ayrı səhifəyə keç
+  goTo('allorders');
+}
+
+// ═══════════ MÜŞTƏRİ GİRİŞ SİSTEMİ ═══════════
+function showCustomerLogin(){
+  document.getElementById('customer-login-panel').style.display = 'block';
+  document.querySelector('.login-card').style.display = 'none';
+  setTimeout(()=>document.getElementById('c-phone').focus(), 100);
+}
+
+function hideCustomerLogin(){
+  document.getElementById('customer-login-panel').style.display = 'none';
+  document.querySelector('.login-card').style.display = 'block';
+  document.getElementById('c-err').textContent = '';
+}
+
+async function doCustomerLogin(){
+  const phone = document.getElementById('c-phone').value.trim();
+  const code = document.getElementById('c-code').value.trim().toUpperCase();
+  const errEl = document.getElementById('c-err');
+  if(!phone || !code){ errEl.textContent = 'Telefon və kodu daxil edin'; return; }
+  showLoader();
+  try{
+    const {data:clients} = await sb.from('clients').select('*').eq('access_code', code);
+    hideLoader();
+    const cleanPhone = phone.replace(/\D/g,'').slice(-6);
+    const client = (clients||[]).find(c=>{
+      const cPhone = (c.phone||'').replace(/\D/g,'').slice(-6);
+      return cPhone === cleanPhone;
+    });
+    if(!client){ errEl.textContent = 'Telefon və ya kod yanlışdır'; return; }
+    await showCustomerOrders(client);
+  }catch(e){ hideLoader(); errEl.textContent = 'Xəta: '+e.message; }
+}
+
+async function showCustomerOrders(client){
+  document.getElementById('login-screen').style.display = 'none';
+  const cs = document.getElementById('customer-screen');
+  cs.style.display = 'block';
+  document.getElementById('cs-welcome').textContent = 'Salam, '+client.name;
+  showLoader();
+  const [{data:orders},{data:models}] = await Promise.all([
+    sb.from('orders').select('*').eq('client', client.name).order('created_at',{ascending:false}),
+    sb.from('models').select('*'),
+  ]);
+  hideLoader();
+  const allOrders = orders||[];
+  const container = document.getElementById('customer-orders-list');
+  if(!allOrders.length){
+    container.innerHTML = `<div style="text-align:center;padding:60px 20px"><div style="font-size:48px;margin-bottom:16px">📦</div><div style="font-size:16px;font-weight:600;color:#333">Hələ sifarişiniz yoxdur</div></div>`;
+    return;
+  }
+  const statusInfo = {
+    created:    {label:'Sıraya alındı', icon:'📋', color:'#888',    bg:'#f5f5f5'},
+    in_progress:{label:'Hazırlanır',    icon:'⚙️', color:'#F78930', bg:'#FFF5E6'},
+    ready:      {label:'Hazırdır',      icon:'✅', color:'#007565', bg:'#E6F5F2'},
+    delivering: {label:'Yoldadır',      icon:'🚛', color:'#2196F3', bg:'#E3F2FD'},
+    delivered:  {label:'Təslim edildi', icon:'🎉', color:'#4CAF50', bg:'#E8F5E9'},
+    cancelled:  {label:'İmtina edildi', icon:'❌', color:'#E24B4A', bg:'#FFEBEE'},
+  };
+  container.innerHTML = allOrders.map(o=>{
+    const m = models.find(x=>x.id===o.model_id)||{name:'Məhsul',emoji:'🛋️',stages:[]};
+    const stages = m.stages||[];
+    const st = statusInfo[o.status]||statusInfo.created;
+    const doneStages = Math.max(0, o.current_stage-1);
+    const totalStages = stages.length;
+    const pct = totalStages>0 ? Math.min(100,Math.round(doneStages/totalStages*100)) : 0;
+    const stagesHtml = stages.map((s,i)=>{
+      const isDone = i < o.current_stage-1;
+      const isCurrent = i === o.current_stage-1 && o.status==='in_progress';
+      const icon = isDone?'✅':(isCurrent?'⚙️':'⏳');
+      const color = isDone?'#4CAF50':(isCurrent?'#F78930':'#ccc');
+      const dInfo = DEPT_INFO&&DEPT_INFO[s.dept.split('||')[0]];
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f5f5f5">
+        <span style="font-size:16px;width:24px;text-align:center">${icon}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:${isCurrent?700:400};color:${isDone?'#666':(isCurrent?'#333':'#bbb')}">${s.name||(dInfo?dInfo.name:s.dept)}</div>
+          ${isCurrent?`<div style="font-size:11px;color:#F78930">⚡ Bu mərhələdə</div>`:''}
+        </div>
+        <div style="font-size:11px;color:${color};font-weight:600">${isDone?'Bitdi':(isCurrent?'Davam edir':'Gözləyir')}</div>
+      </div>`;
+    }).join('');
+    const oDate = o.order_date||o.created_at;
+    return `<div style="background:#fff;border-radius:16px;margin-bottom:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);border:1px solid #eee">
+      <div style="padding:16px;background:${st.bg}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div style="font-size:16px;font-weight:700">${m.emoji||'🛋️'} ${m.name.split('—')[0].trim()}</div>
+          <div style="font-size:12px;color:#888;margin-top:4px">${o.order_number} · ${o.qty} ədəd</div></div>
+          <div style="border:1px solid ${st.color};border-radius:20px;padding:4px 12px"><span style="font-size:12px;font-weight:700;color:${st.color}">${st.icon} ${st.label}</span></div>
+        </div>
+        ${o.status!=='delivered'&&o.status!=='cancelled'&&totalStages>0?`
+        <div style="margin-top:10px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;color:#888">İrəliləyiş</span><span style="font-size:11px;color:#007565;font-weight:600">${doneStages}/${totalStages} (${pct}%)</span></div>
+          <div style="background:#e0e0e0;border-radius:4px;height:6px"><div style="background:#007565;width:${pct}%;height:100%;border-radius:4px"></div></div>
+        </div>`:''}
+      </div>
+      <div style="padding:14px 16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:${stages.length?'12px':'0'}">
+          <div><div style="font-size:10px;color:#aaa;font-weight:600;text-transform:uppercase">Sifariş tarixi</div>
+          <div style="font-size:13px;font-weight:600;margin-top:2px">${oDate?new Date(oDate).toLocaleDateString('az-AZ'):'—'}</div></div>
+          <div><div style="font-size:10px;color:#aaa;font-weight:600;text-transform:uppercase">Deadline</div>
+          <div style="font-size:13px;font-weight:600;margin-top:2px">${o.deadline||'—'}</div></div>
+        </div>
+        ${stages.length?`<div style="font-size:11px;color:#aaa;font-weight:600;text-transform:uppercase;margin-bottom:8px">Mərhələlər</div>${stagesHtml}`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function doCustomerLogout(){
+  document.getElementById('customer-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  hideCustomerLogin();
+  document.getElementById('c-phone').value='';
+  document.getElementById('c-code').value='';
+}
+
+function qaCheckAll(oid){
+  const allCheck = document.getElementById('qa-all-'+oid);
+  const checks = document.querySelectorAll('.qa-check-'+oid);
+  const shouldCheck = allCheck ? allCheck.checked : true;
+  checks.forEach(ch => ch.checked = shouldCheck);
+  if(allCheck) allCheck.checked = shouldCheck;
+}
+
+function updateQaAllCheck(oid){
+  const allCheck = document.getElementById('qa-all-'+oid);
+  const checks = document.querySelectorAll('.qa-check-'+oid);
+  if(!allCheck) return;
+  allCheck.checked = Array.from(checks).every(ch => ch.checked);
+}
+
 // ═══════════ KEYFİYYƏT YOXLAMA (QA) ═══════════
 async function qaDecision(oid, action){
   const inspectorSel = document.getElementById('qa-inspector-'+oid);
@@ -3544,15 +4004,17 @@ async function qaDecision(oid, action){
       duration_minutes: 1
     });
     
-    // Sifarişi yenilə
+    // Sifarişi yenilə — birbaşa ready statusuna keçir
+    const totalStages = stages.length;
     await sb.from('orders').update({
-      current_stage: qaStageIdx + 2, // QA-dan sonrakı stage
+      current_stage: totalStages + 1, // Bütün mərhələlər bitdi
       status: 'ready',
       rework_status: null,
       rework_reason: null,
       rework_by: null
     }).eq('id', oid);
     
+    invalidateCache('orders', 'logs');
     hideLoader();
     toast('✅ Çatdırılsın — Logistikaya göndərildi');
     hideTaskCard(oid);
@@ -3640,18 +4102,86 @@ function hideTaskCard(oid){
 }
 
 // ═══════════ LOGISTICS ═══════════
+let _logiTab = 'active'; // 'active' | 'done'
+
+function switchLogiTab(tab){
+  _logiTab = tab;
+  const ta = document.getElementById('logi-tab-active');
+  const td = document.getElementById('logi-tab-done');
+  if(tab === 'active'){
+    ta.style.background = 'var(--sf)';
+    ta.style.color = 'var(--tl)';
+    ta.style.boxShadow = '0 1px 4px rgba(0,0,0,.08)';
+    td.style.background = 'transparent';
+    td.style.color = 'var(--t2)';
+    td.style.boxShadow = 'none';
+  }else{
+    td.style.background = 'var(--sf)';
+    td.style.color = 'var(--tl)';
+    td.style.boxShadow = '0 1px 4px rgba(0,0,0,.08)';
+    ta.style.background = 'transparent';
+    ta.style.color = 'var(--t2)';
+    ta.style.boxShadow = 'none';
+  }
+  renderLogi();
+}
+
 async function renderLogi(){
   showLoader();
-  const{data:orders}=await sb.from('orders').select('*').in('status',['ready','delivering','delivered']);
+  // Son 30 günün təslim edilmiş sifarişləri + bütün aktiv sifarişlər
+  const since = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+  
+  // İki ayrı sorğu — daha etibarlı və sürətli (Supabase or() bəzən ləng işləyir)
+  const [activeRes, deliveredRes] = await Promise.all([
+    sb.from('orders').select('*').in('status',['ready','delivering']).order('created_at',{ascending:false}),
+    sb.from('orders').select('*').eq('status','delivered').gte('updated_at', since).order('updated_at',{ascending:false})
+  ]);
   hideLoader();
-  const all=orders||[];
-  document.getElementById('l-rdy').textContent=all.filter(o=>o.status==='ready').length;
-  document.getElementById('l-tr').textContent=all.filter(o=>o.status==='delivering').length;
-  document.getElementById('l-dv').textContent=all.filter(o=>o.status==='delivered').length;
-  const items=all.filter(o=>['ready','delivering'].includes(o.status));
+  
+  const active = activeRes.data || [];
+  const delivered = deliveredRes.data || [];
+  const all = [...active, ...delivered];
+  window._logisticsOrders = all; // markDel üçün cache
+  
+  // Bu həftənin başlanğıcı (bazar ertəsi)
+  const now = new Date();
+  const day = now.getDay(); // 0=yek, 1=ber ...
+  const diff = day === 0 ? 6 : day - 1;
+  const weekStart = new Date(now); weekStart.setDate(now.getDate()-diff); weekStart.setHours(0,0,0,0);
+  
+  document.getElementById('l-rdy').textContent=active.filter(o=>o.status==='ready').length;
+  document.getElementById('l-tr').textContent=active.filter(o=>o.status==='delivering').length;
+  document.getElementById('l-dv').textContent=delivered.filter(o=>new Date(o.updated_at||o.created_at) >= weekStart).length;
+  
   const el=document.getElementById('logi-list');
-  if(!items.length){el.innerHTML='<div style="padding:24px;text-align:center;color:var(--t3)">Hazır sifariş yoxdur</div>';return;}
-  el.innerHTML=items.map(o=>{
+  
+  if(_logiTab === 'done'){
+    // Təslim edilmiş sifarişlər (son 30 gün)
+    if(!delivered.length){
+      el.innerHTML='<div style="padding:24px;text-align:center;color:var(--t3)">Son 30 gündə təslim edilmiş sifariş yoxdur</div>';
+      return;
+    }
+    el.innerHTML = delivered.map(o=>{
+      const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
+      const delDate = o.updated_at ? new Date(o.updated_at).toLocaleDateString('az-AZ',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+      const driver = o.delivery_driver || o.driver_name || '';
+      return `<div class="list-item" onclick="showDeliveredDetail('${o.id}')" style="cursor:pointer">
+        <div class="li-icon" style="background:var(--lt)">✓</div>
+        <div class="li-body">
+          <div class="li-title">${o.client} <span class="mono">${o.order_number}</span></div>
+          <div class="li-sub">${m.name.split('—')[0].trim()} · ${o.qty} ədəd · ${delDate}${driver?' · '+driver:''}</div>
+        </div>
+        <div class="li-right">
+          <span style="font-size:11px;color:var(--tl);font-weight:600">Təslim ›</span>
+        </div>
+      </div>`;
+    }).join('');
+    return;
+  }
+  
+  // Aktiv tab: ready + delivering
+  if(!active.length){el.innerHTML='<div style="padding:24px;text-align:center;color:var(--t3)">Hazır sifariş yoxdur</div>';return;}
+  el.innerHTML=active.map(o=>{
     const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
     const isTr=o.status==='delivering';
     return`<div class="list-item">
@@ -3674,15 +4204,34 @@ async function startDel(id){
   toast('🚛 Yola çıxıldı');renderLogi();
 }
 async function markDel(id){
-  // Sifariş məlumatını yüklə
-  const {data:order} = await sb.from('orders').select('*').eq('id',id).single();
-  if(!order){toast('Xəta: sifariş tapılmadı');return;}
+  // Cached data istifadə et — sürətli
+  let order = null;
+  let model = null;
   
-  const {data:models} = await sb.from('models').select('*');
-  const model = models?.find(m=>m.id===order.model_id);
+  // Əvvəl yaddaşda axtar
+  if(window._logisticsOrders){
+    order = window._logisticsOrders.find(o=>o.id===id);
+  }
+  if(order && appModels.length){
+    model = appModels.find(m=>m.id===order.model_id);
+  }
+  
+  // Yaddaşda yoxdursa Supabase-dən yüklə
+  if(!order){
+    const {data} = await sb.from('orders').select('*').eq('id',id).single();
+    order = data;
+  }
+  if(order && !model){
+    model = appModels.find(m=>m.id===order.model_id);
+    if(!model){
+      const {data:models} = await sb.from('models').select('*').eq('id', order.model_id);
+      model = models?.[0];
+    }
+  }
+  
+  if(!order){toast('Xəta: sifariş tapılmadı');return;}
   if(!model){toast('Xəta: model tapılmadı');return;}
-
-  // İmza PDF-i göstər
+  
   openSignatureSheet(order,model);
 }
 
@@ -3759,10 +4308,27 @@ function openSignatureSheet(order,model){
       delivered_at: new Date().toISOString()
     }).eq('id',order.id);
     
+    invalidateCache('orders','logs');
     window._pendingDriverId = null;
     closeSheet('signature');
     toast('✅ Təslim edildi — '+driverName);
-    renderLogi();
+    
+    // Dərhal Tamamlananlar tab-ına keç və render et
+    curDeptTab = 'done';
+    
+    // Tab button vizual yenilə
+    const ta = document.getElementById('dept-tab-active');
+    const ts = document.getElementById('dept-tab-shared');
+    const td = document.getElementById('dept-tab-done');
+    [ta, ts, td].forEach(btn => {
+      if(btn){btn.style.background='transparent';btn.style.color='var(--t2)';btn.style.boxShadow='none';}
+    });
+    if(td){td.style.background='var(--sf)';td.style.color='var(--tl)';td.style.boxShadow='0 1px 4px rgba(0,0,0,.08)';}
+    
+    // BİRBAŞA Tamamlananlar render et - gecikmə yoxdur
+    if(typeof renderLogisticsDone === 'function'){
+      await renderLogisticsDone();
+    }
   };
   
   openSheet('signature');
@@ -4377,17 +4943,23 @@ function renderClientList(list, stats){
   if(!list.length) return '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Müştəri yoxdur</div>';
   return list.map(c=>{
     const s = stats[c.name] || {count:0,total:0,active:0};
-    return `<div style="padding:14px;border:1px solid var(--bd);border-radius:10px;margin-bottom:8px;background:#fff;display:flex;justify-content:space-between;align-items:center;gap:12px">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:15px;font-weight:700">${c.name}</div>
-        ${c.phone?`<div style="font-size:12px;color:var(--t2);margin-top:2px">📞 ${c.phone}</div>`:''}
-        <div style="font-size:11px;color:var(--t3);margin-top:4px">
-          ${s.count} sifariş · ${s.total.toFixed(0)} ₼ · ${s.active>0?`<span style="color:var(--or);font-weight:600">${s.active} aktiv</span>`:'0 aktiv'}
+    const hasCode = c.access_code ? true : false;
+    return `<div style="padding:14px;border:1px solid var(--bd);border-radius:10px;margin-bottom:8px;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;font-weight:700">${c.name}</div>
+          ${c.phone?`<div style="font-size:12px;color:var(--t2);margin-top:2px">📞 ${c.phone}</div>`:''}
+          <div style="font-size:11px;color:var(--t3);margin-top:4px">${s.count} sifariş · ${s.total.toFixed(0)} ₼ · ${s.active>0?`<span style="color:var(--or);font-weight:600">${s.active} aktiv</span>`:'0 aktiv'}</div>
+          ${hasCode?`<div style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;background:var(--lt);border:1px solid var(--tl);border-radius:6px;padding:4px 10px">
+            <span style="font-size:11px;color:var(--tl);font-weight:600">🔑 Giriş kodu:</span>
+            <span style="font-size:13px;font-weight:700;color:var(--tl);font-family:'DM Mono',monospace;letter-spacing:2px">${c.access_code}</span>
+            <button onclick="copyClientCode('${c.access_code}','${c.name.replace(/'/g,"\\'")}','${c.phone||''}')" style="border:none;background:var(--tl);color:#fff;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px;font-family:inherit">📋</button>
+          </div>`:`<div style="margin-top:6px"><button onclick="generateClientCode('${c.id}')" style="border:1px dashed var(--or);background:#fff;color:var(--or);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-family:inherit">+ Giriş kodu yarat</button></div>`}
         </div>
-      </div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <button onclick="editClientAdmin('${c.id}')" style="padding:6px 10px;border:1px solid var(--bd);background:#fff;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px">✏️</button>
-        <button onclick="delClientAdmin('${c.id}','${c.name.replace(/'/g,"\\'")}')" style="padding:6px 10px;border:1px solid #E24B4A;background:#fff;color:#E24B4A;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px">🗑</button>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button onclick="editClientAdmin('${c.id}')" style="padding:6px 10px;border:1px solid var(--bd);background:#fff;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px">✏️</button>
+          <button onclick="delClientAdmin('${c.id}','${c.name.replace(/'/g,"\\'")}')" style="padding:6px 10px;border:1px solid #E24B4A;background:#fff;color:#E24B4A;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px">🗑</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -4399,6 +4971,26 @@ function filterClientList(val){
     c.name.toLowerCase().includes(v) || (c.phone && c.phone.toLowerCase().includes(v))
   );
   document.getElementById('client-list-admin').innerHTML = renderClientList(filtered, window._adminClientStats||{});
+}
+
+async function generateClientCode(id){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const code = Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+  showLoader();
+  const {error} = await sb.from('clients').update({access_code:code}).eq('id',id);
+  hideLoader();
+  if(error){toast('Xəta: '+error.message);return;}
+  toast('✓ Giriş kodu: '+code);
+  await loadClients();
+  adminSec('clients');
+}
+
+function copyClientCode(code, name, phone){
+  const url = window.location.origin + window.location.pathname;
+  const msg = `Salam ${name}!\n\nSONNO sifariş izləmə:\n🔗 ${url}\n\n📱 Telefon: ${phone||'öz nömrəniz'}\n🔑 Kod: ${code}\n\n"Müştəri girişi" düyməsini basın.`;
+  navigator.clipboard.writeText(msg).then(()=>{
+    toast('✓ Mesaj kopyalandı — WhatsApp ilə göndərin');
+  }).catch(()=>{ prompt('Müştəriyə göndərin:', msg); });
 }
 
 function openAddClientFromAdmin(){
@@ -5199,16 +5791,17 @@ async function renderModelsSection(el){
   window._allModelsCache = allModels;
 }
 
-function copyCatalogLink(){
-  const input = document.getElementById('catalog-link');
-  if(!input) return;
-  navigator.clipboard.writeText(input.value).then(()=>{
-    toast('✓ Katalog linki kopyalandı');
+function copyCatalogLinkQuick(){
+  const url = window.location.origin + window.location.pathname + '?catalog=1';
+  navigator.clipboard.writeText(url).then(()=>{
+    toast('✓ Katalog linki kopyalandı — müştəriyə göndərin!');
   }).catch(()=>{
-    input.select();
-    document.execCommand('copy');
-    toast('✓ Link kopyalandı');
+    prompt('Kataloq linki — kopyalayın:', url);
   });
+}
+
+function copyCatalogLink(){
+  copyCatalogLinkQuick();
 }
 
 function renderModelsList(models){
