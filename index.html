@@ -363,6 +363,7 @@ textarea{resize:vertical;min-height:80px}
     <div class="topbar-right">
       <span id="topbar-role" class="topbar-role"></span>
       <div class="topbar-av" id="topbar-av" onclick="openSheet('user-sheet')">?</div>
+      <button onclick="confirmLogout()" title="Çıxış" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.7);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s" onmouseover="this.style.background='rgba(226,75,74,.2)';this.style.borderColor='#E24B4A';this.style.color='#fff'" onmouseout="this.style.background='rgba(255,255,255,.08)';this.style.borderColor='rgba(255,255,255,.15)';this.style.color='rgba(255,255,255,.7)'">⎋</button>
     </div>
   </div>
 
@@ -1244,6 +1245,12 @@ async function doLogin(){
 }
 document.getElementById('l-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 document.getElementById('l-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('l-pass').focus()});
+
+function confirmLogout(){
+  if(confirm('Çıxış etmək istədiyinizə əminsiniz?\n\nYenidən giriş üçün istifadəçi adı və şifrə lazım olacaq.')){
+    doLogout();
+  }
+}
 
 function doLogout(){
   currentUser=null; appModels=[]; appWorkers=[];
@@ -4933,10 +4940,12 @@ async function renderClientsSection(el){
   const clientStats = {};
   allOrders.forEach(o=>{
     const n = o.client;
-    if(!clientStats[n]) clientStats[n] = {count:0, total:0, active:0};
+    if(!clientStats[n]) clientStats[n] = {count:0, total:0, active:0, delivered:0};
     clientStats[n].count++;
     clientStats[n].total += (o.final_price || 0);
+    // Aktiv = təslim edilməmiş və imtina edilməmiş
     if(o.status !== 'delivered' && o.status !== 'cancelled') clientStats[n].active++;
+    if(o.status === 'delivered') clientStats[n].delivered++;
   });
   
   el.innerHTML = `
@@ -4959,19 +4968,25 @@ async function renderClientsSection(el){
 function renderClientList(list, stats){
   if(!list.length) return '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Müştəri yoxdur</div>';
   return list.map(c=>{
-    const s = stats[c.name] || {count:0,total:0,active:0};
+    const s = stats[c.name] || {count:0,total:0,active:0,delivered:0};
     const hasCode = c.access_code ? true : false;
     return `<div style="padding:14px;border:1px solid var(--bd);border-radius:10px;margin-bottom:8px;background:#fff">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
         <div style="flex:1;min-width:0">
           <div style="font-size:15px;font-weight:700">${c.name}</div>
           ${c.phone?`<div style="font-size:12px;color:var(--t2);margin-top:2px">📞 ${c.phone}</div>`:''}
-          <div style="font-size:11px;color:var(--t3);margin-top:4px">${s.count} sifariş · ${s.total.toFixed(0)} ₼ · ${s.active>0?`<span style="color:var(--or);font-weight:600">${s.active} aktiv</span>`:'0 aktiv'}</div>
-          ${hasCode?`<div style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;background:var(--lt);border:1px solid var(--tl);border-radius:6px;padding:4px 10px">
+          <div style="font-size:11px;color:var(--t3);margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+            <span>📊 ${s.count} ümumi</span>
+            ${s.active>0?`<span style="color:var(--or);font-weight:700">⚡ ${s.active} aktiv</span>`:'<span style="color:var(--t3)">0 aktiv</span>'}
+            ${s.delivered>0?`<span style="color:var(--tl);font-weight:600">✓ ${s.delivered} təslim</span>`:''}
+            <span style="color:var(--t2)">💰 ${s.total.toFixed(0)} ₼</span>
+          </div>
+          ${hasCode?`<div style="margin-top:8px;display:inline-flex;align-items:center;gap:6px;background:var(--lt);border:1px solid var(--tl);border-radius:6px;padding:4px 10px;flex-wrap:wrap">
             <span style="font-size:11px;color:var(--tl);font-weight:600">🔑 Giriş kodu:</span>
             <span style="font-size:13px;font-weight:700;color:var(--tl);font-family:'DM Mono',monospace;letter-spacing:2px">${c.access_code}</span>
-            <button onclick="copyClientCode('${c.access_code}','${c.name.replace(/'/g,"\\'")}','${c.phone||''}')" style="border:none;background:var(--tl);color:#fff;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px;font-family:inherit">📋</button>
-          </div>`:`<div style="margin-top:6px"><button onclick="generateClientCode('${c.id}')" style="border:1px dashed var(--or);background:#fff;color:var(--or);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-family:inherit">+ Giriş kodu yarat</button></div>`}
+            <button onclick="copyClientCode('${c.access_code}','${c.name.replace(/'/g,"\\'")}','${c.phone||''}')" style="border:none;background:var(--tl);color:#fff;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px;font-family:inherit" title="Mesaj kopyala">📋</button>
+            <button onclick="changeClientCode('${c.id}','${c.access_code}')" style="border:none;background:var(--or);color:#fff;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px;font-family:inherit" title="Kodu dəyiş">✏️</button>
+          </div>`:`<div style="margin-top:8px"><button onclick="generateClientCode('${c.id}')" style="border:1px dashed var(--or);background:#fff;color:var(--or);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-family:inherit">+ Giriş kodu yarat</button></div>`}
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
           <button onclick="editClientAdmin('${c.id}')" style="padding:6px 10px;border:1px solid var(--bd);background:#fff;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px">✏️</button>
@@ -4991,8 +5006,40 @@ function filterClientList(val){
 }
 
 async function generateClientCode(id){
+  // Admin özü kod seçsin, ya avtomatik yaradılsın
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const code = Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+  const autoCode = Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+  
+  const userCode = prompt(
+    'Müştəri üçün giriş kodu təyin edin:\n\n' +
+    '• Öz kodunuzu yazın (4-10 hərf/rəqəm)\n' +
+    '• Və ya boş buraxın — avtomatik kod yaradılacaq: ' + autoCode,
+    ''
+  );
+  
+  if(userCode === null) return; // İmtina edildi
+  
+  let code = userCode.trim().toUpperCase();
+  if(!code){
+    code = autoCode; // Boş qoyulduqda avtomatik kod
+  }else{
+    // Validasiya
+    if(code.length < 4 || code.length > 10){
+      toast('⚠ Kod 4-10 simvol arasında olmalıdır');
+      return;
+    }
+    if(!/^[A-Z0-9]+$/.test(code)){
+      toast('⚠ Yalnız hərf və rəqəm istifadə edin');
+      return;
+    }
+    // Eyni kod başqa müştəridə varmı?
+    const {data:existing} = await sb.from('clients').select('id,name').eq('access_code', code);
+    if(existing && existing.length && existing[0].id !== id){
+      toast('⚠ Bu kod "'+existing[0].name+'" müştərisindədir');
+      return;
+    }
+  }
+  
   showLoader();
   const {error} = await sb.from('clients').update({access_code:code}).eq('id',id);
   hideLoader();
@@ -5000,6 +5047,11 @@ async function generateClientCode(id){
   toast('✓ Giriş kodu: '+code);
   await loadClients();
   adminSec('clients');
+}
+
+// Admin mövcud kodu dəyişdirə bilər
+async function changeClientCode(id, oldCode){
+  await generateClientCode(id);
 }
 
 function copyClientCode(code, name, phone){
