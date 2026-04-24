@@ -558,14 +558,14 @@ textarea{resize:vertical;min-height:80px}
       <!-- BÜTÜN SİFARİŞLƏR -->
       <div id="sc-allorders" class="sc">
         <div class="pg-hd">📋 Bütün sifarişlər</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px">
-          <input type="text" id="ao-search" placeholder="🔍 Sifariş, müştəri, model..." style="padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;grid-column:span 2" oninput="filterAllOrdersPage()">
-          <input type="date" id="ao-from" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px" onchange="filterAllOrdersPage()">
-          <input type="date" id="ao-to" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px" onchange="filterAllOrdersPage()">
-          <select id="ao-manager" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:#fff" onchange="filterAllOrdersPage()">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px">
+          <input type="text" id="ao-search" placeholder="🔍 Sifariş, müştəri, model..." style="padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;grid-column:span 2">
+          <input type="date" id="ao-from" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px">
+          <input type="date" id="ao-to" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px">
+          <select id="ao-manager" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:#fff">
             <option value="">👤 Bütün menecerlər</option>
           </select>
-          <select id="ao-status" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:#fff" onchange="filterAllOrdersPage()">
+          <select id="ao-status" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:#fff">
             <option value="">Bütün statuslar</option>
             <option value="created">Yaradıldı</option>
             <option value="in_progress">İstehsalda</option>
@@ -576,6 +576,10 @@ textarea{resize:vertical;min-height:80px}
             <option value="late">Gecikmiş</option>
             <option value="pending_approval">Təsdiq gözləyir</option>
           </select>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <button onclick="filterAllOrdersPage()" style="flex:1;min-width:130px;padding:11px 16px;background:var(--tl);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700">🔎 Axtar</button>
+          <button onclick="resetAllOrdersFilters()" style="flex:1;min-width:130px;padding:11px 16px;background:#fff;color:var(--t1);border:1px solid var(--bd);border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600">↺ Təmizlə</button>
         </div>
         <div id="ao-count" style="font-size:13px;color:var(--t2);margin-bottom:10px">—</div>
         <div class="tbl-wrap">
@@ -1924,7 +1928,7 @@ async function openKioskDept(dept){
 
 // ═══════════ INIT ═══════════
 
-// Ekran sönəndə timer-ləri dayandır, yananda yenidən başlat
+// Ekran sönəndə timer-ləri dayandır — yananda render ETMƏ (ekran mirgildəməsin)
 document.addEventListener('visibilitychange', ()=>{
   if(document.hidden){
     // Ekran söndü - bütün timer-ləri dayandır
@@ -1934,12 +1938,10 @@ document.addEventListener('visibilitychange', ()=>{
         el.dataset.intervalId = '';
       }
     });
-  } else {
-    // Ekran yandı - renderi yenidən çağır (timer-lər avtomatik qurulacaq)
-    if(pinDept){
-      setTimeout(()=>renderDeptTasks(pinDept), 300);
-    }
   }
+  // QEYD: ekran yananda heç bir avtomatik render etmirik — istifadəçi 
+  // əl ilə yeniləsin (aşağıya çək və ya başqa bölməyə keç). Bu ekran 
+  // mirgildəməsinin qarşısını alır.
 });
 async function initApp(){
   // UI-i dərhal göstər (data gözləmədən)
@@ -4033,6 +4035,15 @@ async function dDone(oid, si, key, dept, totalStages){
 
 // Köməkçi funksiya — card-ı DOM-dan tamamilə sil
 // ═══════════ BÜTÜN SİFARİŞLƏR SƏHİFƏSİ ═══════════
+function resetAllOrdersFilters(){
+  const s = document.getElementById('ao-search'); if(s) s.value = '';
+  const f = document.getElementById('ao-from'); if(f) f.value = '';
+  const t = document.getElementById('ao-to'); if(t) t.value = '';
+  const m = document.getElementById('ao-manager'); if(m) m.value = '';
+  const st = document.getElementById('ao-status'); if(st) st.value = '';
+  filterAllOrdersPage();
+}
+
 async function renderAllOrdersPage(){
   showLoader();
   const [{data:orders},{data:users}] = await Promise.all([
@@ -4051,16 +4062,24 @@ async function renderAllOrdersPage(){
   // Menecer dropdown-u doldur
   const mgrSelect = document.getElementById('ao-manager');
   if(mgrSelect){
-    // Yalnız admin və menecerləri əlavə et + sifarişlərdə olan bütün adları
-    const managerNames = new Set();
+    // Menecer ad → id mapı
+    const managerMap = new Map(); // name => id
     (users||[]).filter(u => u.role === 'admin' || u.role === 'manager').forEach(u=>{
-      managerNames.add(u.name || u.username);
+      const name = u.name || u.username;
+      if(name) managerMap.set(name, u.id);
     });
-    // Sifarişlərdə olan created_by də əlavə et (müştəri sifarişləri də daxil)
+    
+    // Sifarişlərdəki created_by-ları ad-a çevirib əlavə et
+    const managerNames = new Set(managerMap.keys());
     (orders||[]).forEach(o=>{
-      if(o.created_by) managerNames.add(o.created_by);
-      if(o.manager) managerNames.add(o.manager);
+      if(o.created_by){
+        const nm = userMap[o.created_by];
+        if(nm) managerNames.add(nm);
+      }
+      if(o.manager && typeof o.manager === 'string') managerNames.add(o.manager);
     });
+    
+    window._aoManagerMap = managerMap; // ad → id
     
     const currentVal = mgrSelect.value;
     const names = Array.from(managerNames).filter(n=>n).sort();
@@ -4108,8 +4127,19 @@ function filterAllOrdersPage(){
         const isCustomer = (o.order_number||'').startsWith('CUS-') || o.source === 'customer' || (o.notes||'').includes('[📱');
         if(!isCustomer) return false;
       } else {
-        const mgr = o.created_by || o.manager || '';
-        if(mgr !== managerFilter) return false;
+        // Seçilən ad → id-yə çevir (əgər menecer sistemdədirsə)
+        const managerMap = window._aoManagerMap;
+        const targetId = managerMap?.get(managerFilter);
+        const userMap = window._aoUserMap || {};
+        
+        // created_by — id ola bilər, ad da ola bilər
+        const createdByName = userMap[o.created_by] || o.created_by;
+        const managerName = o.manager || '';
+        
+        const matches = createdByName === managerFilter 
+                     || managerName === managerFilter
+                     || (targetId && o.created_by === targetId);
+        if(!matches) return false;
       }
     }
     
@@ -4148,11 +4178,13 @@ function filterAllOrdersPage(){
   return _u ? `<img src="${_u}" style="width:32px;height:32px;object-fit:cover;border-radius:6px" onclick="event.stopPropagation();showLightbox(getModelImages(m),0)" title="Böyük gör">` : `<div style="width:32px;height:32px;border-radius:6px;background:var(--lt);display:flex;align-items:center;justify-content:center;font-size:16px">${m.emoji||'🛋️'}</div>`;
 })();
     
-    // Menecer adını müəyyən et
-    const isCustomerOrder = (o.order_number||'').startsWith('CUS-') || o.source === 'customer';
+    // Menecer adını müəyyən et (ID-ni ad-a çevir)
+    const userMap = window._aoUserMap || {};
+    const isCustomerOrder = (o.order_number||'').startsWith('CUS-') || o.source === 'customer' || (o.notes||'').includes('[📱');
+    const mgrName = userMap[o.created_by] || o.created_by || o.manager || '';
     const mgrDisplay = isCustomerOrder 
       ? '<span style="background:#FFF4E8;color:#F78930;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">🛒 Müştəri</span>'
-      : (o.created_by || o.manager || '<span style="color:var(--t3)">—</span>');
+      : (mgrName || '<span style="color:var(--t3)">—</span>');
     
     return `<tr onclick="showOD('${o.id}')" style="background:${rowBg};cursor:pointer">
       <td><span class="mono">${o.order_number}</span><div style="font-size:10px;color:var(--t3);margin-top:2px">${dateStr}</div></td>
@@ -4519,36 +4551,39 @@ async function submitCustomerOrder(){
     // Sifariş nömrəsi: CUS-timestamp
     const orderNumber = 'CUS-' + Date.now().toString().slice(-6);
     
+    // Əlavə qeydi notes-a yaz
+    const detailsNote = `[📱 MÜŞTƏRİ SİFARİŞİ]
+📞 Telefon: ${phone}
+${notes ? '📝 Qeyd: ' + notes + '\n' : ''}⏳ TƏSDIQ GÖZLƏYİR - Admin yoxlayacaq`;
+    
+    // MENECER sifarişi ilə EYNİ payload strukturu (bu 100% işləyir)
     const payload = {
       order_number: orderNumber,
-      client: name,
       model_id: m.id,
+      created_by: currentUser?.id || null,
+      client: name,
       qty: qty,
-      fabric: fabric || null,
-      color: color || null,
-      notes: notes || '',
+      fabric: fabric || '',
+      fabric_company: '',
+      legs: '',
+      color: color || '',
+      notes: detailsNote,
       deadline: deadline || null,
-      status: 'pending_approval', // Yeni status — admin təsdiqi gözləyir
-      current_stage: 0,
+      order_date: new Date().toISOString(),
+      sale_type: 'cash',
+      status: 'created',
+      current_stage: 1,  // Menecer sifarişi kimi 1-dən başlayır
       sale_price: m.sale_price || 0,
+      discount: 0,
       final_price: (m.sale_price || 0) * qty,
-      order_date: new Date().toISOString().split('T')[0],
-      // Xüsusi sahələr — müştəri tərəfindən gələn
-      source: 'customer',
-      customer_phone: phone,
     };
-    
-    // Əgər müştəri giriş etmişsə, onun id-si
-    if(_currentCustomer && _currentCustomer.id){
-      payload.customer_id = _currentCustomer.id;
-    }
     
     // Sütun olmayan sahələri avtomatik çıxart və yenidən cəhd et
     let attempts = 0;
     let lastError = null;
     let successData = null;
     
-    while(attempts < 5){
+    while(attempts < 10){
       attempts++;
       const {data, error} = await sb.from('orders').insert(payload).select().single();
       if(!error){
@@ -4556,27 +4591,46 @@ async function submitCustomerOrder(){
         break;
       }
       lastError = error;
-      console.warn('Attempt', attempts, 'failed:', error.message);
+      console.warn('[CustomerOrder] Cəhd', attempts, '/10 — Xəta:', error.message);
       
-      // Hansı sütun problemlidir tap və çıxart
-      const msg = error.message || '';
-      const colMatch = msg.match(/column [""']?(\w+)[""']?/i) || msg.match(/find the [""']?(\w+)[""']? column/i);
-      if(colMatch && colMatch[1] && payload[colMatch[1]] !== undefined){
-        const col = colMatch[1];
-        console.log('Removing column:', col);
-        // Sütun qeydə salınmalı olan datanı notes-a əlavə et
-        if(col === 'source' || col === 'customer_phone' || col === 'customer_id'){
-          payload.notes = `[📱 Müştəri — ${phone}]\n` + (fabric?`Parça: ${fabric}\n`:'') + (color?`Rəng: ${color}\n`:'') + (notes?`Qeyd: ${notes}`:'');
+      const msg = (error.message || '').toLowerCase();
+      
+      // "progress column" və ya hər hansı sütun xətası — həmin sütunu silir
+      // Geniş regex ilə hansı sütun problemlidir tap
+      const patterns = [
+        /column\s+[`"']?(\w+)[`"']?/i,
+        /[`"']?(\w+)[`"']?\s+column/i,
+        /find\s+the\s+[`"']?(\w+)[`"']?/i,
+        /"(\w+)"\s*column/i,
+      ];
+      
+      let foundCol = null;
+      for(const pat of patterns){
+        const match = error.message.match(pat);
+        if(match && match[1] && payload[match[1]] !== undefined){
+          foundCol = match[1];
+          break;
         }
-        delete payload[col];
-      } else if(msg.includes('pending_approval')){
-        // 'pending_approval' status enum-da yoxdursa, 'created' istifadə et
-        payload.status = 'created';
-        payload.notes = (payload.notes || '') + '\n[⏳ TƏSDIQ GÖZLƏYİR]';
-      } else {
-        // Başqa xəta — dayan
-        break;
       }
+      
+      if(foundCol){
+        console.log('[CustomerOrder] Bu sütun Supabase-də yoxdur, silirəm:', foundCol);
+        delete payload[foundCol];
+        continue;
+      }
+      
+      // Xətanın adı açıq deyilsə də, potensial problematik sütunları bir-bir sınayaq
+      // Ən ehtimal olan problemlərdən başlayaraq
+      const suspectCols = ['progress', 'sale_type', 'discount', 'fabric_company', 'legs', 'current_stage', 'created_by', 'order_date'];
+      const toRemove = suspectCols.find(c => payload[c] !== undefined);
+      if(toRemove){
+        console.log('[CustomerOrder] Fallback: potensial sütunu silirəm:', toRemove);
+        delete payload[toRemove];
+        continue;
+      }
+      
+      // Hər şey silinib, amma hələ xəta var — dayan
+      break;
     }
     
     hideLoader();
@@ -6262,18 +6316,20 @@ async function saveDailyLimit(){
 
 async function renderStatsSection(el){
   showLoader();
-  const [{data:orders},{data:logs},{data:users},{data:models}] = await Promise.all([
-    sb.from('orders').select('*'),
-    sb.from('task_logs').select('*'),
-    sb.from('users').select('*'),
-    sb.from('models').select('*'),
-  ]);
+  
+  // Hər sorğunu ayrı-ayrı et ki, biri uğursuz olarsa digərləri işləsin
+  let orders = [], logs = [], users = [], models = [];
+  try { const r = await sb.from('orders').select('*'); orders = r.data || []; } catch(e){ console.warn('orders:',e); }
+  try { const r = await sb.from('task_logs').select('*'); logs = r.data || []; } catch(e){ console.warn('task_logs:',e); }
+  try { const r = await sb.from('users').select('*'); users = r.data || []; } catch(e){ console.warn('users:',e); }
+  try { const r = await sb.from('models').select('*'); models = r.data || []; } catch(e){ console.warn('models:',e); }
+  
   hideLoader();
 
-  const allOrders = orders||[];
-  const allLogs = logs||[];
-  const allUsers = users||[];
-  const allModels = models||[];
+  const allOrders = orders;
+  const allLogs = logs;
+  const allUsers = users;
+  const allModels = models;
   
   // Menecerləri çıxart (admin və menecer rolları)
   const managers = allUsers.filter(u => u.role === 'admin' || u.role === 'manager');
