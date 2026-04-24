@@ -359,7 +359,6 @@ textarea{resize:vertical;min-height:80px}
     <div class="topbar-title" id="topbar-title">Dashboard</div>
     <div class="topbar-right">
       <span id="topbar-role" class="topbar-role"></span>
-      <button onclick="copyCatalogLinkQuick()" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600">📎 Katalog</button>
       <div class="topbar-av" id="topbar-av" onclick="openSheet('user-sheet')">?</div>
     </div>
   </div>
@@ -395,8 +394,11 @@ textarea{resize:vertical;min-height:80px}
             <div class="card" id="late-card" style="max-height:280px;overflow-y:auto"></div>
           </div>
         </div>
-        <div class="slbl">Bütün sifarişlər</div>
-        <div class="tbl-wrap">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px">
+          <div class="slbl" style="margin:0">Son 10 sifariş</div>
+          <button onclick="goTo('allorders')" style="padding:8px 16px;background:var(--tl);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600">📋 Bütün sifarişlər →</button>
+        </div>
+        <div class="tbl-wrap" style="margin-top:10px">
           <table><thead><tr><th>Sifariş</th><th>Müştəri</th><th>Model</th><th>Ədəd</th><th>Mərhələ</th><th>Məbləğ</th><th>Deadline</th><th>Status</th></tr></thead>
           <tbody id="orders-tbody"></tbody></table>
         </div>
@@ -408,7 +410,10 @@ textarea{resize:vertical;min-height:80px}
         <div style="display:grid;grid-template-columns:1fr 340px;gap:20px" id="order-layout">
           <div>
             <div class="slbl" style="margin-top:0">Məhsul seçin</div>
-            <input type="text" id="product-search" placeholder="🔍 Model axtar..." style="width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;margin-bottom:12px" oninput="filterProducts(this.value)">
+            <input type="text" id="product-search" placeholder="🔍 Model axtar..." style="width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;margin-bottom:10px" oninput="filterProducts(this.value)">
+            <button type="button" onclick="copyCatalogLinkQuick()" style="width:100%;padding:12px;background:linear-gradient(135deg,#007565,#004F51);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 8px rgba(0,117,101,.2)">
+              📎 Müştəri kataloqu linkini kopyala
+            </button>
             <div class="pgrid" id="product-grid"></div>
             <div id="qty-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:12px 14px;align-items:center;gap:12px;margin-bottom:14px">
               <span id="qty-name" style="flex:1;font-size:13px;font-weight:600;color:var(--dp)">—</span>
@@ -462,6 +467,31 @@ textarea{resize:vertical;min-height:80px}
             <div class="slbl" style="margin-top:0">Pipeline önizləmə</div>
             <div id="pipe-preview" style="font-size:13px;color:var(--t3);padding:20px;text-align:center;background:var(--sf);border:1px solid var(--bd);border-radius:var(--rl)">Məhsul seçin</div>
           </div>
+        </div>
+      </div>
+
+      <!-- BÜTÜN SİFARİŞLƏR -->
+      <div id="sc-allorders" class="sc">
+        <div class="pg-hd">📋 Bütün sifarişlər</div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+          <input type="text" id="ao-search" placeholder="🔍 Sifariş kodu, müştəri, model..." style="padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px" oninput="filterAllOrdersPage()">
+          <input type="date" id="ao-from" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px" onchange="filterAllOrdersPage()">
+          <input type="date" id="ao-to" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px" onchange="filterAllOrdersPage()">
+          <select id="ao-status" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:#fff" onchange="filterAllOrdersPage()">
+            <option value="">Bütün statuslar</option>
+            <option value="created">Yaradıldı</option>
+            <option value="in_progress">İstehsalda</option>
+            <option value="ready">Hazır</option>
+            <option value="delivering">Yolda</option>
+            <option value="delivered">Təslim</option>
+            <option value="cancelled">İmtina</option>
+            <option value="late">Gecikmiş</option>
+          </select>
+        </div>
+        <div id="ao-count" style="font-size:13px;color:var(--t2);margin-bottom:10px">—</div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Sifariş</th><th>Müştəri</th><th>Model</th><th>Ədəd</th><th>Məbləğ</th><th>Deadline</th><th>Status</th></tr></thead>
+          <tbody id="ao-tbody"></tbody></table>
         </div>
       </div>
 
@@ -860,11 +890,12 @@ const ST = {
 };
 
 const NAV_ITEMS = [
-  {key:'dash',  icon:'📊',label:'Dashboard',  perm:'dashboard',    sc:'sc-dash'},
-  {key:'order', icon:'➕',label:'Sifariş',    perm:'orders_create',sc:'sc-order'},
-  {key:'dept',  icon:'🏭',label:'Şöbə',       perm:'dept_screen',  sc:'sc-dept'},
-  {key:'ai',    icon:'🤖',label:'AI Analiz',  perm:'ai',           sc:'sc-ai'},
-  {key:'admin', icon:'⚙️',label:'Admin',      perm:'admin',        sc:'sc-admin'},
+  {key:'dash',    icon:'📊',label:'Dashboard',    perm:'dashboard',    sc:'sc-dash'},
+  {key:'order',   icon:'➕',label:'Sifariş',      perm:'orders_create',sc:'sc-order'},
+  {key:'allorders',icon:'📋',label:'Sifarişlər', perm:'orders_view',  sc:'sc-allorders'},
+  {key:'dept',    icon:'🏭',label:'Şöbə',         perm:'dept_screen',  sc:'sc-dept'},
+  {key:'ai',      icon:'🤖',label:'AI Analiz',    perm:'ai',           sc:'sc-ai'},
+  {key:'admin',   icon:'⚙️',label:'Admin',        perm:'admin',        sc:'sc-admin'},
 ];
 
 // ═══════════ STATE ═══════════
@@ -1634,11 +1665,12 @@ async function goTo(key, fromHistory){
   document.getElementById(item.sc).classList.add('on');
   const sb2=document.getElementById('sbi-'+key);if(sb2)sb2.classList.add('on');
   const nb=document.getElementById('bnav-'+key);if(nb)nb.classList.add('on');
-  const titles={dash:'Dashboard',order:'Yeni Sifariş',dept:'Şöbə Ekranı',logi:'Logistika',ai:'AI Analiz',admin:'Admin'};
+  const titles={dash:'Dashboard',order:'Yeni Sifariş',allorders:'Bütün sifarişlər',dept:'Şöbə Ekranı',logi:'Logistika',ai:'AI Analiz',admin:'Admin'};
   document.getElementById('topbar-title').textContent=titles[key]||'';
   document.getElementById('main-content').scrollTo(0,0);
   if(key==='dash') await renderDash();
   if(key==='order') renderOrderForm();
+  if(key==='allorders') await renderAllOrdersPage();
   if(key==='dept') await renderDeptPick();
   if(key==='logi') await renderLogi();
   if(key==='ai') await renderAI();
@@ -1684,7 +1716,14 @@ async function renderDash(){
     const userMap = {};
     (users||[]).forEach(u=>userMap[u.id]=u.name);
     
-    document.getElementById('orders-tbody').innerHTML=all.map(o=>{
+    // Bütün sifarişləri yaddaşda saxla (Bütün sifarişlər modalı üçün)
+    window._dashAllOrders = all;
+    window._dashUserMap = userMap;
+    
+    // Yalnız ilk 10-u göstər
+    const displayed = all.slice(0, 10);
+    
+    document.getElementById('orders-tbody').innerHTML=displayed.map(o=>{
       const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦',stages:[]};
       const st=ST[o.status]||ST.created;
       const stageName=m.stages&&m.stages[o.current_stage-1]?m.stages[o.current_stage-1].name:'—';
@@ -3577,6 +3616,93 @@ async function dDone(oid, si, key, dept, totalStages){
 }
 
 // Köməkçi funksiya — card-ı DOM-dan tamamilə sil
+// ═══════════ BÜTÜN SİFARİŞLƏR SƏHİFƏSİ ═══════════
+async function renderAllOrdersPage(){
+  showLoader();
+  const [{data:orders},{data:users}] = await Promise.all([
+    sb.from('orders').select('*').order('created_at',{ascending:false}),
+    sb.from('users').select('id,name'),
+  ]);
+  hideLoader();
+  
+  const userMap = {};
+  (users||[]).forEach(u=>userMap[u.id]=u.name);
+  
+  window._aoAllOrders = orders || [];
+  window._aoUserMap = userMap;
+  
+  filterAllOrdersPage();
+}
+
+function filterAllOrdersPage(){
+  const all = window._aoAllOrders || [];
+  
+  const search = (document.getElementById('ao-search')?.value || '').toLowerCase().trim();
+  const fromDate = document.getElementById('ao-from')?.value || '';
+  const toDate = document.getElementById('ao-to')?.value || '';
+  const statusFilter = document.getElementById('ao-status')?.value || '';
+  
+  let filtered = all.filter(o=>{
+    if(search){
+      const m = appModels.find(x=>x.id===o.model_id);
+      const modelName = m ? m.name.toLowerCase() : '';
+      const matches = (o.order_number||'').toLowerCase().includes(search) ||
+                      (o.client||'').toLowerCase().includes(search) ||
+                      modelName.includes(search);
+      if(!matches) return false;
+    }
+    
+    const oDate = o.order_date || o.created_at;
+    if(oDate){
+      const oDateStr = new Date(oDate).toISOString().split('T')[0];
+      if(fromDate && oDateStr < fromDate) return false;
+      if(toDate && oDateStr > toDate) return false;
+    }
+    
+    if(statusFilter && o.status !== statusFilter) return false;
+    
+    return true;
+  });
+  
+  const countEl = document.getElementById('ao-count');
+  if(countEl) countEl.textContent = filtered.length + ' sifariş göstərilir (cəmi ' + all.length + ')';
+  
+  const tbody = document.getElementById('ao-tbody');
+  if(!tbody) return;
+  
+  if(!filtered.length){
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--t3)">Nəticə yoxdur</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = filtered.map(o=>{
+    const m = appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
+    const st = ST[o.status]||ST.created;
+    const oDate = o.order_date || o.created_at;
+    const dateStr = oDate ? new Date(oDate).toLocaleDateString('az-AZ',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+    const rowBg = o.status === 'late' ? '#FEEEED' : o.status === 'delivered' ? '#E8F5E9' : (o.status === 'cancelled' ? '#FFF5F5' : 'transparent');
+    const modelImg = m.img_url 
+      ? `<img src="${m.img_url}" style="width:32px;height:32px;object-fit:cover;border-radius:6px">`
+      : `<div style="width:32px;height:32px;border-radius:6px;background:var(--lt);display:flex;align-items:center;justify-content:center;font-size:16px">${m.emoji||'🛋️'}</div>`;
+    
+    return `<tr onclick="showOD('${o.id}')" style="background:${rowBg};cursor:pointer">
+      <td><span class="mono">${o.order_number}</span><div style="font-size:10px;color:var(--t3);margin-top:2px">${dateStr}</div></td>
+      <td>${o.client}</td>
+      <td><div style="display:flex;align-items:center;gap:8px">${modelImg}<span>${m.name.split('—')[0].trim()}</span></div></td>
+      <td style="font-weight:600">${o.qty}</td>
+      <td style="font-weight:600;color:var(--tl)">${o.final_price?o.final_price+' ₼':'—'}</td>
+      <td style="${o.status==='late'?'color:#E24B4A;font-weight:600':''}">${o.deadline||'—'}</td>
+      <td><span class="badge ${st.c}">${st.t}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════ BÜTÜN SİFARİŞLƏR MODALI ═══════════
+function openAllOrdersModal(){
+  // Modal əvəzinə ayrı səhifəyə keç
+  goTo('allorders');
+}
+
 // ═══════════ MÜŞTƏRİ GİRİŞ SİSTEMİ ═══════════
 function showCustomerLogin(){
   document.getElementById('customer-login-panel').style.display = 'block';
