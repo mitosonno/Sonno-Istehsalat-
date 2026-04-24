@@ -330,6 +330,7 @@ textarea{resize:vertical;min-height:80px}
     <div class="topbar-title" id="topbar-title">Dashboard</div>
     <div class="topbar-right">
       <span id="topbar-role" class="topbar-role"></span>
+      <button onclick="copyCatalogLinkQuick()" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600">📎 Katalog</button>
       <div class="topbar-av" id="topbar-av" onclick="openSheet('user-sheet')">?</div>
     </div>
   </div>
@@ -389,13 +390,12 @@ textarea{resize:vertical;min-height:80px}
             <div class="card card-pad">
               <div class="fg2">
                 <div class="fg"><label>Müştəri</label>
-                  <div style="display:flex;gap:6px">
-                    <select id="o-client-sel" style="flex:1;padding:13px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;background:#fff" onchange="onClientSelect()">
-                      <option value="">— Müştəri seçin —</option>
-                    </select>
-                    <button type="button" onclick="openAddClient()" style="padding:0 14px;background:var(--tl);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap">+ Əlavə et</button>
+                  <div style="position:relative">
+                    <input type="text" id="o-client-search" placeholder="Ad yazın — axtarır və ya yeni əlavə edir..." autocomplete="off" style="width:100%;padding:13px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:#fff" oninput="onClientSearchInput(this.value)" onfocus="onClientSearchFocus()">
+                    <div id="client-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--bd);border-radius:8px;margin-top:4px;max-height:240px;overflow-y:auto;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
                   </div>
                   <input type="hidden" id="o-client" value="">
+                  <select id="o-client-sel" style="display:none"></select>
                   <div id="o-client-phone-display" style="font-size:11px;color:var(--t3);margin-top:4px;min-height:14px"></div>
                 </div>
                 <div class="fg"><label>Parça adı</label><input id="o-fabric" placeholder="Məs: Velvet, Dəri, Linen..."></div>
@@ -470,7 +470,8 @@ textarea{resize:vertical;min-height:80px}
           </div>
           <!-- TABS -->
           <div style="display:flex;gap:4px;margin-bottom:14px;background:rgba(17,24,32,.05);border-radius:var(--r);padding:4px">
-            <button id="dept-tab-active" onclick="switchDeptTab('active')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:var(--sf);color:var(--tl);box-shadow:0 1px 4px rgba(0,0,0,.08)">▶ Aktiv tapşırıqlar</button>
+            <button id="dept-tab-active" onclick="switchDeptTab('active')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:var(--sf);color:var(--tl);box-shadow:0 1px 4px rgba(0,0,0,.08)">▶ Aktiv</button>
+            <button id="dept-tab-shared" onclick="switchDeptTab('shared')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2);display:none">📨 Parça alış</button>
             <button id="dept-tab-done" onclick="switchDeptTab('done')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2)">✓ Tamamlananlar</button>
           </div>
           <div id="dept-task-list"></div>
@@ -495,6 +496,51 @@ textarea{resize:vertical;min-height:80px}
 
         <!-- Stats -->
         <div class="stat-grid" id="stat-grid"></div>
+
+        <!-- Şöbə statistikası tarix filtri ilə -->
+        <div class="slbl">📊 Şöbə statistikası</div>
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            <div>
+              <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Başlanğıc tarix</label>
+              <input type="date" id="stat-date-from" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;font-family:inherit">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Son tarix</label>
+              <input type="date" id="stat-date-to" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;font-family:inherit">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            <div>
+              <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Başlanğıc saat</label>
+              <input type="time" id="stat-time-from" value="00:00" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;font-family:inherit">
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Son saat</label>
+              <input type="time" id="stat-time-to" value="23:59" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;font-family:inherit">
+            </div>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Şöbə</label>
+            <select id="stat-dept-filter" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit;font-size:14px;background:#fff">
+              <option value="all">Bütün şöbələr</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <button class="btn btn-ln" style="flex:1;font-size:12px" onclick="statQuickRange('today')">Bu gün</button>
+            <button class="btn btn-ln" style="flex:1;font-size:12px" onclick="statQuickRange('yesterday')">Dünən</button>
+            <button class="btn btn-ln" style="flex:1;font-size:12px" onclick="statQuickRange('week')">7 gün</button>
+            <button class="btn btn-ln" style="flex:1;font-size:12px" onclick="statQuickRange('month')">30 gün</button>
+          </div>
+          <button class="btn btn-t btn-full" onclick="renderDeptStats()">🔍 Axtar</button>
+          <div id="dept-stats-list" style="margin-top:14px"></div>
+        </div>
+
+        <!-- İmtina edilmiş sifarişlər -->
+        <div class="slbl">❌ İmtina edilmiş sifarişlər</div>
+        <div class="card card-pad" style="margin-bottom:16px" id="cancelled-orders-section">
+          <div id="cancelled-orders-list">Yüklənir...</div>
+        </div>
 
         <!-- AI Chat -->
         <div class="slbl">AI ilə söhbət</div>
@@ -529,6 +575,7 @@ textarea{resize:vertical;min-height:80px}
           <div class="ami" onclick="adminSec('pins')"><div class="ami-icon">🔑</div><div class="ami-name">PIN Kodlar</div><div class="ami-sub">Şöbə girişi</div></div>
           <div class="ami" onclick="adminSec('models')"><div class="ami-icon">🛋️</div><div class="ami-name">Modellər</div><div class="ami-sub" id="ami-m">—</div></div>
           <div class="ami" onclick="adminSec('workers')"><div class="ami-icon">🧑‍🔧</div><div class="ami-name">İşçilər</div><div class="ami-sub" id="ami-w">—</div></div>
+          <div class="ami" onclick="adminSec('clients')"><div class="ami-icon">👤</div><div class="ami-name">Müştərilər</div><div class="ami-sub" id="ami-c">—</div></div>
           <div class="ami" onclick="adminSec('deptanalytics')"><div class="ami-icon">🏭</div><div class="ami-name">Şöbə analitikası</div><div class="ami-sub">Detallı</div></div>
           <div class="ami" onclick="adminSec('settings')"><div class="ami-icon">⚙️</div><div class="ami-name">Parametrlər</div><div class="ami-sub">Limit & ayarlar</div></div>
         </div>
@@ -589,6 +636,19 @@ textarea{resize:vertical;min-height:80px}
       <div class="fg"><label>Model adı</label><input id="am-name" placeholder="Model X — Divan"></div>
       <div class="fg"><label>Qısa məlumat</label><input id="am-desc" placeholder="3+2 oturacaq"></div>
     </div>
+    <div class="fg">
+      <label>Kateqoriya <span style="color:#E24B4A">*</span></label>
+      <select id="am-category" style="width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:#fff;min-height:48px">
+        <option value="">— Kateqoriya seçin —</option>
+        <option value="divan">🛋️ Divan</option>
+        <option value="kunc_divan">🛋️ Künc divan</option>
+        <option value="oturacaq">🪑 Oturacaq</option>
+        <option value="kreslo">💺 Kreslo</option>
+        <option value="masa">🪑 Masa</option>
+        <option value="dest">🎁 Dəst (Divan+Kreslo)</option>
+        <option value="diger">📦 Digər</option>
+      </select>
+    </div>
     <!-- Qiymət -->
     <div class="fg2">
       <div class="fg">
@@ -641,9 +701,8 @@ textarea{resize:vertical;min-height:80px}
     <div class="fg"><label>Vəzifə</label><input id="aw-role" placeholder="Məs: Usta, Köməkçi, Operator"></div>
     <div class="fg">
       <label>Şöbə</label>
-      <select id="aw-dept">
-        <option value="">Şöbə seçin</option>
-      </select>
+      <div id="aw-dept-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px"></div>
+      <input type="hidden" id="aw-dept">
     </div>
   </div>
   <div class="sheet-footer">
@@ -739,7 +798,7 @@ const DEPT_INFO = {
   masa_rengle: {name:'Masa rəngləmə şöbəsi',   icon:'🎨', hours:2},
   rengleme:    {name:'Rənglənmə şöbəsi',       icon:'🖌️', hours:3},
   yastiqlama:  {name:'Yastıqlama / Döşəmə',    icon:'🛋️', hours:4},
-  tikiş:       {name:'Tikiş şöbəsi',           icon:'🧵', hours:3},
+  tikis:       {name:'Tikiş şöbəsi',           icon:'🧵', hours:3},
   qa:          {name:'Keyfiyyət yoxlama',       icon:'✅', hours:1},
   logistics:   {name:'Logistika / Çatdırılma', icon:'🚛', hours:1},
 };
@@ -768,6 +827,7 @@ const ST = {
   delivering: {t:'Yolda',     c:'bO'},
   delivered:  {t:'Təslim',    c:'bGN'},
   late:       {t:'GECİKMİŞ', c:'bR'},
+  cancelled:  {t:'❌ İMTİNA', c:'bR'},
 };
 
 const NAV_ITEMS = [
@@ -797,23 +857,104 @@ async function loadClients(){
 }
 
 function updateClientSelect(){
+  // Köhnə select dropdown - yaddaşa saxlanır amma görünmür
   const sel = document.getElementById('o-client-sel');
-  if(!sel) return;
-  sel.innerHTML = '<option value="">— Müştəri seçin —</option>' + 
-    appClients.map(c=>`<option value="${c.id}" data-name="${c.name}" data-phone="${c.phone||''}">${c.name}${c.phone?' · '+c.phone:''}</option>`).join('');
+  if(sel){
+    sel.innerHTML = appClients.map(c=>`<option value="${c.id}" data-name="${c.name}" data-phone="${c.phone||''}">${c.name}</option>`).join('');
+  }
 }
 
-function onClientSelect(){
-  const sel = document.getElementById('o-client-sel');
-  const opt = sel.options[sel.selectedIndex];
+// AUTOCOMPLETE: müştəri axtarış
+function onClientSearchInput(val){
+  const suggBox = document.getElementById('client-suggestions');
   const hiddenInput = document.getElementById('o-client');
   const phoneDisplay = document.getElementById('o-client-phone-display');
+  
+  const searchVal = val.trim().toLowerCase();
+  hiddenInput.value = val.trim(); // müvəqqəti dəyər, seçim edilsə dəyişər
+  phoneDisplay.textContent = '';
+  
+  if(!searchVal){
+    suggBox.style.display = 'none';
+    return;
+  }
+  
+  // Uyğun müştəriləri tap
+  const matches = appClients.filter(c => 
+    c.name.toLowerCase().includes(searchVal) || 
+    (c.phone && c.phone.toLowerCase().includes(searchVal))
+  ).slice(0, 8);
+  
+  // Exact match yoxla
+  const exactMatch = appClients.find(c => c.name.toLowerCase() === searchVal);
+  
+  let html = '';
+  
+  if(matches.length){
+    html = matches.map(c => 
+      `<div onclick="selectClientFromSuggest('${c.id}')" style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center" onmouseover="this.style.background='var(--lt)'" onmouseout="this.style.background='#fff'">
+        <div>
+          <div style="font-weight:600;font-size:14px">${c.name}</div>
+          ${c.phone?`<div style="font-size:11px;color:var(--t3);margin-top:2px">📞 ${c.phone}</div>`:''}
+        </div>
+        <span style="font-size:11px;color:var(--tl);font-weight:600">Seç</span>
+      </div>`
+    ).join('');
+  }
+  
+  // "Yeni əlavə et" düyməsi
+  if(!exactMatch){
+    html += `<div onclick="addNewClientQuick('${val.trim().replace(/'/g,"\\'")}')" style="padding:10px 12px;cursor:pointer;background:var(--lt);display:flex;justify-content:space-between;align-items:center;border-top:2px solid var(--tl)">
+      <div style="font-size:13px;color:var(--tl);font-weight:600">+ Yeni: "${val.trim()}"</div>
+      <span style="font-size:11px;color:var(--tl)">Əlavə et</span>
+    </div>`;
+  }
+  
+  suggBox.innerHTML = html;
+  suggBox.style.display = 'block';
+}
+
+function onClientSearchFocus(){
+  const val = document.getElementById('o-client-search').value;
+  if(val) onClientSearchInput(val);
+}
+
+function selectClientFromSuggest(clientId){
+  const c = appClients.find(x => x.id === clientId);
+  if(!c) return;
+  document.getElementById('o-client-search').value = c.name;
+  document.getElementById('o-client').value = c.name;
+  document.getElementById('o-client-phone-display').textContent = c.phone ? '📞 '+c.phone : '';
+  document.getElementById('client-suggestions').style.display = 'none';
+}
+
+async function addNewClientQuick(name){
+  const phone = prompt('Müştərinin telefonu (istəyə bağlı):', '');
+  
+  showLoader();
+  try{
+    const {data, error} = await sb.from('clients').insert({name, phone: phone||null}).select().single();
+    hideLoader();
+    if(error){toast('Xəta: '+error.message);return;}
+    appClients.push(data);
+    appClients.sort((a,b)=>a.name.localeCompare(b.name));
+    updateClientSelect();
+    // Yeni müştərini avtomatik seç
+    selectClientFromSuggest(data.id);
+    toast('✓ '+name+' əlavə edildi');
+  }catch(e){
+    hideLoader();
+    toast('Xəta: '+e.message);
+  }
+}
+
+// Köhnə funksiyalar (compat)
+function onClientSelect(){
+  const sel = document.getElementById('o-client-sel');
+  if(!sel) return;
+  const opt = sel.options[sel.selectedIndex];
   if(opt && opt.dataset.name){
-    hiddenInput.value = opt.dataset.name;
-    phoneDisplay.textContent = opt.dataset.phone ? '📞 '+opt.dataset.phone : '';
-  } else {
-    hiddenInput.value = '';
-    phoneDisplay.textContent = '';
+    document.getElementById('o-client').value = opt.dataset.name;
   }
 }
 
@@ -840,9 +981,7 @@ async function saveNewClient(){
     appClients.push(data);
     appClients.sort((a,b)=>a.name.localeCompare(b.name));
     updateClientSelect();
-    // Yeni müştərini avtomatik seç
-    document.getElementById('o-client-sel').value = data.id;
-    onClientSelect();
+    selectClientFromSuggest(data.id);
     closeAddClientModal();
     toast('✓ Müştəri əlavə edildi: '+name);
   }catch(e){
@@ -879,25 +1018,45 @@ function showWarningDialog(count){
 }
 
 // ═══════════ DEADLINE VALIDATION ═══════════
+// Minimum 7 iş günü (yalnız Bazar çıxılır) + sifariş günü çıxılır
+function getMinDeadlineDate(){
+  let d = new Date();
+  d.setHours(0,0,0,0);
+  let daysAdded = 0;
+  // Sifariş günündən sonra başla
+  while(daysAdded < 7){
+    d.setDate(d.getDate()+1);
+    // Bazar günü çıx (0 = Bazar)
+    if(d.getDay() !== 0){
+      daysAdded++;
+    }
+  }
+  return d;
+}
+
 async function validateDeadline(input){
   const dateStr = input.value;
   if(!dateStr) return;
   
   let d = new Date(dateStr);
-  const today = new Date();
-  today.setHours(0,0,0,0);
+  d.setHours(0,0,0,0);
+  const minDate = getMinDeadlineDate();
   
-  // Bu gün və ya keçmişdirsə növbəti iş gününə keç
-  if(d <= today){
-    d = new Date(today);
+  // Bazar günü yoxla — ən yaxın Bazar ertəsinə keç
+  if(d.getDay() === 0){
     d.setDate(d.getDate()+1);
-    toast('⚠ Keçmiş tarix seçilə bilməz — sabaha köçürüldü');
+    toast('⚠ Bazar günü — Bazar ertəsinə köçürüldü');
   }
   
-  // Şənbə-Bazar — növbəti iş gününə keç
-  while(d.getDay() === 0 || d.getDay() === 6){
-    d.setDate(d.getDate()+1);
-    toast('⚠ Həftə sonu — növbəti iş gününə köçürüldü');
+  // Admin deyilsə minimum 7 iş günü yoxla
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  if(!isAdmin && d < minDate){
+    d = new Date(minDate);
+    const minStr = minDate.toLocaleDateString('az-AZ');
+    toast('⚠ Minimum 7 iş günü tələb olunur. Ən tez: '+minStr+'. Tez deadline üçün admin icazəsi lazımdır.', 5000);
+  } else if(isAdmin && d < minDate){
+    const minStr = minDate.toLocaleDateString('az-AZ');
+    toast('⚠ Admin kimi 7 gündən az deadline qəbul etdiniz ('+minStr+' tövsiyə olunur)', 5000);
   }
   
   input.value = d.toISOString().split('T')[0];
@@ -944,7 +1103,7 @@ async function suggestNextAvailable(fromDate, limit, newQty, input){
   for(let i=1; i<=60; i++){
     check.setDate(check.getDate()+1);
     const dow = check.getDay();
-    if(dow===0 || dow===6) continue; // Şənbə-Bazar
+    if(dow===0) continue; // Yalnız Bazar çıxılır
     
     const checkStr = check.toISOString().split('T')[0];
     const {data} = await sb.from('orders')
@@ -962,8 +1121,19 @@ async function suggestNextAvailable(fromDate, limit, newQty, input){
 }
 
 // ═══════════ HELPERS ═══════════
-const showLoader = () => document.getElementById('loader').classList.add('on');
-const hideLoader = () => document.getElementById('loader').classList.remove('on');
+const showLoader = () => {
+  document.getElementById('loader').classList.add('on');
+  // Safety: 30 saniyə sonra məcburən söndür (əgər hideLoader çağrılmasa)
+  if(window._loaderTimer) clearTimeout(window._loaderTimer);
+  window._loaderTimer = setTimeout(()=>{
+    document.getElementById('loader').classList.remove('on');
+    console.warn('[loader] Safety timeout - məcburi söndürüldü');
+  }, 30000);
+};
+const hideLoader = () => {
+  document.getElementById('loader').classList.remove('on');
+  if(window._loaderTimer){ clearTimeout(window._loaderTimer); window._loaderTimer = null; }
+};
 function toast(msg, dur=3500){
   const el=document.getElementById('toast');
   el.textContent=msg; el.classList.add('on');
@@ -1066,6 +1236,13 @@ window.addEventListener('popstate', (e)=>{
 (async()=>{
   showLoader();
 
+  // URL-də ?catalog=1 varsa — public katalog mode
+  if(urlParams.get('catalog') === '1'){
+    hideLoader();
+    startCatalogMode();
+    return;
+  }
+  
   // URL-də ?dept=karkaz varsa — kiosk mode
   const urlParams = new URLSearchParams(window.location.search);
   const urlDept = urlParams.get('dept');
@@ -1086,6 +1263,109 @@ window.addEventListener('popstate', (e)=>{
   }
   hideLoader();
 })();
+
+// ═══════════ KATALOG MODE (PUBLIC) ═══════════
+async function startCatalogMode(){
+  // Bütün səhifəni gizlət
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='none';
+  
+  const container = document.createElement('div');
+  container.id = 'catalog-screen';
+  container.style.cssText = 'position:fixed;inset:0;background:#fafaf9;overflow-y:auto;z-index:9999;font-family:\'DM Sans\',sans-serif';
+  container.innerHTML = `
+    <div style="background:linear-gradient(135deg,#007565,#004F51);color:#fff;padding:24px 20px;text-align:center">
+      <div style="font-size:24px;font-weight:700;letter-spacing:0.5px">🛋️ SONNO</div>
+      <div style="font-size:13px;opacity:0.8;margin-top:4px">Mebel Kataloqu</div>
+    </div>
+    <div id="catalog-body" style="max-width:800px;margin:0 auto;padding:16px">
+      <div style="text-align:center;padding:40px;color:#888">Yüklənir...</div>
+    </div>
+    <div style="text-align:center;padding:24px;color:#aaa;font-size:11px">
+      © SONNO Mebel · Əlaqə üçün menecerinizlə danışın
+    </div>
+  `;
+  document.body.appendChild(container);
+  
+  // Supabase-dən modelləri yüklə
+  try{
+    const {data:models} = await sb.from('models').select('*').eq('is_active', true).order('name');
+    const allModels = models || [];
+    renderCatalog(allModels);
+  }catch(e){
+    document.getElementById('catalog-body').innerHTML = '<div style="padding:40px;text-align:center;color:#E24B4A">Katalog yüklənmədi</div>';
+  }
+}
+
+function renderCatalog(models){
+  const body = document.getElementById('catalog-body');
+  if(!models.length){
+    body.innerHTML = '<div style="padding:40px;text-align:center;color:#888">Katalogda məhsul yoxdur</div>';
+    return;
+  }
+  
+  // Kateqoriyalar
+  const categories = {
+    divan:       {icon:'🛋️', name:'Divanlar'},
+    kunc_divan:  {icon:'🛋️', name:'Künc Divanlar'},
+    oturacaq:    {icon:'🪑', name:'Oturacaqlar'},
+    kreslo:      {icon:'💺', name:'Kreslolar'},
+    masa:        {icon:'🪑', name:'Masalar'},
+    dest:        {icon:'🎁', name:'Dəstlər'},
+    diger:       {icon:'📦', name:'Digər'},
+  };
+  
+  // Qruplaşdır
+  const grouped = {};
+  models.forEach(m=>{
+    const cat = m.category || 'diger';
+    if(!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(m);
+  });
+  
+  // Kateqoriya sırası — əvvəl məşhurlar
+  const order = ['divan','kunc_divan','oturacaq','kreslo','masa','dest','diger'];
+  
+  let html = '';
+  order.forEach(catKey => {
+    if(!grouped[catKey] || !grouped[catKey].length) return;
+    const info = categories[catKey];
+    const items = grouped[catKey];
+    
+    html += `
+      <div style="margin-bottom:32px">
+        <h2 style="font-size:20px;font-weight:700;margin:0 0 14px 0;color:#111820;padding-bottom:10px;border-bottom:2px solid #007565">
+          ${info.icon} ${info.name}
+          <span style="font-size:12px;color:#888;font-weight:500;margin-left:8px">${items.length} məhsul</span>
+        </h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">
+          ${items.map(m => `
+            <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #eee">
+              <div style="width:100%;height:200px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;overflow:hidden">
+                ${m.img_url 
+                  ? `<img src="${m.img_url}" style="width:100%;height:100%;object-fit:cover" alt="${m.name}">`
+                  : `<div style="font-size:60px">${m.emoji || '🛋️'}</div>`
+                }
+              </div>
+              <div style="padding:14px">
+                <div style="font-size:15px;font-weight:700;color:#111820;line-height:1.3">${m.name}</div>
+                ${m.description ? `<div style="font-size:12px;color:#888;margin-top:4px">${m.description}</div>` : ''}
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+                  <div style="font-size:11px;color:#888">Qiymət</div>
+                  <div style="font-size:20px;font-weight:800;color:#F78930">${(m.sale_price||0).toFixed(0)} ₼</div>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  });
+  
+  if(!html) html = '<div style="padding:40px;text-align:center;color:#888">Katalogda məhsul yoxdur</div>';
+  
+  body.innerHTML = html;
+}
 
 // ═══════════ KİOSK MODE ═══════════
 async function startKioskMode(dept){
@@ -1196,7 +1476,7 @@ async function openKioskDept(dept){
   if(nav) nav.style.display='none';
 
   // Birbaşa şöbə tapşırıqlarına get
-  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('act'));
+  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
   document.getElementById('sc-dept').classList.add('on');
   
   // Başlıq yarat
@@ -1226,6 +1506,24 @@ async function openKioskDept(dept){
 
 
 // ═══════════ INIT ═══════════
+
+// Ekran sönəndə timer-ləri dayandır, yananda yenidən başlat
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    // Ekran söndü - bütün timer-ləri dayandır
+    document.querySelectorAll('[id^="timer-"]').forEach(el=>{
+      if(el.dataset.intervalId){
+        clearInterval(parseInt(el.dataset.intervalId));
+        el.dataset.intervalId = '';
+      }
+    });
+  } else {
+    // Ekran yandı - renderi yenidən çağır (timer-lər avtomatik qurulacaq)
+    if(pinDept){
+      setTimeout(()=>renderDeptTasks(pinDept), 300);
+    }
+  }
+});
 async function initApp(){
   // UI-i dərhal göstər (data gözləmədən)
   const u=currentUser;
@@ -1431,7 +1729,7 @@ async function showOrderSheet(type){
     const stageColors = {
       hazirlik:'#E3F2FD', bez_kesim:'#F3E5F5', karkaz:'#E8F5E9',
       shkurka:'#FFF3E0', masa_karkaz:'#FCE4EC', masa_rengle:'#E0F2F1',
-      rengleme:'#EDE7F6', yastiqlama:'#FFF8E1', tikiş:'#E8EAF6',
+      rengleme:'#EDE7F6', yastiqlama:'#FFF8E1', tikis:'#E8EAF6',
       qa:'#E0F7FA', logistics:'#F1F8E9'
     };
     const curStage = m.stages&&m.stages[o.current_stage-1];
@@ -1562,8 +1860,127 @@ async function showOD(id){
         <button onclick="copyOrderLink('${o.id}')" style="padding:8px 14px;background:var(--tl);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;white-space:nowrap">📋 Kopyala</button>
       </div>
       <div style="font-size:11px;color:var(--t3);margin-top:6px">Bu linki müştəriyə göndərsəniz — sifarişin detallarını və şəkillərini görə bilər</div>
-    </div>`;
+    </div>
+    
+    ${currentUser && currentUser.role === 'admin' ? `
+    <div style="margin-top:16px;padding:14px;background:#FFF5F5;border:1px solid #E24B4A;border-radius:10px">
+      <div style="font-size:12px;font-weight:700;color:#E24B4A;margin-bottom:10px">⚠️ Admin əməliyyatları</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${o.status !== 'cancelled' && o.status !== 'delivered' ? `
+          <button onclick="adminEditOrder('${o.id}')" style="flex:1;min-width:130px;padding:10px;background:var(--or);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600;font-size:13px">✏️ Düzəliş et</button>
+          <button onclick="adminCancelOrder('${o.id}','${o.order_number}')" style="flex:1;min-width:130px;padding:10px;background:#E24B4A;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600;font-size:13px">❌ İmtina et</button>
+        ` : o.status === 'cancelled' ? `
+          <div style="flex:1;padding:10px;background:#fff;border:1px dashed #E24B4A;border-radius:8px;text-align:center;font-size:12px;color:#E24B4A">
+            ❌ Bu sifariş imtina edilib${o.cancelled_at?' · '+new Date(o.cancelled_at).toLocaleDateString('az-AZ'):''}${o.cancelled_by?' · '+o.cancelled_by:''}
+            ${o.cancel_reason?`<div style="margin-top:4px;font-size:11px;color:var(--t2)">Səbəb: ${o.cancel_reason}</div>`:''}
+            <button onclick="adminRestoreOrder('${o.id}')" style="margin-top:8px;padding:6px 14px;background:var(--tl);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px">♻️ Bərpa et</button>
+          </div>
+        ` : `<div style="flex:1;padding:10px;text-align:center;font-size:12px;color:var(--t3)">Çatdırılmış sifariş — redaktə olunmur</div>`}
+      </div>
+    </div>
+    ` : ''}`;
   openSheet('order-detail');
+}
+
+// ═══════════ ADMIN ORDER OPS ═══════════
+async function adminCancelOrder(oid, orderNum){
+  const reason = prompt('Sifariş ' + orderNum + ' imtina səbəbi:');
+  if(reason === null) return;
+  
+  if(!confirm('Siz bu sifarişi imtina etmək istədiyinizə əminsiniz?\n\n' + orderNum + '\n\nBu əməliyyat geri qaytarıla bilər.')) return;
+  
+  showLoader();
+  const {error} = await sb.from('orders').update({
+    status: 'cancelled',
+    cancelled_at: new Date().toISOString(),
+    cancelled_by: currentUser.name,
+    cancel_reason: reason || null
+  }).eq('id', oid);
+  hideLoader();
+  
+  if(error){toast('Xəta: '+error.message);return;}
+  toast('✓ Sifariş imtina edildi');
+  closeSheet('order-detail');
+  renderDash();
+}
+
+async function adminRestoreOrder(oid){
+  if(!confirm('Sifarişi bərpa etmək istədiyinizə əminsiniz?')) return;
+  
+  showLoader();
+  const {error} = await sb.from('orders').update({
+    status: 'in_progress',
+    cancelled_at: null,
+    cancelled_by: null,
+    cancel_reason: null
+  }).eq('id', oid);
+  hideLoader();
+  
+  if(error){toast('Xəta: '+error.message);return;}
+  toast('✓ Sifariş bərpa edildi');
+  closeSheet('order-detail');
+  renderDash();
+}
+
+async function adminEditOrder(oid){
+  const {data:o} = await sb.from('orders').select('*').eq('id', oid).single();
+  if(!o){toast('Xəta');return;}
+  
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:20px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+      <div style="font-size:17px;font-weight:700;margin-bottom:14px">✏️ Sifariş düzəlişi — ${o.order_number}</div>
+      
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Müştəri</label>
+        <input type="text" id="ed-client" value="${o.client||''}" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Ədəd</label>
+        <input type="number" id="ed-qty" value="${o.qty||1}" min="1" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Deadline</label>
+        <input type="date" id="ed-deadline" value="${o.deadline||''}" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Parça</label>
+        <input type="text" id="ed-fabric" value="${o.fabric||''}" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Parça kodu</label>
+        <input type="text" id="ed-color" value="${o.color||''}" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Parça satan</label>
+        <input type="text" id="ed-fc" value="${o.fabric_company||''}" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Ayaq rəngi</label>
+        <input type="text" id="ed-legs" value="${o.legs||''}" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Qeyd</label>
+        <textarea id="ed-notes" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit;min-height:60px">${o.notes||''}</textarea></div>
+      <div style="margin-bottom:14px"><label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Qiymət (₼)</label>
+        <input type="number" id="ed-price" value="${o.final_price||0}" step="0.01" style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit"></div>
+      
+      <div style="display:flex;gap:8px">
+        <button id="ed-cancel" style="flex:1;padding:10px;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;font-family:inherit">Ləğv</button>
+        <button id="ed-save" style="flex:2;padding:10px;background:var(--tl);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600">💾 Yadda saxla</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  
+  modal.querySelector('#ed-cancel').onclick = ()=>modal.remove();
+  modal.querySelector('#ed-save').onclick = async ()=>{
+    const update = {
+      client: document.getElementById('ed-client').value.trim(),
+      qty: parseInt(document.getElementById('ed-qty').value) || 1,
+      deadline: document.getElementById('ed-deadline').value || null,
+      fabric: document.getElementById('ed-fabric').value || null,
+      color: document.getElementById('ed-color').value || null,
+      fabric_company: document.getElementById('ed-fc').value || null,
+      legs: document.getElementById('ed-legs').value || null,
+      notes: document.getElementById('ed-notes').value || null,
+      final_price: parseFloat(document.getElementById('ed-price').value) || 0
+    };
+    showLoader();
+    const {error} = await sb.from('orders').update(update).eq('id', oid);
+    hideLoader();
+    if(error){toast('Xəta: '+error.message);return;}
+    toast('✓ Sifariş yeniləndi');
+    modal.remove();
+    closeSheet('order-detail');
+    renderDash();
+  };
 }
 
 // ═══════════ ORDER CREATE ═══════════
@@ -1585,12 +2002,10 @@ function copyOrderLink(oid){
 function renderOrderForm(){
   renderProductGrid(appModels);
   const deadInput = document.getElementById('o-dead');
-  const minDate = new Date();
-  minDate.setDate(minDate.getDate()+1); // sabahdan başla
+  const minDate = getMinDeadlineDate();
   deadInput.min = minDate.toISOString().split('T')[0];
   if(!deadInput.value){
-    const d=new Date();d.setDate(d.getDate()+7);
-    deadInput.value=d.toISOString().split('T')[0];
+    deadInput.value = minDate.toISOString().split('T')[0];
   }
   // Mobile: stack layout
   if(window.innerWidth<=768){
@@ -1729,6 +2144,7 @@ async function createOrder(){
     color:document.getElementById('o-color').value,
     notes:document.getElementById('o-notes').value,
     deadline:document.getElementById('o-dead').value||null,
+    order_date:new Date().toISOString(),
     sale_type:document.getElementById('o-sale-type')?.value||'cash',
     status:'created', current_stage:1,
     sale_price:price, discount:disc, final_price:total,
@@ -1736,7 +2152,7 @@ async function createOrder(){
   hideLoader();
   if(error){toast('Xəta: '+error.message);return;}
   toast(`✓ ${num} yaradıldı — ${total?total+' ₼ · ':''}Pipeline başladı!`);
-  ['o-client','o-fabric','o-fabric-co','o-color','o-legs','o-notes','o-client-sel'].forEach(id=>{
+  ['o-client','o-client-search','o-fabric','o-fabric-co','o-color','o-legs','o-notes','o-client-sel'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
   const phoneDisp = document.getElementById('o-client-phone-display');
@@ -1841,21 +2257,30 @@ let curDeptTab = 'active';
 function switchDeptTab(tab){
   curDeptTab = tab;
   const ta=document.getElementById('dept-tab-active');
+  const ts=document.getElementById('dept-tab-shared');
   const td=document.getElementById('dept-tab-done');
-  if(tab==='active'){
-    ta.style.background='var(--sf)';ta.style.color='var(--tl)';ta.style.boxShadow='0 1px 4px rgba(0,0,0,.08)';
-    td.style.background='transparent';td.style.color='var(--t2)';td.style.boxShadow='none';
-  }else{
-    td.style.background='var(--sf)';td.style.color='var(--tl)';td.style.boxShadow='0 1px 4px rgba(0,0,0,.08)';
-    ta.style.background='transparent';ta.style.color='var(--t2)';ta.style.boxShadow='none';
-  }
+  
+  // Hamısını qeyri-aktiv et
+  [ta,ts,td].forEach(btn=>{
+    if(btn){btn.style.background='transparent';btn.style.color='var(--t2)';btn.style.boxShadow='none';}
+  });
+  
+  // Aktiv tab-ı vurgula
+  const active = tab==='active' ? ta : (tab==='shared' ? ts : td);
+  if(active){active.style.background='var(--sf)';active.style.color='var(--tl)';active.style.boxShadow='0 1px 4px rgba(0,0,0,.08)';}
+  
   if(pinDept) renderDeptTasks(pinDept);
 }
 
 function lockDept(){
   if(pinDept)pinUnlocked[pinDept]=false;
   pinDept=null;pinBuf='';
-  renderDeptPick();
+  // Admin-disə dashboard-a qayıt
+  if(currentUser && currentUser.role === 'admin'){
+    goTo('dash');
+  } else {
+    renderDeptPick();
+  }
 }
 
 function showDV(v){
@@ -1863,6 +2288,48 @@ function showDV(v){
     const el=document.getElementById(id);if(el)el.style.display='none';
   });
   const el=document.getElementById(v);if(el)el.style.display='block';
+  
+  // İşçi şöbə ekranında - topbar və sidebar tam gizlensin
+  const topbar = document.querySelector('.topbar');
+  const sidebar = document.getElementById('sidebar');
+  const mainContent = document.getElementById('main-content');
+  
+  const isDeptView = (v === 'dept-tasks' || v === 'dept-pin' || v === 'dept-pick');
+  
+  if(isDeptView){
+    if(topbar) topbar.style.display = 'none';
+    if(sidebar) sidebar.style.display = 'none';
+    if(mainContent) mainContent.style.marginLeft = '0';
+    // Body-də full-screen class əlavə et
+    document.body.classList.add('dept-mode');
+  } else {
+    if(topbar) topbar.style.display = '';
+    if(sidebar) sidebar.style.display = '';
+    if(mainContent) mainContent.style.marginLeft = '';
+    document.body.classList.remove('dept-mode');
+  }
+}
+
+// ═══════════ CACHE SİSTEMİ ═══════════
+const _cache = {};
+const CACHE_TTL = 30000; // 30 saniyə
+
+async function cachedFetch(key, fetcher){
+  const now = Date.now();
+  if(_cache[key] && (now - _cache[key].ts) < CACHE_TTL){
+    return _cache[key].data;
+  }
+  const data = await fetcher();
+  _cache[key] = {data, ts: now};
+  return data;
+}
+
+function invalidateCache(...keys){
+  if(keys.length === 0){
+    Object.keys(_cache).forEach(k => delete _cache[k]);
+  } else {
+    keys.forEach(k => delete _cache[k]);
+  }
 }
 
 async function renderDeptTasks(dept){
@@ -1875,15 +2342,30 @@ async function renderDeptTasks(dept){
   }
   
   showLoader();
-  // Ötürmə konfiqurasiyasını da yüklə
-  const [{data:allOrders},{data:allModels},{data:allLogs},fwdConfig] = await Promise.all([
-    sb.from('orders').select('*').order('created_at',{ascending:true}),
-    sb.from('models').select('*'),
-    sb.from('task_logs').select('*').eq('dept_key',dept).order('started_at',{ascending:false}),
-    getForwardingConfig(),
+  // Cache ilə yüklə (30 saniyə keçməyibsə yenidən sorğu etmə)
+  const [allOrders, allModels, allLogs, fwdConfig] = await Promise.all([
+    cachedFetch('orders', async()=>{ const{data}=await sb.from('orders').select('*').order('created_at',{ascending:true}); return data||[]; }),
+    cachedFetch('models', async()=>{ const{data}=await sb.from('models').select('*'); return data||[]; }),
+    cachedFetch('logs', async()=>{ const{data}=await sb.from('task_logs').select('*').order('started_at',{ascending:false}); return data||[]; }),
+    cachedFetch('fwdConfig', ()=>getForwardingConfig()),
   ]);
   hideLoader();
   window.forwardingConfig = fwdConfig || {};
+  
+  // Parça alış tab - yalnız Tikiş şöbəsində görünsün
+  const sharedTabBtn = document.getElementById('dept-tab-shared');
+  if(sharedTabBtn){
+    if(dept === 'tikis' || dept === 'tikiş'){
+      sharedTabBtn.style.display = '';
+    } else {
+      sharedTabBtn.style.display = 'none';
+      if(curDeptTab === 'shared'){
+        curDeptTab = 'active';
+        switchDeptTab('active');
+        return;
+      }
+    }
+  }
 
   const orders=allOrders||[];
   const models=allModels||[];
@@ -1910,6 +2392,7 @@ async function renderDeptTasks(dept){
       // Bu sifarişdə paralel mərhələdə bu şöbə tamamlanıbsa siyahıya qoyma
       const parallelDone = (o.parallel_done_depts || '').split(',').filter(x=>x);
       const sharedWith = (o.shared_with || '').split(',').filter(x=>x);
+      const sharedDoneDepts = (o.shared_done_depts || '').split(',').filter(x=>x);
       
       // 1) Cari mərhələ
       const si=o.current_stage-1;
@@ -1918,12 +2401,18 @@ async function renderDeptTasks(dept){
         const stage=stages[si];
         const stageKey = o.id+'_'+si+'_'+dept;
         
-        // Paralel stage-dədirsə və bu şöbə artıq tamamlayıbsa — göstərmə
         const isParallel = stage.dept.includes('||');
-        if(isParallel && parallelDone.includes(dept)){
-          // Bu şöbə artıq bitirib, gözləyir
-        } else {
-          if(stage.dept===dept || (isParallel && stage.dept.split('||').includes(dept))){
+        const matches = stage.dept===dept || (isParallel && stage.dept.split('||').includes(dept));
+        
+        // Bu şöbənin bu stage üçün tamamlanmış log-u varmı?
+        const logKey = o.id + '_' + si + '_' + dept;
+        const existingLog = logMap[logKey];
+        const hasCompletedLog = existingLog && existingLog.completed_at;
+        
+        if(matches && !hasCompletedLog){
+          if(isParallel && parallelDone.includes(dept)){
+            // Paralel-də artıq tamamlayıb
+          } else {
             tasks.push({o,m,s:stage,si:o.current_stage});
             addedStages.add(stageKey);
             addedAsActive = true;
@@ -1942,15 +2431,14 @@ async function renderDeptTasks(dept){
         if(addedStages.has(stageKey)) continue;
         if(parallelDone.includes(dept)) continue;
         
+        // ƏSAS: bu keçmiş stage üçün log varsa (artıq bu şöbə tamamlayıb) — siyahıya qoyma
+        const prevLogKey = o.id + '_' + i + '_' + dept;
+        const prevLog = logMap[prevLogKey];
+        if(prevLog && prevLog.completed_at) continue;
+        
         tasks.push({o,m,s:stage,si:i+1,isBackground:true});
         addedStages.add(stageKey);
         addedAsActive = true;
-      }
-      
-      // 3) Ötürülmüş sifariş — bu şöbəyə shared_with-də var amma özündə aktiv deyil
-      if(!addedAsActive && sharedWith.includes(dept)){
-        const currentStage = stages[si] || stages[0];
-        tasks.push({o,m,s:currentStage,si:o.current_stage,isShared:true});
       }
     });
 
@@ -1960,12 +2448,14 @@ async function renderDeptTasks(dept){
       // Fon (background) olanlar sona gəlsin
       if(a.isBackground && !b.isBackground) return 1;
       if(!a.isBackground && b.isBackground) return -1;
+      
       if(a.o.deadline&&b.o.deadline)return new Date(a.o.deadline)-new Date(b.o.deadline);
       if(a.o.deadline)return -1;if(b.o.deadline)return 1;
       return new Date(a.o.created_at||0)-new Date(b.o.created_at||0);
     });
-    const vis=tasks.slice(0,5);
-    const hidden=tasks.length-vis.length;
+    
+    const vis = tasks.slice(0,5);
+    const hidden = tasks.length - vis.length;
     document.getElementById('dt-cnt').textContent=tasks.length;
     const tl=document.getElementById('dept-task-list');
 
@@ -1979,11 +2469,11 @@ async function renderDeptTasks(dept){
       const logKey = o.id + '_' + (si-1) + '_' + dept;
       const log = logMap[logKey];
       
-      // Dept-specific localStorage oxu - paralel üçün kritikdir
+      // YALNIZ Supabase log-dan oxu (localStorage stale qalır, istifadə etmə)
+      const started = log && log.started_at ? log.started_at : null;
+      const done = log && log.completed_at ? log.completed_at : null;
+      const startTime = started;
       const dKey = key+'_'+dept;
-      const started = (log && log.started_at) || localStorage.getItem(dKey+'_s');
-      const done = (log && log.completed_at) || localStorage.getItem(dKey+'_d');
-      const startTime = (log && log.started_at) || localStorage.getItem(dKey+'_t');
       
       const total=(m.stages||[]).length;
       const dots=(m.stages||[]).map((_,i)=>`<div class="sdot${i+1<si?' done':i+1===si?' cur':''}"></div>`).join('');
@@ -2002,28 +2492,94 @@ async function renderDeptTasks(dept){
       const modelImg=m.img_url?`<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
 
       if(isShared){
-        // Ötürülmüş sifariş — info kartı, Başla/Tamamla yoxdur
-        return `<div class="task-card" id="tcard-${o.id}" style="border:2px dashed var(--or);background:linear-gradient(135deg,#fff5ed,#fff)">
-          <div class="task-card-top" style="background:var(--lo)">
+        // Ötürülmüş sifariş — "Aldım" sistemi
+        const shKey = `sh_${o.id}_${dept}`;
+        const sharedDoneDepts = (o.shared_done_depts||'').split(',').filter(x=>x);
+        const received = sharedDoneDepts.includes(dept);
+        
+        const cardStyle = received 
+          ? 'border:1px dashed var(--bd);background:#f5f5f5;opacity:0.6'
+          : 'border:2px dashed var(--or);background:linear-gradient(135deg,#fff5ed,#fff)';
+        
+        return `<div class="task-card" id="tcard-${o.id}" style="${cardStyle}">
+          <div class="task-card-top" style="background:${received?'#eee':'var(--lo)'}">
             <div style="display:flex;align-items:center;gap:10px;flex:1">
               ${modelImg}
               <div style="flex:1">
-                <div style="font-size:15px;font-weight:700">📨 ${m.name.split('—')[0].trim()}</div>
-                <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · Önəmli məlumat</div>
+                <div style="font-size:15px;font-weight:700;${received?'text-decoration:line-through;color:#888':''}">📨 ${m.name.split('—')[0].trim()}</div>
+                <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${received?'Alındı':'Önəmli məlumat'}</div>
               </div>
             </div>
-            <span class="badge" style="background:var(--or);color:#fff">📨 Ötürülüb</span>
+            <span class="badge" style="background:${received?'#aaa':'var(--or)'};color:#fff">${received?'✓ Alındı':'📨 Ötürülüb'}</span>
           </div>
           <div class="task-card-body">
-            <div style="background:var(--lo);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#854F0B">
-              <b>💡 Məlumat üçün:</b> Bu sifariş başqa şöbə tərəfindən sizə önəmli məlumat kimi ötürülüb. Əvvəlcədən hazırlığa başlaya bilərsiniz. Faktiki tapşırığınız olduqda sifariş aktiv iş kimi görünəcək.
-            </div>
+            ${!received ? `<div style="background:var(--lo);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#854F0B">
+              <b>💡 Bildiriş:</b> Bu sifariş üçün parçanı hazırla. Parçanı alandan sonra <b>✓ Aldım</b> düyməsinə bas.
+            </div>` : ''}
             <div class="task-meta">
-              <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600">${o.client}</div></div>
-              <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--or);font-size:20px;font-weight:700">${o.qty}</div></div>
+              <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600;${received?'text-decoration:line-through':''}">${o.client}</div></div>
+              <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:${received?'#888':'var(--or)'};font-size:20px;font-weight:700;${received?'text-decoration:line-through':''}">${o.qty}</div></div>
               <div class="tm-i"><div class="tm-k">Cari mərhələ</div><div class="tm-v">${si}/${total}</div></div>
               <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v">${o.deadline||'—'}</div></div>
             </div>
+            ${(o.fabric||o.color||o.fabric_company||o.legs||o.notes) ? `
+            <div style="background:${received?'#f5f5f5':'var(--lt)'};border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:12px;line-height:1.7;${received?'text-decoration:line-through;color:#888':''}">
+              ${o.fabric ? `<div><b>🧶 Parça:</b> ${o.fabric}</div>` : ''}
+              ${o.color ? `<div><b>🏷️ Parça kodu:</b> ${o.color}</div>` : ''}
+              ${o.fabric_company ? `<div><b>🏭 Parça satan:</b> ${o.fabric_company}</div>` : ''}
+              ${o.legs ? `<div><b>🦵 Ayaq rəngi:</b> ${o.legs}</div>` : ''}
+              ${o.notes ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)"><b>📝 Qeyd:</b> ${o.notes}</div>` : ''}
+            </div>` : ''}
+            ${!received ? `<div class="task-btns">
+              <button class="btn btn-t btn-lg btn-full" data-sh-oid="${o.id}" data-sh-dept="${dept}" onclick="sharedReceiveClick(this)">✓ Aldım</button>
+            </div>` : ''}
+          </div>
+        </div>`;
+      }
+
+      // Keyfiyyət yoxlama (QA) şöbəsi üçün xüsusi kart
+      if(dept === 'qa'){
+        // Sabit 3 yoxlama bölməsi
+        const checkList = [
+          {key:'karkaz', label:'Karkaz', icon:'🪵'},
+          {key:'tikis',  label:'Tikiş - Parça', icon:'🧵'},
+          {key:'boya',   label:'Boya', icon:'🎨'}
+        ];
+        
+        // QA işçiləri siyahısı
+        const qaWorkers = dws.filter(w=>w.dept_key === 'qa');
+        const qaWorkerOptions = qaWorkers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('');
+        
+        // Əvvəlki təmir varsa göstər
+        const hasReworkFlag = o.rework_status === 'pending' || o.rework_status === 'done';
+        
+        return `<div class="task-card" id="tcard-${o.id}" style="${hasReworkFlag?'border:2px solid #E24B4A':''}">
+          <div class="task-card-top${isLate?' late':''}" style="${hasReworkFlag?'background:#FFEBEE':''}">
+            <div style="display:flex;align-items:center;gap:10px;flex:1">
+              ${modelImg}
+              <div style="flex:1">
+                <div style="font-size:15px;font-weight:700">${hasReworkFlag?'🔧 Təmirdən qayıdıb':'✅ Keyfiyyət yoxlaması'}</div>
+                <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${m.name.split('—')[0].trim()}</div>
+              </div>
+            </div>
+            <span class="badge ${isLate?'bR':'bO'}">${hasReworkFlag?'TƏMİR':'Yoxlama'}</span>
+          </div>
+          <div class="task-card-body">
+            <div class="task-meta">
+              <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600">${o.client}</div></div>
+              <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-size:20px;font-weight:700">${o.qty}</div></div>
+              <div class="tm-i"><div class="tm-k">Plan vaxt</div><div class="tm-v">${s.hours} saat</div></div>
+              <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v" style="${isLate?'color:#E24B4A;font-weight:600':''}">${o.deadline||'—'}</div></div>
+            </div>
+            
+            ${hasReworkFlag && o.rework_reason ? `
+            <div style="background:#FFEBEE;border:1px solid #E24B4A;border-radius:10px;padding:10px 12px;margin:10px 0">
+              <div style="font-size:11px;color:#E24B4A;font-weight:700;margin-bottom:4px">⚠️ ƏVVƏLKİ PROBLEM</div>
+              <div style="font-size:13px;color:var(--t1)">${o.rework_reason}</div>
+              ${o.rework_by ? `<div style="font-size:11px;color:var(--t3);margin-top:4px">Bildirən: ${o.rework_by}</div>` : ''}
+            </div>
+            ` : ''}
+            
             ${(o.fabric||o.color||o.fabric_company||o.legs||o.notes) ? `
             <div style="background:var(--lt);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:12px;line-height:1.7">
               ${o.fabric ? `<div><b>🧶 Parça:</b> ${o.fabric}</div>` : ''}
@@ -2032,6 +2588,45 @@ async function renderDeptTasks(dept){
               ${o.legs ? `<div><b>🦵 Ayaq rəngi:</b> ${o.legs}</div>` : ''}
               ${o.notes ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)"><b>📝 Qeyd:</b> ${o.notes}</div>` : ''}
             </div>` : ''}
+            
+            <div style="background:var(--lt);border-radius:10px;padding:12px;margin:10px 0">
+              <label style="font-size:11px;color:var(--t2);font-weight:700;display:block;margin-bottom:6px">👤 Yoxlayan</label>
+              ${qaWorkers.length ? `
+                <select id="qa-inspector-${o.id}" style="width:100%;padding:12px;border:2px solid var(--bd);border-radius:8px;font-family:inherit;font-size:14px;background:#fff;min-height:48px">
+                  <option value="">— İşçi seçin —</option>
+                  ${qaWorkerOptions}
+                </select>
+              ` : `
+                <div style="padding:10px;background:#FFF5F5;border:1px solid #E24B4A;border-radius:8px;font-size:12px;color:#E24B4A">
+                  ⚠️ QA şöbəsində işçi yoxdur
+                </div>
+              `}
+            </div>
+            
+            <div style="background:var(--lt);border-radius:10px;padding:12px;margin:10px 0">
+              <label style="font-size:11px;color:var(--t2);font-weight:700;display:block;margin-bottom:10px">✔️ Yoxlama siyahısı</label>
+              <label onclick="qaCheckAll('${o.id}')" style="display:flex;align-items:center;gap:10px;padding:14px;background:var(--tl);color:#fff;border-radius:8px;margin-bottom:8px;cursor:pointer;min-height:52px;font-weight:700;font-size:14px">
+                <input type="checkbox" id="qa-all-${o.id}" style="width:24px;height:24px;cursor:pointer" onclick="event.stopPropagation();qaCheckAll('${o.id}')">
+                <span>✅ Hamısını OK işarələ</span>
+              </label>
+              ${checkList.map(c=>{
+                return `<label style="display:flex;align-items:center;gap:10px;padding:12px;background:#fff;border:1px solid var(--bd);border-radius:8px;margin-bottom:6px;cursor:pointer;min-height:50px">
+                  <input type="checkbox" class="qa-check-${o.id}" data-dept="${c.key}" data-label="${c.label}" style="width:24px;height:24px;cursor:pointer" onclick="updateQaAllCheck('${o.id}')">
+                  <span style="font-size:15px;font-weight:600">${c.icon} ${c.label}</span>
+                </label>`;
+              }).join('')}
+            </div>
+            
+            <div style="background:var(--lt);border-radius:10px;padding:12px;margin:10px 0">
+              <label style="font-size:11px;color:var(--t2);font-weight:700;display:block;margin-bottom:6px">📝 Əlavə qeyd / problem</label>
+              <textarea id="qa-notes-${o.id}" placeholder="Problem varsa buraya yazın..." style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit;font-size:13px;min-height:70px;resize:vertical"></textarea>
+            </div>
+            
+            <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-top:12px">
+              <button onclick="qaDecision('${o.id}','deliver')" style="padding:14px;background:var(--tl);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px">✅ ÇATDIRILSIN</button>
+              <button onclick="qaDecision('${o.id}','repair')" style="padding:14px;background:var(--or);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px">🔧 TƏMİR OLUNSUN</button>
+              <button onclick="qaDecision('${o.id}','reject')" style="padding:14px;background:#E24B4A;color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px">❌ ÇATDIRILMASI QADAĞANDIR</button>
+            </div>
           </div>
         </div>`;
       }
@@ -2043,6 +2638,7 @@ async function renderDeptTasks(dept){
             <div style="flex:1">
               <div style="font-size:15px;font-weight:700">${s.name}</div>
               <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${m.name.split('—')[0].trim()}</div>
+              ${(o.order_date||o.created_at)?`<div style="font-size:10px;color:var(--t3);margin-top:2px">📅 ${new Date(o.order_date||o.created_at).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`:''}
             </div>
           </div>
           <span class="badge ${isLate?'bR':'bO'}">${isLate?'GECİKMİŞ':'Aktiv'}</span>
@@ -2071,19 +2667,29 @@ async function renderDeptTasks(dept){
             <button class="btn btn-o btn-lg" ${started||done?'disabled':''} onclick="dStart('${o.id}','${si}','${key}','${dept}')">▶ Başla</button>
             <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${total}')">✓ Tamamla</button>
           </div>
-          ${(window.forwardingConfig && window.forwardingConfig[dept] && window.forwardingConfig[dept].length) ? `
-          <div style="margin-top:8px;padding-top:10px;border-top:1px dashed var(--bd)">
-            <div style="font-size:11px;color:var(--t2);margin-bottom:6px;font-weight:600">🔀 Sifarişi digər şöbəyə önəmli məlumat kimi ötür:</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px">
-              ${window.forwardingConfig[dept].map(toK=>{
-                const toInfo = DEPT_INFO[toK] || {name:toK, icon:'📦'};
-                const already = (o.shared_with||'').split(',').includes(toK);
-                return `<button class="btn" style="font-size:11px;padding:6px 10px;background:${already?'var(--lt)':'var(--sf)'};border:1px solid ${already?'var(--tl)':'var(--bd)'};color:${already?'var(--tl)':'var(--t1)'}" onclick="forwardToDept('${o.id}','${toK}','${dept}')" ${already?'disabled':''}>
-                  ${already?'✓':'➡️'} ${toInfo.icon} ${toInfo.name}
-                </button>`;
-              }).join('')}
-            </div>
-          </div>` : ''}
+          ${(() => {
+            const altDept = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : null);
+            const fwdTargets = (window.forwardingConfig && window.forwardingConfig[dept]) 
+              || (altDept && window.forwardingConfig && window.forwardingConfig[altDept])
+              || [];
+            if(!fwdTargets.length) return '';
+            
+            let buttonsHtml = '';
+            fwdTargets.forEach(toK=>{
+              const toInfo = DEPT_INFO[toK] || DEPT_INFO[toK==='tikis'?'tikiş':(toK==='tikiş'?'tikis':toK)] || {name:toK, icon:'📦'};
+              // Düymə həmişə basıla bilsin - indicator üçün artıq ötürülüb/ötürülməyib göstər
+              const sharedWithArr = (o.shared_with||'').split(',');
+              const already = sharedWithArr.includes(toK) || (toK==='tikis' && sharedWithArr.includes('tikiş')) || (toK==='tikiş' && sharedWithArr.includes('tikis'));
+              const bg = already ? 'var(--lt)' : 'var(--sf)';
+              const bd = already ? 'var(--tl)' : 'var(--bd)';
+              const col = already ? 'var(--tl)' : 'var(--t1)';
+              const icon = already ? '✓' : '➡️';
+              // disabled çıxarıldı - həmişə basıla bilsin
+              buttonsHtml += '<button class="btn" data-fwd-oid="'+o.id+'" data-fwd-to="'+toK+'" data-fwd-from="'+dept+'" style="font-size:11px;padding:6px 10px;background:'+bg+';border:1px solid '+bd+';color:'+col+'" onclick="forwardToDeptClick(this)">'+icon+' '+toInfo.icon+' '+toInfo.name+'</button>';
+            });
+            
+            return '<div style="margin-top:8px;padding-top:10px;border-top:1px dashed var(--bd)"><div style="font-size:11px;color:var(--t2);margin-bottom:6px;font-weight:600">🔀 Sifarişi digər şöbəyə önəmli məlumat kimi ötür:</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+buttonsHtml+'</div></div>';
+          })()}
         </div>
       </div>`;
     }).join('')+(hidden>0?`<div style="text-align:center;padding:18px;background:var(--lo);border-radius:var(--rl);border:2px dashed rgba(247,137,48,.3);margin-top:8px"><div style="font-size:28px;font-weight:700;color:var(--or)">${hidden}</div><div style="font-size:13px;color:#854F0B;margin-top:2px">sifariş növbədə gözləyir</div></div>`:'');
@@ -2099,10 +2705,10 @@ async function renderDeptTasks(dept){
       const logKey = o.id + '_' + (si-1) + '_' + dept;
       const log = logMap[logKey];
       
-      // Dept-specific oxu
-      const s2 = (log && log.started_at) || localStorage.getItem(dKey+'_s');
-      const d2 = (log && log.completed_at) || localStorage.getItem(dKey+'_d');
-      const t2 = (log && log.started_at) || localStorage.getItem(dKey+'_t');
+      // YALNIZ Supabase log-dan oxu
+      const s2 = log && log.started_at ? log.started_at : null;
+      const d2 = log && log.completed_at ? log.completed_at : null;
+      const t2 = s2;
       
       if(s2&&!d2&&t2){
         const timerEl=document.getElementById('timer-'+o.id);
@@ -2119,81 +2725,219 @@ async function renderDeptTasks(dept){
       }
     });
 
-  } else {
-    const done=[];
-    orders.forEach(o=>{
-      const m=models.find(x=>x.id===o.model_id);if(!m)return;
-      const parallelDone = (o.parallel_done_depts || '').split(',').filter(x=>x);
-      (m.stages||[]).forEach((s,i)=>{
-        const stageDept = s.dept;
-        const isParallel = stageDept.includes('||');
-        const matches = stageDept===dept || (isParallel && stageDept.split('||').includes(dept));
-        if(!matches) return;
-        
-        if(isParallel){
-          // Paralel stage-də YALNIZ parallel_done_depts-də olan şöbə tamamlanmış sayılır
-          if(parallelDone.includes(dept)){
-            done.push({o,m,s,stageNum:i+1});
-          }
-        } else {
-          // Adi (ardıcıl) stage — current_stage irəlidirsə tamamlanıb
-          if(o.current_stage > i+1){
-            done.push({o,m,s,stageNum:i+1});
-          }
-        }
-      });
+  } else if(curDeptTab==='shared'){
+    // PARÇA ALIŞ TAB — ötürülmüş sifarişlər
+    const sharedTasks=[];
+    const altDept = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : null);
+    
+    console.log('[shared tab] dept:', dept, 'altDept:', altDept);
+    console.log('[shared tab] orders count:', orders.length);
+    
+    orders.filter(o=>!['delivered','delivering'].includes(o.status)).forEach(o=>{
+      const m=models.find(x=>x.id===o.model_id);
+      if(!m) return;
+      const stages=m.stages||[];
+      const sharedWith = (o.shared_with || '').split(',').filter(x=>x);
+      
+      const matches = sharedWith.includes(dept) || (altDept && sharedWith.includes(altDept));
+      
+      if(sharedWith.length > 0){
+        console.log('[shared tab] order '+o.order_number+' sharedWith:', sharedWith, 'matches:', matches);
+      }
+      
+      if(matches){
+        const si = o.current_stage-1;
+        const currentStage = stages[si] || stages[0] || {name:'?',dept:dept,hours:0};
+        sharedTasks.push({o,m,s:currentStage,si:o.current_stage,isShared:true});
+      }
     });
+    
+    console.log('[shared tab] matched:', sharedTasks.length);
+    
+    // Sort — alınmayıb yuxarıda, alınıb aşağıda
+    sharedTasks.sort((a,b)=>{
+      const aReceived = (a.o.shared_done_depts||'').split(',').includes(dept);
+      const bReceived = (b.o.shared_done_depts||'').split(',').includes(dept);
+      if(aReceived && !bReceived) return 1;
+      if(!aReceived && bReceived) return -1;
+      if(a.o.deadline&&b.o.deadline) return new Date(a.o.deadline)-new Date(b.o.deadline);
+      return 0;
+    });
+    
+    const vis = sharedTasks;
+    const hidden = 0;
+    document.getElementById('dt-cnt').textContent = sharedTasks.length;
+    const tl = document.getElementById('dept-task-list');
+    
+    if(!vis.length){
+      tl.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:48px;margin-bottom:12px">📨</div><div style="font-weight:600;color:var(--or);font-size:16px">Parça alış sifarişi yoxdur</div><div style="font-size:13px;margin-top:6px;color:var(--t3)">Başqa şöbədən ötürüldükdə burada görünəcək</div></div>`;
+      return;
+    }
+    
+    // Shared kartları render et (eyni kod aktiv tab kimi)
+    tl.innerHTML = vis.map(({o,m,s,si})=>{
+      const modelImg=m.img_url?`<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
+      const total = (m.stages||[]).length;
+      const sharedDoneDepts = (o.shared_done_depts||'').split(',').filter(x=>x);
+      const received = sharedDoneDepts.includes(dept);
+      
+      const cardStyle = received 
+        ? 'border:1px dashed var(--bd);background:#f5f5f5;opacity:0.6'
+        : 'border:2px dashed var(--or);background:linear-gradient(135deg,#fff5ed,#fff)';
+      
+      return `<div class="task-card" id="tcard-${o.id}" style="${cardStyle}">
+        <div class="task-card-top" style="background:${received?'#eee':'var(--lo)'}">
+          <div style="display:flex;align-items:center;gap:10px;flex:1">
+            ${modelImg}
+            <div style="flex:1">
+              <div style="font-size:15px;font-weight:700;${received?'text-decoration:line-through;color:#888':''}">📨 ${m.name.split('—')[0].trim()}</div>
+              <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${received?'Alındı':'Parça gözlənir'}</div>
+            </div>
+          </div>
+          <span class="badge" style="background:${received?'#aaa':'var(--or)'};color:#fff">${received?'✓ Alındı':'📨 Ötürülüb'}</span>
+        </div>
+        <div class="task-card-body">
+          ${!received ? `<div style="background:var(--lo);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#854F0B">
+            <b>💡 Bildiriş:</b> Bu sifariş üçün parçanı hazırla. Parçanı alandan sonra <b>✓ Aldım</b> düyməsinə bas.
+          </div>` : ''}
+          <div class="task-meta">
+            <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600;${received?'text-decoration:line-through':''}">${o.client}</div></div>
+            <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:${received?'#888':'var(--or)'};font-size:20px;font-weight:700;${received?'text-decoration:line-through':''}">${o.qty}</div></div>
+            <div class="tm-i"><div class="tm-k">Cari mərhələ</div><div class="tm-v">${si}/${total}</div></div>
+            <div class="tm-i"><div class="tm-k">Deadline</div><div class="tm-v">${o.deadline||'—'}</div></div>
+          </div>
+          ${(o.fabric||o.color||o.fabric_company||o.legs||o.notes) ? `
+          <div style="background:${received?'#f5f5f5':'var(--lt)'};border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:12px;line-height:1.7;${received?'text-decoration:line-through;color:#888':''}">
+            ${o.fabric ? `<div><b>🧶 Parça:</b> ${o.fabric}</div>` : ''}
+            ${o.color ? `<div><b>🏷️ Parça kodu:</b> ${o.color}</div>` : ''}
+            ${o.fabric_company ? `<div><b>🏭 Parça satan:</b> ${o.fabric_company}</div>` : ''}
+            ${o.legs ? `<div><b>🦵 Ayaq rəngi:</b> ${o.legs}</div>` : ''}
+            ${o.notes ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)"><b>📝 Qeyd:</b> ${o.notes}</div>` : ''}
+          </div>` : ''}
+          ${!received ? `<div class="task-btns">
+            <button class="btn btn-t btn-lg btn-full" data-sh-oid="${o.id}" data-sh-dept="${dept}" onclick="sharedReceiveClick(this)">✓ Aldım</button>
+          </div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    return;
+  } else {
+    // TAMAMLANANLAR — bu şöbənin task_logs-da completed_at olan bütün loglarına bax
+    const altDept = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : null);
+    const completedLogs = (allLogs||[]).filter(l => 
+      (l.dept_key === dept || (altDept && l.dept_key === altDept)) && l.completed_at && l.stage_index >= 0
+    );
+    
+    const done = [];
+    completedLogs.forEach(log=>{
+      const o = orders.find(x=>x.id===log.order_id);
+      if(!o) return;
+      const m = models.find(x=>x.id===o.model_id);
+      if(!m) return;
+      const stages = m.stages || [];
+      const stageIdx = log.stage_index;
+      const s = stages[stageIdx];
+      if(!s) return;
+      done.push({o,m,s,stageNum:stageIdx+1,log});
+    });
+    
+    // Ən yeni tamamlanmışlar yuxarıda
+    done.sort((a,b)=> new Date(b.log.completed_at) - new Date(a.log.completed_at));
+    
     document.getElementById('dt-cnt').textContent=done.length;
     const tl2=document.getElementById('dept-task-list');
     if(!done.length){
       tl2.innerHTML=`<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:14px">Hələ tamamlanan iş yoxdur</div></div>`;
       return;
     }
-    tl2.innerHTML=done.map(({o,m,s,stageNum})=>{
-      const key=`ts_${o.id}_${stageNum}`;
-      const dKey = key+'_'+dept;
-      const logKey = o.id + '_' + (stageNum-1) + '_' + dept;
-      const log = logMap[logKey];
+    
+    // Tarixə görə qruplaşdır
+    const groups = {};
+    done.forEach(item=>{
+      const dt = new Date(item.log.completed_at);
+      const dateKey = dt.toISOString().split('T')[0]; // "2026-04-20"
+      if(!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(item);
+    });
+    
+    // Qrup açarlarını tarixə görə (yeni üstdə)
+    const sortedKeys = Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+    
+    // Bu gün, dünən üçün label
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now()-86400000).toISOString().split('T')[0];
+    const dateLabel = (k)=>{
+      if(k===today) return '📅 Bu gün';
+      if(k===yesterday) return '📅 Dünən';
+      const d = new Date(k);
+      return '📅 ' + d.toLocaleDateString('az-AZ',{day:'2-digit',month:'long',weekday:'long'});
+    };
+    
+    tl2.innerHTML = sortedKeys.map(dateKey=>{
+      const items = groups[dateKey];
+      // Unikal sifariş sayı və cəm məhsul
+      const uniqueOrders = new Set(items.map(i=>i.o.id));
+      const orderCount = uniqueOrders.size;
+      let totalQty = 0;
+      uniqueOrders.forEach(oid=>{
+        const it = items.find(i=>i.o.id===oid);
+        if(it) totalQty += it.o.qty || 0;
+      });
       
-      const t0 = (log && log.started_at) || localStorage.getItem(dKey+'_t');
-      const dt = (log && log.completed_at) || localStorage.getItem(dKey+'_dt');
-      let dm = log?.duration_minutes;
-      if(!dm && t0 && dt) dm = Math.round((new Date(dt)-new Date(t0))/60000);
-      
-      const st=ST[o.status]||ST.created;
-      const modelImg=m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
-      return`<div class="task-card">
-        <div class="task-card-top" style="background:var(--lt)">
-          <div style="display:flex;align-items:center;gap:10px;flex:1">
-            ${modelImg}
-            <div>
-              <div style="font-size:15px;font-weight:700">✓ ${s.name}</div>
-              <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${o.client}</div>
+      return `
+        <div style="padding:12px 16px;margin:14px 0 8px 0;background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:10px;border-left:4px solid var(--tl);display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700;color:var(--tl);font-size:14px">${dateLabel(dateKey)}</div>
+          <div style="font-size:12px;color:var(--t2)">${orderCount} sifariş · ${totalQty} məhsul</div>
+        </div>
+        ${items.map(({o,m,s,stageNum,log})=>{
+          const t0 = log.started_at;
+          const dt = log.completed_at;
+          let dm = log.duration_minutes;
+          if(!dm && t0 && dt) dm = Math.round((new Date(dt)-new Date(t0))/60000);
+          
+          const st=ST[o.status]||ST.created;
+          const modelImg=m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
+          const completedTime = new Date(dt).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'});
+          
+          // Sifariş qəbul tarixi: order_date (menecerin verdiyi) yoxdursa created_at
+          const orderDate = o.order_date || o.created_at;
+          
+          return `<div class="task-card">
+            <div class="task-card-top" style="background:var(--lt)">
+              <div style="display:flex;align-items:center;gap:10px;flex:1">
+                ${modelImg}
+                <div>
+                  <div style="font-size:15px;font-weight:700">✓ ${s.name}</div>
+                  <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${o.client}</div>
+                </div>
+              </div>
+              <span class="badge ${st.c}">${st.t}</span>
             </div>
-          </div>
-          <span class="badge ${st.c}">${st.t}</span>
-        </div>
-        <div class="task-card-body">
-          <div style="background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:12px;padding:14px;margin-bottom:10px;text-align:center;border:2px solid var(--tl)">
-            <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">⏱ Sərf olunan vaxt</div>
-            <div style="font-size:32px;font-weight:700;color:var(--tl);font-family:'DM Mono',monospace;line-height:1">${dm?dm+' dəq':'—'}</div>
-            <div style="font-size:11px;color:var(--t3);margin-top:4px">Plan: ${s.hours*60} dəq${dm?' · Fərq: '+(dm>s.hours*60?'+':'')+Math.round(dm-s.hours*60)+' dəq':''}</div>
-          </div>
-          <div class="task-meta">
-            <div class="tm-i"><div class="tm-k">Model</div><div class="tm-v">${m.name.split('—')[0].trim()}</div></div>
-            <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div>
-            <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v">${o.client}</div></div>
-          </div>
-          ${dt?`<div style="font-size:11px;color:var(--t3);margin-top:6px">Tamamlandı: ${new Date(dt).toLocaleString('az-AZ')}</div>`:''}
-        </div>
-      </div>`;
+            <div class="task-card-body">
+              <div style="background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:12px;padding:18px;margin-bottom:10px;text-align:center;border:2px solid var(--tl)">
+                <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">⏱ Sərf olunan vaxt</div>
+                <div style="font-size:40px;font-weight:800;color:var(--tl);font-family:'DM Mono',monospace;line-height:1">${dm!==null&&dm!==undefined?dm+' dəq':'—'}</div>
+                <div style="font-size:11px;color:var(--t3);margin-top:6px">Plan: ${s.hours*60} dəq${dm?' · Fərq: '+(dm>s.hours*60?'+':'')+Math.round(dm-s.hours*60)+' dəq':''}</div>
+                <div style="font-size:11px;color:var(--t3);margin-top:4px">🕐 Tamamlandı: ${completedTime}</div>
+              </div>
+              <div class="task-meta">
+                <div class="tm-i"><div class="tm-k">Model</div><div class="tm-v">${m.name.split('—')[0].trim()}</div></div>
+                <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div>
+                <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v">${o.client}</div></div>
+              </div>
+              ${orderDate?`<div style="font-size:11px;color:var(--t3);margin-top:6px">📅 Sifariş qəbul olundu: ${new Date(orderDate).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+      `;
     }).join('');
+    return;
   }
 }
 
 function dStart(oid,si,key,dept){
   const now=new Date().toISOString();
-  // Dept-specific key (paralel şöbələr üçün kritik)
+  invalidateCache('logs','orders'); // Cache-i yenilə
   const dKey = key+'_'+dept;
   localStorage.setItem(dKey+'_s','1');
   localStorage.setItem(dKey+'_t',now);
@@ -2272,32 +3016,35 @@ async function renderLogisticsDone(){
   tl.innerHTML = all.map(o=>{
     const m = allModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
     const modelImg = m.img_url 
-      ? `<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`
-      : `<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
+      ? `<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`
+      : `<div style="width:40px;height:40px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
     
-    const deliveryDate = o.updated_at ? new Date(o.updated_at).toLocaleString('az-AZ') : '—';
+    const deliveryDate = o.delivered_at || o.updated_at;
+    const delStr = deliveryDate ? new Date(deliveryDate).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    const driverName = o.delivered_by || '—';
     
-    return `<div class="task-card">
-      <div class="task-card-top" style="background:var(--lt)">
+    return `<div class="task-card" style="border:1px dashed var(--bd);background:#f5f5f5;opacity:0.7">
+      <div class="task-card-top" style="background:#eee">
         <div style="display:flex;align-items:center;gap:10px;flex:1">
           ${modelImg}
           <div style="flex:1">
-            <div style="font-size:15px;font-weight:700">✓ Təslim edildi</div>
-            <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${o.client}</div>
+            <div style="font-size:14px;font-weight:700;text-decoration:line-through;color:#666">✓ Təslim edildi</div>
+            <div style="font-size:12px;color:var(--t2);margin-top:2px;text-decoration:line-through">${o.order_number} · ${o.client}</div>
           </div>
         </div>
-        <span class="badge bG">Delivered</span>
+        <span class="badge" style="background:#aaa;color:#fff">✓ Alındı</span>
       </div>
-      <div class="task-card-body">
+      <div class="task-card-body" style="text-decoration:line-through;color:#888">
         <div class="task-meta">
           <div class="tm-i"><div class="tm-k">Model</div><div class="tm-v">${m.name.split('—')[0].trim()}</div></div>
-          <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div>
+          <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v">${o.qty}</div></div>
           <div class="tm-i"><div class="tm-k">Məbləğ</div><div class="tm-v">${o.final_price?o.final_price+' ₼':'—'}</div></div>
+          <div class="tm-i"><div class="tm-k">Sürücü</div><div class="tm-v" style="font-weight:600">${driverName}</div></div>
         </div>
-        <div style="font-size:11px;color:var(--t3);margin-top:6px">Təslim: ${deliveryDate}</div>
-        ${o.signature ? `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--bd)">
+        <div style="font-size:11px;color:var(--t3);margin-top:6px;text-decoration:none">🕐 Təslim: ${delStr}</div>
+        ${o.signature ? `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--bd);text-decoration:none">
           <div style="font-size:11px;color:var(--t2);margin-bottom:6px">İmza:</div>
-          <img src="${o.signature}" style="width:100%;max-width:300px;background:#fff;border:1px solid var(--bd);border-radius:8px">
+          <img src="${o.signature}" style="width:100%;max-width:250px;background:#fff;border:1px solid var(--bd);border-radius:8px">
         </div>` : ''}
       </div>
     </div>`;
@@ -2306,12 +3053,17 @@ async function renderLogisticsDone(){
 
 async function renderLogisticsDept(){
   showLoader();
-  const [{data:orders},{data:models}] = await Promise.all([
+  const [{data:orders},{data:models},{data:drivers},{data:users}] = await Promise.all([
     sb.from('orders').select('*').not('status', 'eq', 'delivered').order('created_at',{ascending:true}),
     sb.from('models').select('*'),
+    sb.from('workers').select('*').eq('dept_key','logistics').eq('status','active'),
+    sb.from('users').select('id,name'),
   ]);
   
   const allModels = models || [];
+  const allDrivers = drivers || [];
+  const userMap = {};
+  (users||[]).forEach(u=>userMap[u.id]=u.name);
   console.log('[LOGISTICS] Toplam sifariş (delivered xaric):', (orders||[]).length);
   console.log('[LOGISTICS] Statuslar:', (orders||[]).map(o=>({id:o.id,num:o.order_number,status:o.status,stage:o.current_stage})));
   
@@ -2363,6 +3115,9 @@ async function renderLogisticsDept(){
       ? `<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`
       : `<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
     
+    const managerName = userMap[o.created_by] || '—';
+    const driverOptions = allDrivers.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+    
     return `<div class="task-card">
       <div class="task-card-top">
         <div style="display:flex;align-items:center;gap:10px;flex:1">
@@ -2377,6 +3132,7 @@ async function renderLogisticsDept(){
       <div class="task-card-body">
         <div class="task-meta">
           <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600">${o.client}</div></div>
+          <div class="tm-i"><div class="tm-k">Menecer</div><div class="tm-v" style="font-weight:600;color:var(--tl)">👤 ${managerName}</div></div>
           <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-size:20px;font-weight:700">${o.qty}</div></div>
           <div class="tm-i"><div class="tm-k">Məbləğ</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.final_price||0} ₼</div></div>
           <div class="tm-i"><div class="tm-k">Satış</div><div class="tm-v">${o.sale_type==='showroom'?'🏪 Vitrin':'💵 Nağd'}</div></div>
@@ -2389,32 +3145,98 @@ async function renderLogisticsDept(){
           ${o.legs ? `<div><b>🦵 Ayaq rəngi:</b> ${o.legs}</div>` : ''}
           ${o.notes ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)"><b>📝 Qeyd:</b> ${o.notes}</div>` : ''}
         </div>` : ''}
+        
+        <div style="background:var(--lt);border-radius:10px;padding:12px;margin:10px 0">
+          <label style="font-size:11px;color:var(--t2);font-weight:700;display:block;margin-bottom:6px">🚛 Sürücü seçimi</label>
+          ${allDrivers.length ? `
+            <select id="driver-sel-${o.id}" style="width:100%;padding:12px;border:2px solid var(--bd);border-radius:8px;font-family:inherit;font-size:14px;background:#fff;min-height:48px">
+              <option value="">— Sürücü seçin —</option>
+              ${driverOptions}
+            </select>
+          ` : `
+            <div style="padding:10px;background:#FFF5F5;border:1px solid #E24B4A;border-radius:8px;font-size:12px;color:#E24B4A">
+              ⚠️ Logistika şöbəsində aktiv sürücü yoxdur. Admin paneldə əlavə edin.
+            </div>
+          `}
+        </div>
+        
         <div class="task-btns">
-          <button class="btn btn-t btn-lg btn-full" onclick="markDel('${o.id}')">✓ Təslim et və imzala</button>
+          <button class="btn btn-t btn-lg btn-full" data-del-oid="${o.id}" onclick="markDelClick(this)">✓ Təslim et və imzala</button>
         </div>
       </div>
     </div>`;
   }).join('');
 }
 
+function markDelClick(btn){
+  const oid = btn.dataset.delOid;
+  console.log('[markDelClick]', oid);
+  if(!oid){
+    toast('⚠ Sifariş ID tapılmadı');
+    return;
+  }
+  markDelWithDriver(oid);
+}
+
+async function markDelWithDriver(oid){
+  console.log('[markDelWithDriver] başlayır:', oid);
+  const sel = document.getElementById('driver-sel-'+oid);
+  console.log('[markDelWithDriver] driver select:', sel);
+  if(sel){
+    const driverId = sel.value;
+    console.log('[markDelWithDriver] seçilmiş sürücü:', driverId);
+    if(!driverId){
+      toast('⚠ Əvvəlcə sürücü seçin');
+      sel.style.borderColor = '#E24B4A';
+      setTimeout(()=>{sel.style.borderColor='';}, 2000);
+      return;
+    }
+    window._pendingDriverId = driverId;
+  } else {
+    console.log('[markDelWithDriver] driver select yoxdur');
+  }
+  console.log('[markDelWithDriver] markDel çağrılır');
+  markDel(oid);
+}
+
 // ═══════════ ŞÖBƏ ARASİ ÖTÜRMƏ ═══════════
+function forwardToDeptClick(btn){
+  const oid = btn.dataset.fwdOid;
+  const toDept = btn.dataset.fwdTo;
+  const fromDept = btn.dataset.fwdFrom;
+  console.log('[forwardToDeptClick]', {oid, toDept, fromDept});
+  if(oid && toDept && fromDept) forwardToDept(oid, toDept, fromDept);
+}
+
 async function forwardToDept(oid, toDept, fromDept){
+  invalidateCache('orders');
+  // Normalize: tikiş → tikis
+  if(toDept === 'tikiş') toDept = 'tikis';
+  if(fromDept === 'tikiş') fromDept = 'tikis';
+  
   console.log('[forward] başlayır:', {oid, toDept, fromDept});
   showLoader();
   try{
-    // Mövcud shared_with oxu
-    const {data:order, error:fetchErr} = await sb.from('orders').select('shared_with').eq('id',oid).maybeSingle();
+    // Mövcud shared_with və shared_done_depts oxu
+    const {data:order, error:fetchErr} = await sb.from('orders').select('shared_with, shared_done_depts').eq('id',oid).maybeSingle();
     if(fetchErr){
       console.error('[forward] fetch xətası:', fetchErr);
       throw fetchErr;
     }
-    console.log('[forward] cari shared_with:', order?.shared_with);
+    console.log('[forward] cari shared_with:', order?.shared_with, 'done:', order?.shared_done_depts);
     
     let shared = (order?.shared_with||'').split(',').filter(x=>x);
+    // Köhnə 'tikiş' varsa təmizlə
+    shared = shared.map(x => x === 'tikiş' ? 'tikis' : x);
     if(!shared.includes(toDept)) shared.push(toDept);
     
+    // shared_done_depts-dən də toDept-i çıxart (yenidən alınmayıb göstərilsin)
+    let sharedDone = (order?.shared_done_depts||'').split(',').filter(x=>x);
+    sharedDone = sharedDone.filter(x => x !== toDept && x !== (toDept === 'tikis' ? 'tikiş' : (toDept === 'tikiş' ? 'tikis' : null)));
+    
     const {error:updateErr} = await sb.from('orders').update({
-      shared_with: shared.join(',')
+      shared_with: shared.join(','),
+      shared_done_depts: sharedDone.join(',')
     }).eq('id', oid);
     
     if(updateErr){
@@ -2435,15 +3257,59 @@ async function forwardToDept(oid, toDept, fromDept){
   }
 }
 
+// Ötürülmüş sifarişdə "Aldım" basıldı
+// Button click wrapper (data-attributes ilə)
+function sharedReceiveClick(btn){
+  const oid = btn.dataset.shOid;
+  const dept = btn.dataset.shDept;
+  console.log('[sharedReceiveClick]', {oid, dept});
+  if(oid && dept) sharedReceive(oid, dept);
+}
+
+async function sharedReceive(oid, dept){
+  console.log('[sharedReceive] başladı:', {oid, dept});
+  showLoader();
+  try{
+    const {data:order, error:fetchErr} = await sb.from('orders').select('shared_done_depts').eq('id', oid).maybeSingle();
+    if(fetchErr){
+      console.error('[sharedReceive] fetch xətası:', fetchErr);
+      throw fetchErr;
+    }
+    
+    let doneDepts = (order?.shared_done_depts||'').split(',').filter(x=>x);
+    if(!doneDepts.includes(dept)) doneDepts.push(dept);
+    
+    const {error:updateErr} = await sb.from('orders').update({
+      shared_done_depts: doneDepts.join(',')
+    }).eq('id', oid);
+    
+    if(updateErr){
+      console.error('[sharedReceive] update xətası:', updateErr);
+      throw updateErr;
+    }
+    
+    console.log('[sharedReceive] yazıldı:', doneDepts.join(','));
+    
+    hideLoader();
+    toast('✓ Alındı qeydə alındı');
+    setTimeout(()=>renderDeptTasks(dept), 300);
+  }catch(e){
+    hideLoader();
+    toast('⚠ Xəta: '+(e.message||'Naməlum'));
+    console.error('[sharedReceive] xətası:', e);
+  }
+}
+
 async function dDone(oid, si, key, dept, totalStages){
+  invalidateCache('logs','orders'); // Cache-i yenilə
   const doneBtn = document.getElementById('td-'+oid);
   if(doneBtn) doneBtn.disabled = true;
   
   const now = new Date().toISOString();
   const stageIndex = parseInt(si) - 1;
   
-  const startTime = localStorage.getItem(key+'_'+dept+'_t') || localStorage.getItem(key+'_t');
-  const durMin = startTime ? Math.max(0, Math.round((new Date(now) - new Date(startTime))/60000)) : null;
+  // startTime əvvəl localStorage-dan, sonra Supabase-dən
+  let startTime = localStorage.getItem(key+'_'+dept+'_t') || localStorage.getItem(key+'_t');
   
   // === Sifariş və model yüklə ===
   let model = null;
@@ -2455,9 +3321,21 @@ async function dDone(oid, si, key, dept, totalStages){
       const mr = await sb.from('models').select('stages').eq('id', order.model_id).single();
       model = mr.data;
     }
+    // localStorage-da yoxdursa Supabase log-dan oxu
+    if(!startTime){
+      const {data:existingLog} = await sb.from('task_logs')
+        .select('started_at')
+        .eq('order_id', oid)
+        .eq('stage_index', stageIndex)
+        .eq('dept_key', dept)
+        .maybeSingle();
+      if(existingLog?.started_at) startTime = existingLog.started_at;
+    }
   }catch(e){
     console.error('[dDone] yükləmə xətası:', e);
   }
+  
+  const durMin = startTime ? Math.max(0, Math.round((new Date(now) - new Date(startTime))/60000)) : null;
   
   if(!order || !model){
     toast('⚠ Sifariş tapılmadı');
@@ -2570,8 +3448,8 @@ async function dDone(oid, si, key, dept, totalStages){
       const updateData = {
         current_stage: newStage,
         status: newStatus,
-        parallel_done_depts: doneDepts.join(','), // Qoru - digər şöbələr hələ işləyə bilər
-        shared_with: '' // növbəti stage - ötürmələri sıfırla
+        parallel_done_depts: doneDepts.join(',') // Qoru - digər şöbələr hələ işləyə bilər
+        // shared_with qorunur - ötürmələr növbəti mərhələdə də aktiv qalsın
       };
       if(shouldResetParallel){
         updateData.parallel_done_depts = '';
@@ -2607,7 +3485,7 @@ async function dDone(oid, si, key, dept, totalStages){
   
   try{
     const {error} = await sb.from('orders')
-      .update({current_stage: newStage, status: newStatus, shared_with: ''})
+      .update({current_stage: newStage, status: newStatus})
       .eq('id', oid);
     if(error){
       toast('⚠ Xəta: '+error.message);
@@ -2638,6 +3516,161 @@ async function dDone(oid, si, key, dept, totalStages){
 }
 
 // Köməkçi funksiya — card-ı DOM-dan tamamilə sil
+function qaCheckAll(oid){
+  const allCheck = document.getElementById('qa-all-'+oid);
+  const checks = document.querySelectorAll('.qa-check-'+oid);
+  const shouldCheck = allCheck ? allCheck.checked : true;
+  checks.forEach(ch => ch.checked = shouldCheck);
+  if(allCheck) allCheck.checked = shouldCheck;
+}
+
+function updateQaAllCheck(oid){
+  const allCheck = document.getElementById('qa-all-'+oid);
+  const checks = document.querySelectorAll('.qa-check-'+oid);
+  if(!allCheck) return;
+  allCheck.checked = Array.from(checks).every(ch => ch.checked);
+}
+
+// ═══════════ KEYFİYYƏT YOXLAMA (QA) ═══════════
+async function qaDecision(oid, action){
+  const inspectorSel = document.getElementById('qa-inspector-'+oid);
+  const notesEl = document.getElementById('qa-notes-'+oid);
+  const checks = document.querySelectorAll('.qa-check-'+oid);
+  
+  const inspectorId = inspectorSel?.value;
+  if(!inspectorId){
+    toast('⚠ Yoxlayan işçini seçin');
+    if(inspectorSel) inspectorSel.style.borderColor='#E24B4A';
+    return;
+  }
+  
+  const notes = notesEl?.value?.trim() || '';
+  const checked = [];
+  const unchecked = [];
+  checks.forEach(ch=>{
+    if(ch.checked) checked.push(ch.dataset.dept);
+    else unchecked.push(ch.dataset.dept);
+  });
+  
+  // Yoxlayan məlumatı
+  const inspector = appWorkers.find(w=>w.id===inspectorId);
+  const inspectorName = inspector?.name || currentUser.name;
+  
+  // Sifariş və model yüklə
+  const {data:order} = await sb.from('orders').select('*').eq('id', oid).single();
+  if(!order){toast('Xəta: sifariş tapılmadı'); return;}
+  
+  const {data:model} = await sb.from('models').select('*').eq('id', order.model_id).single();
+  const stages = model?.stages || [];
+  
+  // ÇATDIRILSIN
+  if(action === 'deliver'){
+    if(unchecked.length > 0){
+      const missing = unchecked.map(d => DEPT_INFO[d]?.name || d).join(', ');
+      toast('⚠ Bu şöbələr yoxlanılmayıb: '+missing, 5000);
+      return;
+    }
+    
+    if(!confirm('Bu sifarişi Logistikaya göndərmək istəyirsiniz?\n\n'+order.order_number+'\n'+order.client)) return;
+    
+    showLoader();
+    // QA stage-ni tamamla, növbəti mərhələyə keç
+    const qaStageIdx = stages.findIndex(s=>s.dept==='qa');
+    
+    // Log yaz
+    await sb.from('task_logs').delete()
+      .eq('order_id', oid).eq('stage_index', qaStageIdx).eq('dept_key', 'qa');
+    await sb.from('task_logs').insert({
+      order_id: oid, stage_index: qaStageIdx,
+      worker_id: inspectorId, worker_name: inspectorName,
+      dept_key: 'qa', action: 'qa_approved',
+      started_at: new Date().toISOString(), completed_at: new Date().toISOString(),
+      duration_minutes: 1
+    });
+    
+    // Sifarişi yenilə — birbaşa ready statusuna keçir
+    const totalStages = stages.length;
+    await sb.from('orders').update({
+      current_stage: totalStages + 1, // Bütün mərhələlər bitdi
+      status: 'ready',
+      rework_status: null,
+      rework_reason: null,
+      rework_by: null
+    }).eq('id', oid);
+    
+    invalidateCache('orders', 'logs');
+    hideLoader();
+    toast('✅ Çatdırılsın — Logistikaya göndərildi');
+    hideTaskCard(oid);
+    setTimeout(()=>renderDeptTasks('qa'), 500);
+    return;
+  }
+  
+  // TƏMİR OLUNSUN — Rəngləməyə qayıt
+  if(action === 'repair'){
+    if(!notes){
+      toast('⚠ Problemin səbəbini "Əlavə qeyd" sahəsinə yazın');
+      if(notesEl) notesEl.style.borderColor='#E24B4A';
+      return;
+    }
+    
+    if(!confirm('Sifariş Rəngləməyə qaytarılacaq (qırmızı problemli).\n\nƏmin sin?')) return;
+    
+    showLoader();
+    // Rəngləmə stage-ni tap
+    const renglemeIdx = stages.findIndex(s=>s.dept==='rengleme' || (s.dept.includes('||') && s.dept.split('||').includes('rengleme')));
+    
+    if(renglemeIdx < 0){
+      hideLoader();
+      toast('⚠ Modeldə Rəngləmə şöbəsi tapılmadı');
+      return;
+    }
+    
+    // Sifarişi Rəngləməyə qaytar
+    await sb.from('orders').update({
+      current_stage: renglemeIdx + 1,
+      status: 'in_progress',
+      rework_status: 'pending',
+      rework_reason: notes,
+      rework_by: inspectorName,
+      // Rəngləmə loglarını sil ki təzədən Başla/Tamamla basa bilsin
+      parallel_done_depts: ''
+    }).eq('id', oid);
+    
+    // Rəngləmə log-unu sil
+    await sb.from('task_logs').delete()
+      .eq('order_id', oid).eq('stage_index', renglemeIdx);
+    
+    hideLoader();
+    toast('🔧 Sifariş Rəngləməyə qaytarıldı');
+    hideTaskCard(oid);
+    setTimeout(()=>renderDeptTasks('qa'), 500);
+    return;
+  }
+  
+  // ÇATDIRILMASI QADAĞANDIR — cancel
+  if(action === 'reject'){
+    const reason = notes || prompt('Qadağa səbəbi:');
+    if(!reason){toast('⚠ Səbəb yazın'); return;}
+    
+    if(!confirm('Bu sifariş imtina ediləcək (çatdırılmayacaq).\n\n'+order.order_number+'\n\nƏmin sin?')) return;
+    
+    showLoader();
+    await sb.from('orders').update({
+      status: 'cancelled',
+      cancelled_at: new Date().toISOString(),
+      cancelled_by: inspectorName,
+      cancel_reason: 'QA: '+reason
+    }).eq('id', oid);
+    hideLoader();
+    
+    toast('❌ Sifariş çatdırılması qadağan edildi');
+    hideTaskCard(oid);
+    setTimeout(()=>renderDeptTasks('qa'), 500);
+    return;
+  }
+}
+
 function hideTaskCard(oid){
   const card = document.getElementById('tcard-'+oid);
   if(card){
@@ -2752,9 +3785,29 @@ function openSignatureSheet(order,model){
   document.getElementById('sig-clear-btn').onclick=()=>ctx.clearRect(0,0,canvas.width,canvas.height);
   document.getElementById('sig-confirm-btn').onclick=async ()=>{
     const signatureData=canvas.toDataURL('image/png');
-    await sb.from('orders').update({status:'delivered',signature:signatureData}).eq('id',order.id);
+    const driverId = window._pendingDriverId;
+    let driverName = currentUser.name;
+    let driverIdFinal = null;
+    
+    if(driverId){
+      const {data:drv} = await sb.from('workers').select('*').eq('id', driverId).maybeSingle();
+      if(drv){
+        driverName = drv.name;
+        driverIdFinal = drv.id;
+      }
+    }
+    
+    await sb.from('orders').update({
+      status:'delivered',
+      signature:signatureData,
+      delivered_by: driverName,
+      delivered_by_id: driverIdFinal,
+      delivered_at: new Date().toISOString()
+    }).eq('id',order.id);
+    
+    window._pendingDriverId = null;
     closeSheet('signature');
-    toast('✅ Təslim edildi — imza saxlanıldı!');
+    toast('✅ Təslim edildi — '+driverName);
     renderLogi();
   };
   
@@ -2762,6 +3815,183 @@ function openSignatureSheet(order,model){
 }
 
 // ═══════════ AI ANALİZ ═══════════
+// ═══════════ ŞÖBƏ STATİSTİKASI ═══════════
+function statQuickRange(range){
+  const today = new Date();
+  const toDate = today.toISOString().split('T')[0];
+  let fromDate = toDate;
+  
+  if(range === 'today'){
+    fromDate = toDate;
+  } else if(range === 'yesterday'){
+    const y = new Date(); y.setDate(y.getDate()-1);
+    fromDate = y.toISOString().split('T')[0];
+  } else if(range === 'week'){
+    const w = new Date(); w.setDate(w.getDate()-7);
+    fromDate = w.toISOString().split('T')[0];
+  } else if(range === 'month'){
+    const m = new Date(); m.setDate(m.getDate()-30);
+    fromDate = m.toISOString().split('T')[0];
+  }
+  
+  document.getElementById('stat-date-from').value = fromDate;
+  document.getElementById('stat-date-to').value = toDate;
+  document.getElementById('stat-time-from').value = '00:00';
+  document.getElementById('stat-time-to').value = '23:59';
+  renderDeptStats();
+}
+
+function populateStatDeptFilter(){
+  const sel = document.getElementById('stat-dept-filter');
+  if(!sel) return;
+  sel.innerHTML = '<option value="all">Bütün şöbələr</option>' +
+    Object.entries(DEPT_INFO).map(([k,info])=>`<option value="${k}">${info.icon} ${info.name}</option>`).join('');
+}
+
+function renderDeptStats(){
+  const orders = window._aiOrders || [];
+  const logs = window._aiLogs || [];
+  
+  const dateFromStr = document.getElementById('stat-date-from')?.value;
+  const dateToStr = document.getElementById('stat-date-to')?.value;
+  const timeFrom = document.getElementById('stat-time-from')?.value || '00:00';
+  const timeTo = document.getElementById('stat-time-to')?.value || '23:59';
+  const deptFilter = document.getElementById('stat-dept-filter')?.value || 'all';
+  
+  let fromTs, toTs;
+  if(dateFromStr){
+    fromTs = new Date(dateFromStr+'T'+timeFrom+':00').getTime();
+  } else {
+    const t = new Date(); t.setHours(0,0,0,0);
+    fromTs = t.getTime();
+  }
+  if(dateToStr){
+    toTs = new Date(dateToStr+'T'+timeTo+':59').getTime();
+  } else {
+    const t = new Date(); t.setHours(23,59,59,999);
+    toTs = t.getTime();
+  }
+  
+  const filteredLogs = logs.filter(l=>{
+    if(!l.completed_at || l.stage_index < 0) return false;
+    const ts = new Date(l.completed_at).getTime();
+    if(ts < fromTs || ts > toTs) return false;
+    if(deptFilter !== 'all'){
+      const altDept = deptFilter === 'tikis' ? 'tikiş' : (deptFilter === 'tikiş' ? 'tikis' : null);
+      if(l.dept_key !== deptFilter && l.dept_key !== altDept) return false;
+    }
+    return true;
+  });
+  
+  const deptStats = {};
+  filteredLogs.forEach(l=>{
+    const d = l.dept_key;
+    if(!deptStats[d]){
+      deptStats[d] = {orderIds:new Set(), totalQty:0, totalMin:0, plannedMin:0, taskCount:0, countedOrders:new Set()};
+    }
+    deptStats[d].orderIds.add(l.order_id);
+    deptStats[d].totalMin += (l.duration_minutes || 0);
+    deptStats[d].taskCount++;
+    
+    const o = orders.find(x=>x.id===l.order_id);
+    if(o && !deptStats[d].countedOrders.has(l.order_id)){
+      deptStats[d].totalQty += (o.qty || 0);
+      deptStats[d].countedOrders.add(l.order_id);
+    }
+    
+    const m = appModels.find(x=>x.id===o?.model_id);
+    if(m && m.stages && m.stages[l.stage_index]){
+      deptStats[d].plannedMin += (m.stages[l.stage_index].hours || 0) * 60;
+    }
+  });
+  
+  const container = document.getElementById('dept-stats-list');
+  if(!container) return;
+  
+  const entries = Object.entries(deptStats).sort((a,b)=>b[1].totalMin - a[1].totalMin);
+  
+  if(!entries.length){
+    container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Seçilən dövrdə bu şöbə(lər)də məlumat yoxdur</div>';
+    return;
+  }
+  
+  container.innerHTML = entries.map(([dept, s])=>{
+    const info = DEPT_INFO[dept] || DEPT_INFO[dept==='tikis'?'tikiş':(dept==='tikiş'?'tikis':dept)] || {name:dept, icon:'🔧'};
+    const orderCount = s.orderIds.size;
+    const hours = Math.round(s.totalMin/60*10)/10;
+    const avgPerProduct = s.totalQty>0 ? Math.round(s.totalMin/s.totalQty) : 0;
+    const diffMin = Math.round(s.totalMin - s.plannedMin);
+    const diffColor = diffMin>0 ? '#E24B4A' : 'var(--tl)';
+    const diffSign = diffMin>0 ? '+' : '';
+    
+    return '<div style="padding:14px;border:1px solid var(--bd);border-radius:12px;margin-bottom:10px;background:#fff">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
+        '<div style="font-size:15px;font-weight:700">'+info.icon+' '+info.name+'</div>'+
+        '<div style="font-size:20px;font-weight:800;color:var(--tl);font-family:\'DM Mono\',monospace">'+hours+' saat</div>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">'+
+        '<div style="background:var(--lt);padding:8px;border-radius:8px;text-align:center">'+
+          '<div style="font-size:11px;color:var(--t2);font-weight:600">SİFARİŞ</div>'+
+          '<div style="font-size:18px;font-weight:700;color:var(--tl)">'+orderCount+'</div>'+
+        '</div>'+
+        '<div style="background:var(--lt);padding:8px;border-radius:8px;text-align:center">'+
+          '<div style="font-size:11px;color:var(--t2);font-weight:600">MƏHSUL</div>'+
+          '<div style="font-size:18px;font-weight:700;color:var(--tl)">'+s.totalQty+'</div>'+
+        '</div>'+
+        '<div style="background:var(--lt);padding:8px;border-radius:8px;text-align:center">'+
+          '<div style="font-size:11px;color:var(--t2);font-weight:600">ORT/MƏHSUL</div>'+
+          '<div style="font-size:18px;font-weight:700;color:var(--tl)">'+avgPerProduct+' dəq</div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="font-size:11px;color:var(--t2);display:flex;justify-content:space-between">'+
+        '<span>Plan: '+Math.round(s.plannedMin/60*10)/10+' saat</span>'+
+        '<span style="color:'+diffColor+';font-weight:600">Fərq: '+diffSign+diffMin+' dəq</span>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+// ═══════════ İMTİNA EDİLMİŞ SİFARİŞLƏR ═══════════
+function renderCancelledOrders(){
+  const orders = window._aiOrders || [];
+  const cancelled = orders.filter(o=>o.status === 'cancelled');
+  const container = document.getElementById('cancelled-orders-list');
+  if(!container) return;
+  
+  if(!cancelled.length){
+    container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">İmtina edilmiş sifariş yoxdur</div>';
+    return;
+  }
+  
+  // Yeni-köhnə sıra
+  cancelled.sort((a,b)=> new Date(b.cancelled_at||0) - new Date(a.cancelled_at||0));
+  
+  container.innerHTML = 
+    '<div style="padding:10px;background:#FFF5F5;border:1px solid #E24B4A;border-radius:8px;margin-bottom:12px;font-size:12px;color:#E24B4A;font-weight:600">'+
+      '⚠️ Cəmi '+cancelled.length+' sifariş imtina edilib'+
+    '</div>'+
+    cancelled.map(o=>{
+      const m = appModels.find(x=>x.id===o.model_id) || {name:'?', emoji:'📦'};
+      const modelName = m.name.split('—')[0].trim();
+      const cancelledDate = o.cancelled_at ? new Date(o.cancelled_at).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+      const orderDate = (o.order_date || o.created_at) ? new Date(o.order_date||o.created_at).toLocaleDateString('az-AZ') : '—';
+      
+      return '<div style="padding:14px;border:1px solid #E24B4A;border-radius:10px;margin-bottom:10px;background:#FFF9F9">'+
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'+
+          '<div>'+
+            '<div style="font-size:15px;font-weight:700;color:#E24B4A">❌ '+o.order_number+'</div>'+
+            '<div style="font-size:12px;color:var(--t2);margin-top:2px">'+o.client+' · '+modelName+' · '+o.qty+' ədəd</div>'+
+          '</div>'+
+          '<button onclick="adminRestoreOrder(\''+o.id+'\')" style="padding:6px 12px;background:var(--tl);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600">♻️ Bərpa et</button>'+
+        '</div>'+
+        '<div style="font-size:11px;color:var(--t3);margin-bottom:4px">📅 Sifariş tarixi: '+orderDate+'</div>'+
+        '<div style="font-size:11px;color:var(--t3);margin-bottom:4px">🕐 İmtina: '+cancelledDate+(o.cancelled_by?' · '+o.cancelled_by:'')+'</div>'+
+        (o.cancel_reason ? '<div style="margin-top:8px;padding:8px 10px;background:#fff;border-radius:6px;font-size:12px;color:var(--t1);border-left:3px solid #E24B4A"><b>Səbəb:</b> '+o.cancel_reason+'</div>' : '')+
+        (o.final_price ? '<div style="font-size:11px;color:var(--t2);margin-top:6px">💰 Məbləğ: '+o.final_price+' ₼</div>' : '')+
+      '</div>';
+    }).join('');
+}
+
 async function renderAI(){
   showLoader();
   const [{data:orders},{data:logs}]=await Promise.all([
@@ -2771,6 +4001,24 @@ async function renderAI(){
   hideLoader();
   const all=orders||[];
   const allLogs=logs||[];
+  
+  // Yaddaşa yaz — tarix filtri üçün
+  window._aiOrders = all;
+  window._aiLogs = allLogs;
+  
+  // Stat filter init
+  populateStatDeptFilter();
+  const today = new Date().toISOString().split('T')[0];
+  const dfEl = document.getElementById('stat-date-from');
+  const dtEl = document.getElementById('stat-date-to');
+  if(dfEl && !dfEl.value) dfEl.value = today;
+  if(dtEl && !dtEl.value) dtEl.value = today;
+  
+  // Şöbə statistikası render
+  renderDeptStats();
+  
+  // İmtina edilmiş sifarişlər
+  renderCancelledOrders();
 
   // Stats
   const delivered=all.filter(o=>o.status==='delivered');
@@ -3111,14 +4359,16 @@ Hər bölmə 2-4 nöqtə olsun. Azərbaycan dilində yaz.`},
 
 // ═══════════ ADMIN ═══════════
 async function renderAdmin(){
-  const[{data:users},{data:models},{data:workers}]=await Promise.all([
+  const[{data:users},{data:models},{data:workers},{data:clients}]=await Promise.all([
     sb.from('users').select('count'),
     sb.from('models').select('count'),
     sb.from('workers').select('count'),
+    sb.from('clients').select('count'),
   ]);
   const uc=document.getElementById('ami-u');if(uc)uc.textContent=(users?.length||0)+' nəfər';
   const mc=document.getElementById('ami-m');if(mc)mc.textContent=(models?.length||0)+' model';
   const wc=document.getElementById('ami-w');if(wc)wc.textContent=(workers?.length||0)+' işçi';
+  const cc=document.getElementById('ami-c');if(cc)cc.textContent=(clients?.length||0)+' nəfər';
 }
 
 async function adminSec(sec){
@@ -3128,8 +4378,120 @@ async function adminSec(sec){
   if(sec==='pins') await renderPinsSection(el);
   if(sec==='models') await renderModelsSection(el);
   if(sec==='workers') await renderWorkersSection(el);
+  if(sec==='clients') await renderClientsSection(el);
   if(sec==='settings') await renderSettingsSection(el);
   if(sec==='deptanalytics') await renderDeptAnalytics(el);
+}
+
+async function renderClientsSection(el){
+  showLoader();
+  const {data:clients} = await sb.from('clients').select('*').order('name');
+  const {data:orders} = await sb.from('orders').select('client, final_price, status');
+  hideLoader();
+  
+  const allClients = clients || [];
+  const allOrders = orders || [];
+  
+  // Hər müştəri üçün statistika
+  const clientStats = {};
+  allOrders.forEach(o=>{
+    const n = o.client;
+    if(!clientStats[n]) clientStats[n] = {count:0, total:0, active:0};
+    clientStats[n].count++;
+    clientStats[n].total += (o.final_price || 0);
+    if(o.status !== 'delivered' && o.status !== 'cancelled') clientStats[n].active++;
+  });
+  
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="slbl" style="margin:0">👤 Müştərilər — ${allClients.length} nəfər</div>
+      <button class="btn btn-t" style="font-size:12px;padding:8px 14px" onclick="openAddClientFromAdmin()">+ Müştəri əlavə et</button>
+    </div>
+    <div style="margin-bottom:12px">
+      <input type="text" id="client-search-admin" placeholder="🔍 Axtarış: ad və ya telefon..." oninput="filterClientList(this.value)" style="width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;font-family:inherit;font-size:14px">
+    </div>
+    <div id="client-list-admin">
+      ${renderClientList(allClients, clientStats)}
+    </div>
+  `;
+  
+  window._adminClients = allClients;
+  window._adminClientStats = clientStats;
+}
+
+function renderClientList(list, stats){
+  if(!list.length) return '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Müştəri yoxdur</div>';
+  return list.map(c=>{
+    const s = stats[c.name] || {count:0,total:0,active:0};
+    return `<div style="padding:14px;border:1px solid var(--bd);border-radius:10px;margin-bottom:8px;background:#fff;display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;font-weight:700">${c.name}</div>
+        ${c.phone?`<div style="font-size:12px;color:var(--t2);margin-top:2px">📞 ${c.phone}</div>`:''}
+        <div style="font-size:11px;color:var(--t3);margin-top:4px">
+          ${s.count} sifariş · ${s.total.toFixed(0)} ₼ · ${s.active>0?`<span style="color:var(--or);font-weight:600">${s.active} aktiv</span>`:'0 aktiv'}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button onclick="editClientAdmin('${c.id}')" style="padding:6px 10px;border:1px solid var(--bd);background:#fff;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px">✏️</button>
+        <button onclick="delClientAdmin('${c.id}','${c.name.replace(/'/g,"\\'")}')" style="padding:6px 10px;border:1px solid #E24B4A;background:#fff;color:#E24B4A;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterClientList(val){
+  const v = val.toLowerCase().trim();
+  const filtered = (window._adminClients||[]).filter(c => 
+    c.name.toLowerCase().includes(v) || (c.phone && c.phone.toLowerCase().includes(v))
+  );
+  document.getElementById('client-list-admin').innerHTML = renderClientList(filtered, window._adminClientStats||{});
+}
+
+function openAddClientFromAdmin(){
+  const name = prompt('Müştərinin adı:');
+  if(!name || !name.trim()) return;
+  const phone = prompt('Telefon (istəyə bağlı):') || '';
+  
+  (async()=>{
+    showLoader();
+    const {error} = await sb.from('clients').insert({name:name.trim(), phone:phone.trim()||null});
+    hideLoader();
+    if(error){toast('Xəta: '+error.message);return;}
+    toast('✓ Müştəri əlavə edildi');
+    await loadClients();
+    adminSec('clients');
+  })();
+}
+
+async function editClientAdmin(id){
+  const c = (window._adminClients||[]).find(x=>x.id===id);
+  if(!c) return;
+  const newName = prompt('Ad:', c.name);
+  if(newName === null) return;
+  const newPhone = prompt('Telefon:', c.phone || '');
+  if(newPhone === null) return;
+  
+  showLoader();
+  const {error} = await sb.from('clients').update({
+    name: newName.trim(),
+    phone: newPhone.trim() || null
+  }).eq('id', id);
+  hideLoader();
+  if(error){toast('Xəta: '+error.message);return;}
+  toast('✓ Yeniləndi');
+  await loadClients();
+  adminSec('clients');
+}
+
+async function delClientAdmin(id, name){
+  if(!confirm('Müştərini silmək istəyirsiniz?\n\n'+name)) return;
+  showLoader();
+  const {error} = await sb.from('clients').delete().eq('id', id);
+  hideLoader();
+  if(error){toast('Xəta: '+error.message);return;}
+  toast('✓ Silindi');
+  await loadClients();
+  adminSec('clients');
 }
 
 async function renderDeptAnalytics(el){
@@ -3391,7 +4753,32 @@ async function getForwardingConfig(){
   try{
     const {data, error} = await sb.from('app_settings').select('value').eq('key','forwarding_config').maybeSingle();
     if(error) console.error('[forwarding] oxuma xətası:', error);
-    return data?.value ? JSON.parse(data.value) : {};
+    const raw = data?.value ? JSON.parse(data.value) : {};
+    
+    // Köhnə "tikiş" key-lərini "tikis"-ə çevir (avtomatik migrasiya)
+    let changed = false;
+    const normalized = {};
+    Object.entries(raw).forEach(([src, targets])=>{
+      const normSrc = src === 'tikiş' ? 'tikis' : src;
+      if(normSrc !== src) changed = true;
+      const normTargets = (targets || []).map(t => {
+        if(t === 'tikiş'){ changed = true; return 'tikis'; }
+        return t;
+      });
+      normalized[normSrc] = normTargets;
+    });
+    
+    // Dəyişiklik varsa DB-ə geri yaz
+    if(changed){
+      console.log('[forwarding] migrasiya: tikiş → tikis, DB yenilənir');
+      await sb.from('app_settings').upsert({
+        key: 'forwarding_config',
+        value: JSON.stringify(normalized),
+        updated_at: new Date().toISOString()
+      });
+    }
+    
+    return normalized;
   }catch(e){
     console.error('[forwarding] xətası:', e);
     return {};
@@ -3836,24 +5223,50 @@ async function savePinChg(key){
 async function renderModelsSection(el){
   const{data:models}=await sb.from('models').select('*');
   const allModels = models||[];
+  const catalogUrl = window.location.origin + window.location.pathname + '?catalog=1';
   el.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
       <div class="slbl" style="margin:0">Modellər (${allModels.length})</div>
       <button class="btn btn-t" style="font-size:12px;padding:8px 14px" onclick="openAddModel()">+ Yeni model</button>
     </div>
+    
+    <div style="background:linear-gradient(135deg,var(--lt),#E8F5E9);border:2px solid var(--tl);border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:var(--tl);margin-bottom:8px">📎 Müştəri kataloqu</div>
+      <div style="font-size:12px;color:var(--t2);margin-bottom:10px">Bu linki müştəriyə göndərin — bütün məhsulları şəkil və qiymətlə görə bilər</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="text" id="catalog-link" readonly value="${catalogUrl}" style="flex:1;padding:8px 10px;border:1px solid var(--bd);border-radius:6px;font-size:11px;font-family:'DM Mono',monospace;background:#fff">
+        <button onclick="copyCatalogLink()" style="padding:8px 14px;background:var(--tl);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;white-space:nowrap">📋 Kopyala</button>
+        <a href="${catalogUrl}" target="_blank" style="padding:8px 14px;background:var(--or);color:#fff;border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">↗ Bax</a>
+      </div>
+    </div>
+    
     <input type="text" id="models-search" placeholder="🔍 Model axtar..." style="width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;margin-bottom:10px" oninput="filterModelsList(this.value)">
     <div class="sec-card" id="models-list">${renderModelsList(allModels)}</div>`;
   window._allModelsCache = allModels;
 }
 
+function copyCatalogLinkQuick(){
+  const url = window.location.origin + window.location.pathname + '?catalog=1';
+  navigator.clipboard.writeText(url).then(()=>{
+    toast('✓ Katalog linki kopyalandı — müştəriyə göndərin!');
+  }).catch(()=>{
+    prompt('Kataloq linki — kopyalayın:', url);
+  });
+}
+
+function copyCatalogLink(){
+  copyCatalogLinkQuick();
+}
+
 function renderModelsList(models){
   if(!models.length) return `<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Model tapılmadı</div>`;
+  const catNames = {divan:'Divan',kunc_divan:'Künc Divan',oturacaq:'Oturacaq',kreslo:'Kreslo',masa:'Masa',dest:'Dəst',diger:'Digər'};
   return models.map(m=>`
       <div class="list-item">
         <div class="li-icon" style="background:var(--lt);font-size:22px">${m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:10px">`:m.emoji}</div>
         <div class="li-body">
-          <div class="li-title">${m.name}</div>
-          <div class="li-sub">${(m.stages||[]).length} mərhələ · ${m.total_hours}s · ${m.description||''}</div>
+          <div class="li-title">${m.name} ${m.category?`<span style="font-size:10px;background:var(--lt);color:var(--tl);padding:2px 8px;border-radius:10px;margin-left:6px;font-weight:600">${catNames[m.category]||m.category}</span>`:''}</div>
+          <div class="li-sub">${(m.stages||[]).length} mərhələ · ${m.total_hours}s · ${m.sale_price?m.sale_price+' ₼':''} ${m.description?' · '+m.description:''}</div>
         </div>
         <div style="display:flex;gap:6px">
           <button onclick="editModel('${m.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:var(--tl);font-family:inherit;padding:3px 8px;border-radius:6px">Düzəlt</button>
@@ -3901,16 +5314,67 @@ async function renderWorkersSection(el){
 // ═══════════ WORKER MANAGEMENT ═══════════
 let editingWorkerId = null;
 
-function populateWorkerDeptSelect(){
-  const sel = document.getElementById('aw-dept');
-  if(!sel) return;
-  sel.innerHTML = '<option value="">Şöbə seçin</option>' + 
-    Object.entries(DEPT_INFO).map(([k,info])=>`<option value="${k}">${info.icon} ${info.name}</option>`).join('');
+function openDeptPicker(){
+  // Yeni modal yarat
+  const existingModal = document.getElementById('dept-picker-modal');
+  if(existingModal) existingModal.remove();
+  
+  const modal = document.createElement('div');
+  modal.id = 'dept-picker-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:flex-end;justify-content:center';
+  modal.onclick = (e)=>{ if(e.target === modal) modal.remove(); };
+  
+  const optionsHtml = Object.entries(DEPT_INFO).map(([k,info])=>
+    `<div onclick="selectDept('${k}','${info.icon} ${info.name}')" style="padding:16px 18px;border-bottom:1px solid var(--bd);cursor:pointer;display:flex;align-items:center;gap:12px;font-size:15px" onmouseover="this.style.background='var(--lt)'" onmouseout="this.style.background='transparent'">
+      <span style="font-size:22px">${info.icon}</span>
+      <span>${info.name}</span>
+    </div>`
+  ).join('');
+  
+  modal.innerHTML = `
+    <div style="background:#fff;width:100%;max-width:500px;border-radius:20px 20px 0 0;max-height:75vh;display:flex;flex-direction:column">
+      <div style="padding:18px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:17px;font-weight:700">Şöbə seçin</div>
+        <button onclick="document.getElementById('dept-picker-modal').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999">×</button>
+      </div>
+      <div style="overflow-y:auto;flex:1">${optionsHtml}</div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function selectDept(key, label){
+  document.getElementById('aw-dept').value = key;
+  document.getElementById('aw-dept-label').textContent = label;
+  document.getElementById('aw-dept-label').style.color = 'var(--t1)';
+  const modal = document.getElementById('dept-picker-modal');
+  if(modal) modal.remove();
+}
+
+function populateWorkerDeptSelect(selected){
+  const grid = document.getElementById('aw-dept-grid');
+  if(!grid) return;
+  grid.innerHTML = Object.entries(DEPT_INFO).map(([k,info])=>{
+    const isSel = k === selected;
+    return `<button type="button" onclick="selectWorkerDept('${k}')" id="awd-${k}" style="padding:12px 10px;border:2px solid ${isSel?'var(--tl)':'var(--bd)'};background:${isSel?'var(--lt)':'#fff'};border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:left;color:${isSel?'var(--tl)':'var(--t1)'};display:flex;align-items:center;gap:6px;min-height:48px">
+      <span style="font-size:18px">${info.icon}</span>
+      <span style="line-height:1.2">${info.name}</span>
+    </button>`;
+  }).join('');
+  if(selected){
+    document.getElementById('aw-dept').value = selected;
+  }
+}
+
+function selectWorkerDept(key){
+  document.getElementById('aw-dept').value = key;
+  // Re-render grid with selection
+  populateWorkerDeptSelect(key);
 }
 
 function openAddWorker(){
   editingWorkerId = null;
-  populateWorkerDeptSelect();
+  populateWorkerDeptSelect(null);
   document.getElementById('aw-title').textContent = 'Yeni işçi';
   document.getElementById('aw-name').value = '';
   document.getElementById('aw-role').value = '';
@@ -3922,7 +5386,7 @@ async function editWorker(id){
   const {data} = await sb.from('workers').select('*').eq('id', id).single();
   if(!data){toast('Xəta: işçi tapılmadı'); return;}
   editingWorkerId = id;
-  populateWorkerDeptSelect();
+  populateWorkerDeptSelect(data.dept_key);
   document.getElementById('aw-title').textContent = 'İşçini düzəlt';
   document.getElementById('aw-name').value = data.name;
   document.getElementById('aw-role').value = data.role_title || '';
@@ -3979,6 +5443,8 @@ function openAddModel(){
   document.getElementById('am-desc').value='';
   document.getElementById('am-sale-price').value='';
   document.getElementById('am-cost-price').value='';
+  const catEl = document.getElementById('am-category');
+  if(catEl) catEl.value = '';
   document.getElementById('am-prev').innerHTML='🛋️';
   window._currentStageOrder = [];
   window._parallelModes = {};
@@ -3996,6 +5462,8 @@ async function editModel(id){
   document.getElementById('am-desc').value=m.description||'';
   document.getElementById('am-sale-price').value=m.sale_price||'';
   document.getElementById('am-cost-price').value=m.cost_price||'';
+  const catEl = document.getElementById('am-category');
+  if(catEl) catEl.value = m.category || '';
   const prev=document.getElementById('am-prev');
   if(m.img_url)prev.innerHTML=`<img src="${m.img_url}" style="width:80px;height:64px;object-fit:cover;border-radius:var(--r)">`;
   else prev.innerHTML=m.emoji||'🛋️';
@@ -4341,14 +5809,15 @@ async function saveModel(){
   });
   
   const totalHours=stages.reduce((s,x)=>s+x.hours,0);
+  const category = document.getElementById('am-category')?.value || null;
   showLoader();
   if(editingModelId){
-    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice};
+    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category};
     if(modelImgData&&modelImgData.startsWith('data:'))upd.img_url=modelImgData;
     await sb.from('models').update(upd).eq('id',editingModelId);
     toast('✓ Model yeniləndi: '+name);
   }else{
-    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:modelImgData&&modelImgData.startsWith('data:')?modelImgData:null,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,is_active:true});
+    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:modelImgData&&modelImgData.startsWith('data:')?modelImgData:null,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:true});
     toast('✓ Model əlavə edildi: '+name);
   }
   hideLoader();
