@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#111820">
-<title>Sonno MES</title>
+<title>Sonno POS</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
@@ -295,7 +295,7 @@ textarea{resize:vertical;min-height:80px}
   #toast{bottom:calc(80px + env(safe-area-inset-bottom,0px) + 8px);left:14px;right:14px;max-width:none;text-align:center}
   /* Mobile: model grid və şəkilər */
   .pgrid{grid-template-columns:1fr 1fr !important;gap:10px}
-  .pcard img{display:block !important;width:100% !important;height:100% !important;object-fit:cover !important}
+  .pcard img{display:block !important;max-width:100% !important;object-fit:contain !important}
 }
 @media(min-width:769px){
   .sheet{top:52px;right:0;width:480px;height:calc(100vh - 52px);border-radius:0;transform:translateX(100%)}
@@ -310,9 +310,9 @@ textarea{resize:vertical;min-height:80px}
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-logo">
-    <svg viewBox="0 0 52 38" fill="none"><path d="M6 19Q6 6 18 6Q26 6 26 14Q26 22 18 22Q26 22 26 30Q26 38 18 38Q6 38 6 26" stroke="#F78930" stroke-width="4" stroke-linecap="round" fill="none"/></svg>
-    <h1>SONNO MES</h1>
-    <p>İstehsal İdarəetmə Sistemi</p>
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAhUAAAD9CAYAAAALbIW4AAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAAd+UlEQVR42u3dd3xUZb7H8e9Jp6SXSYOIgFjADMUFaS5gF+tdubq7rusu4K6r4oqrqKioWFAuK/aC9e56bdeyK65cFZCuIg4KihQhJJn0Tggh5bl/oCwoJSQzk5lzPu/Xi1cImXKe33km58vznPMcSwAgaZJLxrL2/N0Y6gEczvcfF5l9v1pSWOuer+Fmz2cpIlJqapFMmPR0kawre8k8tXXv021ZExyha8a6TPeI3RrcO0WRzfWKiopSXFycBiWEURwAwCH90xutCXM/sd0xOIJde3A3DJfpmRahXhkJOvWo7EM8shvFAgC0WWTDNlu2i1Cxj7suSDT9+/bQWSmMNgAA/CeqqZZQYTezRsmMGpKmgemZ9HAAQMBER8ZIaiBUhLo553Yxw07I1sBEpiwAAJ2jpcWeZ0M7IlQ8dEEXc+XJ/ejFAICg0GzTWXZbh4rXJueYc3sn0nsBAEGlpaWJUBEK7hkhc/15bnosACBoRYfbs122CRUzxyeaqaNy6KkAgKBnGXvOf4R8qHjx4q5mwpBj6KEAgNBhoggVwWTuWZaZ/PNcOiYAIPQyhU3Xsw65UHHvGRHmz2P70yMBACGrJayZUNHZ3p1yvBmXGUVvBACEuFZCRWd5YUKG+c/BLvogAMAWOFGzE1w3SOa+/3TT+wAAtmLXO0wFbah484p4c9axveh5AADbabVpu4IyVDTMchu6HAAAoSWoRmDuPj3WECgAAAhNQTNS8dY1A82Z2eQJAAAIFR2wZ3SCQAEAQCjr1OmPSQPFdAcAADbRaSMV95wuc/04N3sAAABCRfs9OCHFXD04m+oDAECoaL83r+9vznJFUHkAAAgV7ff+bSPMKd3rqToAADYUsBM135s6gEABAAChomNev3aAGZMWTrUBACBUtN+rV/U147MIFAAAECo64NmJvcx5Od2oMgAAhIr2e+LibuaXfeOpMAAADuGXqz9mX5xqfjski+oCAOAgPh+pmDpU5k8ECgAACBUdNfMiN1UFAIBQ0THLZ4zi5mAAABAqOua9v5xkBnWpo6IAABAq2u+pX3QxY1KaqCYAAISK9ps2VOY3J/WjkgAAECo65g5OzAQAAB0NFS9flsGJmQAAoGOhYvoImQv7u6ggAADoWKi49Tw31QMAAB0LFc9P7s20BwAA6HiouKR3LJUDAAAdCxXLbslllAIAAHQsVNw5WmZwvEXVAABAx0LFjee4qRgAAOhYqHj6wjCmPQAA8MnBt9XZoeKyYSfSCwAA8MXBt7XFuaHikUtSGKUAAMBHdreEOzdUTByYTQ8AAMBHWrul2bJdEYd7wCMTkhmlOELL8vLUuLtZrZYUZkXsk+D2zKFZalWY2fP3VkXIWGGh2VATJploSdb+//ZDay3pm6/zZL7/sbEky0g/dKhWS2oJ2/O9Jb7yla98DZ2ve3+vm3//Pvvh99x+LKm1VQoPl5paJOv7n8/4WLa8lPKwjWqY5SZUHIBnV6q+q2rUstXr9MSySq6zBQA43iFHKuZMYDnuH3tpyVe6cn4LIQIAgCMJFX8czHLckjT/m836xQs7CBIAALQnVFw3VI4fpXjv6836jxcJEwAAdChUnDW8r2OLsuDrbbrgxWrCBAAAvggVo9O7ObIgN73g0cPfiEABAIAvQsWsSzMcN/Xxwupv9cfXGwgTAAD4MlQM7etyVBFufsOjhz5jdAIAAN+HCofMfKysk8bO9BAmAADwgZ8s5fjq75xxnw/PzkgCBQAAPvSTkYrz+tn/Ph+LCnfo7Ic3EygAAPChMKc1+O3vqggUAAD4O1Q8f2mWrac+PmvqokufyiNQAADg71DRJy3O1o0dPX0lgQIAgECEiiGZ0bZt6LTXPextAAACESpuOsm+9/p4bfW3mruadSgAAAhIqBgyINW2jbyclTIBAAhcqBjfL8uWDbzhOQ97GQCAQIYKO/rnhi/12LdMewAAQKjooAnPtxIoAAAIZKi47eddbXeS5rxlG9i7AAAEOlQM6GO/pbmv+ecuRikAAAh0qDi3b1dbNerDL9exZwEA6IxQYTfzlzazZwEACLAIuzVoTbn05Hau+AAAp/jDsTLxcVJsFykiXLJapNZW6fjje6q1tVmNjU2qr29Q3Y6dqt/VquZmqdmSquqlR7/geOHTUDEj114raf7f6u3sVQCwmamjY0ymK0GutASlpsRpdNfdPnndBy/Z/xj4aXmjthVXyFtRp/zyBj3+KaHjSFiPniLz+7PdtmlQl5s8dAAACEG3DJfJSuumjJQ4pcRG6aT0xKDavnc3FmndhhLduZygcTARceEUAQAQwPBw/tGmZ1IXHZcWqZ8lhc52jz8mQ+OPydC08/aMbjznqdDavGo9vaKOkPFDqOifYZ/GvPRVHXsUADrZNbkyGUlSn5xUpcV30dDMJFu283fuZMmdrLnn7wkZTy/foCn/cPZyBhHxUfZpzLd5xXyaASBAZpyVYNISYpSdkazTXJGOr8fkEcdq8giZJeXN8nxXppv+t8RxAcNqmOW2zYmanE8BAL5z1fEy6QnS0RlhyklP0pCe2RTlCC3aXKAPPy/XnDXOOA+DUAEATg8PI8JNlitBGcmxykqK1egkTrbzh6fXFGvKq8W2Pk5FsJsBwP5uPVEmO1XKSu2qtORE5fZMpSgBNnlQuiYPSjfvfLVNl/yt2pbhwjahYol3Fz0WgONNPyPZ9EqPlys+WuOyoilIEDp/wFFqmCWzcGOJznm2yFbhwjahYmfDbnoqANu7up/MUdmSKzlGfXskKjfNRVFC1NhjXGqY5TLv51XowsfzbREubBMqWu15GxMADjVtTBfTMzVersRonX10IgWxsTNzktUwK9k8vbZGU17eGtLhwjahYvPmzfRMACHl/hEymd0kV3q8Rp/Qi4I43OTceE3OdZv7F36nOxfUhmS4sE2oiIyMlNRErwQQVP5wokxOVoJyMhKVmtxdI1O4sgKHNm3s0RozRObn94TeFY22CRXdY7tKqqE3Agi4KcfIZKdLmeld1MOVqJOy0ygKOmRonNQwy21e21Cky58PnUW0bBMqYrsSKgD41+1jo0xmaqLSUxKV0jVMg1OiKAr8asKxGep3d44ZdtunIREsbBMqomMYUgTQcXePlumdGav0xC46+ahMCoJOlxu1Ww2z3ObN9eX61UsFQR0u7DNS0a0rPQ9Am0wZE2/SEmJ0rKu7UmMjdFJKF4qCoHfRCSlqmJVignn1aNuEipHphAoA/3Z1f5nje8UoLTZKWSnd5c7iPAfYQ8Mst5n9gUe3fRh89xNhmW4AIWtirkx2Yph69shQz6w0jUg0FAWOcMNpbsVm1pnrXtoSVMGCUAEgqE0+TibHJeVkRCk7LUFDMw92ngOBAs5y5QmxOvG6LDP2ocKgCRa2ukvp/e94dOcKcadSIARdPSra9HQlKislXhlJXXVyPCEBaKtgOc/C+uBXMiNPdNuiqAs2leiCeUWECiAITeoj0yNVynRFKiMtRWN7c88KwG7BIqK43D4FPaOvS1IRPQvoZDPPTTHp8THql5OqIXGMOACB0DDLbW59y6M5qzpvxD6iqIwdAeDITBwkk5UgDc6JUWqXSLlzeh/kkQQKIJDuudCtNNdmM+2dHZ0SLCK8FfYq6CMXpppr3ipjCgTwgemnRZqMxK7KyUzQuAzulAmEginD+0hNW8y09+oCfiy0pD1DJnYqaDAvDAIEk2tzZTISpewMKSMtWSMye1AUwCYe+GCL7vgwsMHClpeUTuwtM28LV4EAe8PDiDCTkxGvjJSuSk3sqpEJ3SgKYHM3ntZbTU0bzMyPdwXseGhJ0qKbcs2wJPscg9dU7dKI+zcQKuAofx4sk5ESruy0WPV0xWtwKtMVAKS753+pe5e0BuSYGCFJeSV1GpYUZ5sCDkqMoRfBtqaOjzbZWenKiu+uc5MjKQiAQ7rtnBNVv9tj5gbgqhBLkq4fHm3uOf84WxXxnW9LdclzXkYrEHImHifTO8dSekp3HZWRqGEpSRQFQIcF4nzDvW9gt5M1A1VAoL1uHJVkjkmPlCsuXKcew82uAIT+cdHWoWL5xq069dkaggU6ze1jZFzx4cpJS9C43lxZAcDewWLvCy+7sZcZnBxvu+L9deE63bKgmWABv5p5XoLJyXbJlRirUXHNFARA0FpRukvj/ss/FzPsfdF5F8r8apibVAYcwLUnyGSnST3SwpSZlqifZTPqACB0vbDcoz/+w/cnbu59wamDZWZOsGeoWFhh6ZwHviBY4LCmjkkwfXqmKSMhWmdkhlMQALblj/9w7/eCdjyv4gdzF+Zp2oIqggU0Y4RMz6w4uRK6cadMAAQLH9pvRc2Py1t1SkqYLQs3ZWyOtmyqMs98x0qbTjBleJRJj4/RgL5Zio+2NCQliqIAwI+8P7GrOXPeTp8dF/d7oTvO6G6mje1DKkNImDRYZkAPKSMhUulpqRqSzGWZAHCkHln8jW78V6NPjo0/eRE7T4EQLELTzWPizNHZScrJTNSoJG6lDQDBelx0ZKggWASXK/vJ9MiWjurhUqYrSScnRVMUAAigNUUVGvFQfoePiz95gcfP7WKuGNnPEUW84UWPHvuacywC5fpTYkxWWoIyUuKUlpKgEd13UxQACBIPLNmiO+Z37FbpB3yyU0YrJEYsfO3Wk2V6pHVTdnKskuIiNTAjmaIAgEOOiQd88vI7hppBXRsdU8RHlhTqxvllhIs2unJwhMnKyFRmclf1c0VpSHIYRQEAG1iwMV8XPFvR7uPhAZ942/gUc8uobEcVcklBjc54ZCvB4ntTTpRJT5L69UxVWkKUBmelUhQAcICOjFYc9IlOmgLZ1zNrKnTtq/mOCRf3neoy6fExys5I1cge3LMCAJxuVVG9xjy0qV3HwYM+6aNr0s3w7HTHFvWxxR7d8K/QP4nzyv4y6fHS0RlhyklP0NAePfnEAAAOacbbHs1aeeTHwIM+YdKxMg9f4XZ8Ye9916O7lwZ/uJg0OtxkpSUpI7mbspJiNS6B+1YAANqvPdMgh3zCyluONe74GCor6X8+36zfvbajU8PFrQNkstKkzNQ4uZIT5O6ZxI4BAPjFbQu+0eyFR7bS5iEffPMomdvHu6nsPtbUGa1an6+pb1X6LWBMPyPZ9EqPlys+WuOyWAgKABB4X9Tu0vB7NvguVEjOPWGzrf61pVSF5TuUV1ir2Z+0fZpkxikyafFhyu3bQ4PSEikkACDoPLrAo78sbPux7bAPfGKMzG/PdFNZAEDQ+ay6WSWlFSosrpC3bLce+PTwx7U/5cokdZUGHxOhM47vTxEP40jOrWjTAxmtAAB0llW1YSqtaVBRea22e0s1Z0mTX6afn7w8yQzITtCguDiKvo9HF63VX943bap5mx506xjLTD8zl8oCAPxmtbdE20uqtLV4l4qqpcc8nXPl3dVumZ/1i9LFg45np0j6vKRcI+cU+C5USIxWAAA6bnl+gwq9JfJW7tLNi3cF/eX6038eYU4f3kcnOfxKyOte8uip9YfPDG3eobefInPz2W4+EQCAQ/pie7Eqd7Zow5YyFddIs9eG/kKCM8bK3HSGc4+B/9pUpovmFfouVEjSB1NPMCPTIvnEAAD0xlc7VFyzW/neEj38eaMjbm/w9IRYc9ng3o7c3205YfOIOsEkt8zDl7r5JAGAQ6zcUq6C8hoVlNapsFR6bKO48aKkpXcONUNiGh3V5hn/941mfXTo8HjEnePNKzLMWce66FEAYBMfFTbKW1atgtJa3fVRPaGhjf7nyqPMBUcnOKa9n+0wGn33Wt+GComTNgEg1HxSvkPekmrlF5bLWyTN/ZoRB194cHykuXrUCY5p7+GmQNrVqe47J9ZcN7o3vQkAgik47GhWYUmdthRUq6iiQU98spvgEADX5Mo88Eu3I9r66rqt+u1/11g+DRWStPT6o8wQVwK9CQACbPGmdfJWN+ubEmn2UkYcgsEf+8vMucwZweJQoxUd6oxMgwCAfywvNfr6u2KV1Dbqno+qCQ4hYGKuzCMOGLHwW6h49Jwo8/vRrDgGAO2xYoNX1XW7VVxZrcJS6d51jDqEukm5Mg/bPFg8uGiDbn//wAuXdbgDfzSlrxme2Y2eBAAHsKgyQt6Kem0vq9Zd7xQRGhxgxqkyN51m32CxpGynzpi90T+hQmIaBAAWf7tVheU7tLWoRfd8xoiD0829oLuZfHIf27bvYFMgPun4M0fJTB3vphcBsC3PzmiV1jQqr7BcW/IKNfdTQ3DAIb0+Od2M751uy7ZNedmjpw+w/LrPPhRPTUgyvxnck14EIKStzPdqe1GFvFUt2uqVntnAqAPaz64j+X/7fIMmvbbLf6FCkuZflWHG5rDaJoDgtqqgTt6aRq3Nr9MDi2oIDfCbaeMSzR2n59iybQeaAvH5h4nzKwAEi3+uK1JR1Q5tK6jXXz2MOKBzrLxliHHHNzsiVET4400IFgACYVGlVFHfrNKyKhUWlWrOkiaCA4LO3+evltshK2765QN4/Yky9/zKTU8C4BOL80rlLatRQVm9CkqkZ75h1AGh5b2rB5gxPcJt1aa7lxTq3vlllt9DhSTdd0qEue7s/vQkAG2yyGupqKxWW71lmrm4ltAA27HbKP4r25p0xRPr9/usRvjrzW7+uNmKSyowvxuWTU8CIEn6oqRYBcUlyvcalVZJs9Yy4gDnWJVXqmE5abZpT0ZC9E/+LcKfb/int8qtiPAW85uTcuhNgEN8XtGkwvJ6ldbt1trNXs37guAASNJbS7wadpl9QsUpCa2BDRWSdOUbVZZlWeayIaxhAdjJii1F2lxcp6LKnZqxjOAAHM7D62TNkmx9IUNEIN5k8uuVVlNzGFMhQIiZ/12tiqobtb2kTg9yngPQYY+szNM1J9tn9P4PA2Se/Orf/6mICNQb/+mtcssyreaKkxmxAILJp4WVKi2rUkFJnfLLpDlfMeoA+MuNb1dZ15ycY5vRipTY/b+PCOSbX/V2pVW3o8Zce9oAehYQQItLjPJLq1VYXqM7368mNADwibTETgwVknTThy3Wdq/HzL7czd4AfGzFxi3aVlKnrcVScbU0bzOjDkCwWVpQplHZqbZoS2pchKTmzgsVkvTY17Ieu8nDkt5AO3yQJxV6S1VUXa+7FnPfCiDUeDYW2iZUuBK7S6re+32n/0JadstAMziebAHs97nIK1ZZbZM25VWouEp6Yh0jDoCd2Ok/1fveAySiszdm5L1fWO/+Md2MOyqdXgZHWV0ernXeWnmrduru9woJDQBCXkQwbMT4J4qt+08rNlNOdbNHYDsLN+Xru+0VyiuSZnNlBQAbC7pfcCtu7GUGJsezZxAyVu2MV2FJmQpLKlVUWqOHljcQHAAc0muT+ptz+0TYoi1BNf3xY8Mf2Gq9PjHFjO/LQlkILh9t9qq0okZFJY0qKZUe3sSoA4D2Ma3htmxXUMaki+eVWxNPLDePcPt0BNhyb6PySsq1paBc9y4zhAYAflFeVSkpmVARKPO+lDXvS4/eu7q3GdMjlh4In1ldUKyi4lIV17Rqg1d6nCsrAARYWUU5oaIznP3oFuuO0TFm2jnH0gvRZp+W7VRVg7RuS4G81Y16fFULwQFA0Njd3GzLdoXEWSJ3Ltll3bnEo7kXdTOTh/alN2Kvpd+VqLiqVlu31+uOVYw4AAgNVngYoaKzTXmz3prypkcv/yHHXNgrkV7pAGsqm1Xe0KrC8h3aXlKl+z+qIzgACHmx3bsSKoLFL5/Ms6Q8Lb25jxmS0J3eaQNfFJUpz1uqgpImFZZLD61n1AGAfblSEwgVwWbUfZutKcNkTh2SqVN7pNFLgzk0NEWpcmeTSirrtL2oTHe+wz0rADhXYvdoQkUwmrtK1txVXklevXlVL3NWDgtndbYPNuWpoLRGJbWtunMxIw4A8GMJ3VinIuhd9PhWS5KeuSjW/Hpob3qtH324uVTFtc36Kr9WD6/YRXAAgCMwNDnSlu2y9cFg5nCZqee76b3ttKK0QHnF1Soub9bWAukZznMAAJ/gLqUhaPoKWdNXeCRJj1+eY3J7JWtQl1Z68z6WlrXKW71L2wqKNON9rqwAAH+bcryMXdsW4ZSdeNWLe64YkaRnL+lqfjnwGMd0YE/1TpWU1SqvqEL5hU2a7WHEAQA6ywl97HM+xeLNec4MFfv6/Ss7rd+/4pEk/XV8jDm+Z6pG54T2cqmraiNUUl4lb1mNCkqqNGc5K0gCQFCGimOOsk1bKiqrCRX7+vO7uywpX3v+SA+MkRl4XJZG5qQG5fZ+ll+ogsIybfdKRbXS3G8YdQCAUDIo1T73syquMISKQ7lxkSwtKpRU+O9/Gx1u+uRkqFdmikYm+X8bFm7foaKKOhWU1WnGRzsJDQBgE5MG2et8iqLa/b/ngNVBM0bIRIZJMVFSXPdwxXbvqm5dYhQdGa4wS2psbFRLq5GxwmWFR2hXY5MqqqpVV9+q3c1SaaX0MHfJBABH+HD6SDMidodt2rPvlR8SIxUdDxXL9w0ELZLqvv8DAMD+7BQoDiSMXQwAgP89eVF3Y/c2EioAAAiAy4f2sVV7PipqIFQAABBo00eH226UYou3glABAECg3XrOANu1acO2ckIFAACB9NyFsbY8l+KJT3965SKhAgAAP7p0mHPumk2oAADATxZNOdaWoxTvf1dGqAAAIFBuHyozLDPGlm1b9VXhAf+dlRwBAPCDhllu265L8eOVNH/ASAUAAASKNluzs8tBf0aoAADAh5be3MfWK2eu3VR40J8x/QEAgI8svOU4c3J8tK3beLCpD4mRCgAAfOJ/r+1n+0BxOIQKAAA66O8TjzZnZ3WxfTtXF5Yd8ufc+hwAgA545w+9zem9Yh3R1gXLCgkVAAD4g52v8jiQmWsOfS4m0x8AAByh68elGqcFirc3lBz2MVz9AQDAEXjnt4nm9ONyHNfuQ1318QOmPwAAaIMnL442lw85jkIQKgAAaJ/bRsjccp7b0TV4dNG6Nj2O6Q8AAA7gmQndzK8H96UQatvUh8RIBQAAe90zVGb0wG4a0osw8YPnVhe1+bGMVAAAHO2xX7uMu1eKBnWPpBgH0NZRComRCnSiq0+QcSVJ4YZaADhy5keHOutHv0vCvv8+OkqKjQ1XXFyc4hNiFR8fr9y4cArYBos2Fh7R420zUnHD6SnmF6OPU25kHb0AAAAfOJJRCslGi1/FtuwkUAAA4CNvbyg/4ufYJlSEmyZ6AAAAPnLp8wVHPJthm1DR0MrEPAAAvvDP9dva9Tz7jFSEESoAAPCFCS9Vt+ucS/uEiuYWegEAAB308mdb2/1c24SKiFY6AgAAHfX7N2rafWUotz4HAACSpDnvftWh5xMqAACAFm2r161LWzq0fhWhAgAA6OwnNnV4QUxCBQAADvdfSzw+eR1CBQAADvZxyW5Nn++b23YQKgAAcLAz53zts/uAESoAAHCom9/y+PT1CBUAADjQvM/z9dAq396tnFABAIDDLCso1TWvVVi+fl1CBQAADnPaI17LH69LqAAAwEGmveLx22sTKgAAcIhHVxZo7hey/PX6hAoAABzg7+sL9Ze3yy1/vgehAgAAm1tcsVMTXyqz/P0+hAoAAGzsg7ImnfXARisQ70WoAADAxs6bvd4K1HsRKgAAsKFP62PU5SaPFcj3JFQAAGAza+ujdcpdq6xAvy+hAgAAmxl21ydWZ7wvoQIAAJv4uKwx4FMehAoAAGzmwzJLZ87+xurMbYhgNwAAENpe+bJUV/zda3X2djBSAQBACPvrkvygCBQSIxUAAISsm1/16KE1soJlewgVAACEmLVVlobd/4UVbNtFqAAAIIS8sa5Kl/13nhWM20aoAAAgRNz69peas7LVCtbtI1QAABDk3t1SrIufLraCfTsJFQAABLHZ76/XbYuarFDYVkIFAABB6OO8Kp35eJ4VSttMqAAAIIh8Ul2jf63cqlmLZYXathMqAAAIErMXenTbgtALE4QKAACCxCvry3XFSwVWqLeDUAEAQCd5Z2ulLnlyu2WX9hAqAAAIsMXbi3TWYyWW3dpFqAAAIECeXu7RlH/Ismv7CBUAAPjRp9UNenf5t3pwiX3DBKECAAA/+tuKtZr0jrGc1GZCBQAAPvL6xmr95tltllPbT6gAAKCd1paV6sstpZr8VrNFNQgVAAC02SeVYdq4vUhbS+p038IdBAlCBQAAbbNg/Xat31apWx1wkiWhAgCADlj7rUd1u6TNBVJlo7S9XHpqCwGivf4fIqVJvN75JnAAAAAASUVORK5CYII=" alt="SONNO" style="width:160px;height:auto;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto">
+    <h1>SONNO POS</h1>
+    <p>Satış və İstehsal Sistemi</p>
   </div>
   <div class="login-card">
     <div class="lf"><label>İstifadəçi adı</label><input id="l-user" type="text" placeholder="admin" autocomplete="username" autocapitalize="none"></div>
@@ -339,15 +339,87 @@ textarea{resize:vertical;min-height:80px}
 
 <!-- MÜŞTƏRİ SİFARİŞ İZLƏMƏ EKRANI -->
 <div id="customer-screen" style="display:none;position:fixed;inset:0;background:#fafaf9;z-index:9998;overflow-y:auto;font-family:'DM Sans',sans-serif">
-  <div style="background:linear-gradient(135deg,#007565,#004F51);color:#fff;padding:20px;display:flex;justify-content:space-between;align-items:center">
+  <div style="background:linear-gradient(135deg,#007565,#004F51);color:#fff;padding:20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.1)">
     <div>
       <div style="font-size:18px;font-weight:700">🛋️ SONNO</div>
       <div id="cs-welcome" style="font-size:12px;opacity:0.8;margin-top:2px">Sifarişlərim</div>
     </div>
     <button onclick="doCustomerLogout()" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">Çıxış</button>
   </div>
+  <!-- Katalog linki və yeni sifariş düyməsi -->
+  <div style="max-width:600px;margin:0 auto;padding:16px 16px 0 16px;display:flex;gap:10px;flex-wrap:wrap">
+    <button onclick="openCustomerCatalog()" style="flex:1;min-width:140px;padding:14px;background:linear-gradient(135deg,#F78930,#E2742C);color:#fff;border:none;border-radius:12px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(247,137,48,.25)">
+      📖 Kataloga bax & sifariş et
+    </button>
+  </div>
   <div id="customer-orders-list" style="max-width:600px;margin:0 auto;padding:16px">
     <div style="text-align:center;padding:40px;color:#888">Yüklənir...</div>
+  </div>
+</div>
+
+<!-- MÜŞTƏRİ KATALOQ EKRANI (daxili — login sonra) -->
+<div id="customer-catalog-screen" style="display:none;position:fixed;inset:0;background:#fafaf9;z-index:9999;overflow-y:auto;font-family:'DM Sans',sans-serif">
+  <div style="background:linear-gradient(135deg,#007565,#004F51);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+    <button onclick="closeCustomerCatalog()" style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;display:flex;align-items:center;gap:6px">← Geri</button>
+    <div style="font-size:16px;font-weight:700">📖 Katalog</div>
+    <div style="width:60px"></div>
+  </div>
+  <div id="customer-catalog-body" style="max-width:800px;margin:0 auto;padding:16px">
+    <div style="text-align:center;padding:40px;color:#888">Yüklənir...</div>
+  </div>
+</div>
+
+<!-- MÜŞTƏRİ SİFARİŞ FORMASI (model seçdikdən sonra) -->
+<div id="customer-order-form" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;align-items:flex-end;justify-content:center">
+  <div style="background:#fff;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;border-radius:20px 20px 0 0;padding:20px 18px;padding-bottom:env(safe-area-inset-bottom,20px)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:17px;font-weight:700">🛒 Sifariş et</div>
+      <button onclick="closeCustomerOrderForm()" style="background:#eee;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px">✕</button>
+    </div>
+    <div id="cof-model-preview" style="padding:12px;background:#f8f8f6;border-radius:10px;margin-bottom:16px;display:flex;gap:12px;align-items:center"></div>
+    
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Ad, soyad <span style="color:#E24B4A">*</span></label>
+        <input id="cof-name" type="text" placeholder="Ad Soyad" style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
+      </div>
+      <div>
+        <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Telefon <span style="color:#E24B4A">*</span></label>
+        <input id="cof-phone" type="tel" placeholder="+994 50 xxx xx xx" style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Ədəd</label>
+          <input id="cof-qty" type="number" min="1" value="1" style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
+        </div>
+        <div>
+          <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">İstənilən tarix</label>
+          <input id="cof-deadline" type="date" style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
+        </div>
+      </div>
+      <div>
+        <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Parça adı</label>
+        <input id="cof-fabric" type="text" placeholder="Məs: Velvet, Dəri, Linen..." style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
+      </div>
+      <div>
+        <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Parça rəngi / kodu</label>
+        <input id="cof-color" type="text" placeholder="Məs: Boz, VL-204..." style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
+      </div>
+      <div>
+        <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Ölçülər / Qeydlər</label>
+        <textarea id="cof-notes" rows="3" placeholder="Məs: 220x95 sm, ayaqlar metal olsun..." style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px;resize:vertical"></textarea>
+      </div>
+    </div>
+    
+    <div id="cof-err" style="color:#E24B4A;font-size:13px;margin-top:10px;text-align:center;min-height:20px"></div>
+    
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button onclick="closeCustomerOrderForm()" style="flex:1;padding:14px;background:#eee;color:#333;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600">Ləğv et</button>
+      <button onclick="submitCustomerOrder()" style="flex:2;padding:14px;background:#007565;color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700">📤 Sifarişi göndər</button>
+    </div>
+    <div style="text-align:center;margin-top:12px;font-size:11px;color:#888">
+      Sifarişiniz admin tərəfindən yoxlanılacaq və təsdiq ediləcək
+    </div>
   </div>
 </div>
 
@@ -356,8 +428,8 @@ textarea{resize:vertical;min-height:80px}
   <!-- TOP BAR -->
   <div class="topbar">
     <div class="topbar-logo">
-      <svg width="22" height="16" viewBox="0 0 22 16" fill="none"><path d="M2 8Q2 2 8 2Q12 2 12 6Q12 10 8 10Q12 10 12 14Q12 16 8 16Q2 16 2 12" stroke="#F78930" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
-      <span>SONNO <em>MES</em></span>
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAhUAAAD9CAYAAAALbIW4AAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAAd+UlEQVR42u3dd3xUZb7H8e9Jp6SXSYOIgFjADMUFaS5gF+tdubq7rusu4K6r4oqrqKioWFAuK/aC9e56bdeyK65cFZCuIg4KihQhJJn0Tggh5bl/oCwoJSQzk5lzPu/Xi1cImXKe33km58vznPMcSwAgaZJLxrL2/N0Y6gEczvcfF5l9v1pSWOuer+Fmz2cpIlJqapFMmPR0kawre8k8tXXv021ZExyha8a6TPeI3RrcO0WRzfWKiopSXFycBiWEURwAwCH90xutCXM/sd0xOIJde3A3DJfpmRahXhkJOvWo7EM8shvFAgC0WWTDNlu2i1Cxj7suSDT9+/bQWSmMNgAA/CeqqZZQYTezRsmMGpKmgemZ9HAAQMBER8ZIaiBUhLo553Yxw07I1sBEpiwAAJ2jpcWeZ0M7IlQ8dEEXc+XJ/ejFAICg0GzTWXZbh4rXJueYc3sn0nsBAEGlpaWJUBEK7hkhc/15bnosACBoRYfbs122CRUzxyeaqaNy6KkAgKBnGXvOf4R8qHjx4q5mwpBj6KEAgNBhoggVwWTuWZaZ/PNcOiYAIPQyhU3Xsw65UHHvGRHmz2P70yMBACGrJayZUNHZ3p1yvBmXGUVvBACEuFZCRWd5YUKG+c/BLvogAMAWOFGzE1w3SOa+/3TT+wAAtmLXO0wFbah484p4c9axveh5AADbabVpu4IyVDTMchu6HAAAoSWoRmDuPj3WECgAAAhNQTNS8dY1A82Z2eQJAAAIFR2wZ3SCQAEAQCjr1OmPSQPFdAcAADbRaSMV95wuc/04N3sAAABCRfs9OCHFXD04m+oDAECoaL83r+9vznJFUHkAAAgV7ff+bSPMKd3rqToAADYUsBM135s6gEABAAChomNev3aAGZMWTrUBACBUtN+rV/U147MIFAAAECo64NmJvcx5Od2oMgAAhIr2e+LibuaXfeOpMAAADuGXqz9mX5xqfjski+oCAOAgPh+pmDpU5k8ECgAACBUdNfMiN1UFAIBQ0THLZ4zi5mAAABAqOua9v5xkBnWpo6IAABAq2u+pX3QxY1KaqCYAAISK9ps2VOY3J/WjkgAAECo65g5OzAQAAB0NFS9flsGJmQAAoGOhYvoImQv7u6ggAADoWKi49Tw31QMAAB0LFc9P7s20BwAA6HiouKR3LJUDAAAdCxXLbslllAIAAHQsVNw5WmZwvEXVAABAx0LFjee4qRgAAOhYqHj6wjCmPQAA8MnBt9XZoeKyYSfSCwAA8MXBt7XFuaHikUtSGKUAAMBHdreEOzdUTByYTQ8AAMBHWrul2bJdEYd7wCMTkhmlOELL8vLUuLtZrZYUZkXsk+D2zKFZalWY2fP3VkXIWGGh2VATJploSdb+//ZDay3pm6/zZL7/sbEky0g/dKhWS2oJ2/O9Jb7yla98DZ2ve3+vm3//Pvvh99x+LKm1VQoPl5paJOv7n8/4WLa8lPKwjWqY5SZUHIBnV6q+q2rUstXr9MSySq6zBQA43iFHKuZMYDnuH3tpyVe6cn4LIQIAgCMJFX8czHLckjT/m836xQs7CBIAALQnVFw3VI4fpXjv6836jxcJEwAAdChUnDW8r2OLsuDrbbrgxWrCBAAAvggVo9O7ObIgN73g0cPfiEABAIAvQsWsSzMcN/Xxwupv9cfXGwgTAAD4MlQM7etyVBFufsOjhz5jdAIAAN+HCofMfKysk8bO9BAmAADwgZ8s5fjq75xxnw/PzkgCBQAAPvSTkYrz+tn/Ph+LCnfo7Ic3EygAAPChMKc1+O3vqggUAAD4O1Q8f2mWrac+PmvqokufyiNQAADg71DRJy3O1o0dPX0lgQIAgECEiiGZ0bZt6LTXPextAAACESpuOsm+9/p4bfW3mruadSgAAAhIqBgyINW2jbyclTIBAAhcqBjfL8uWDbzhOQ97GQCAQIYKO/rnhi/12LdMewAAQKjooAnPtxIoAAAIZKi47eddbXeS5rxlG9i7AAAEOlQM6GO/pbmv+ecuRikAAAh0qDi3b1dbNerDL9exZwEA6IxQYTfzlzazZwEACLAIuzVoTbn05Hau+AAAp/jDsTLxcVJsFykiXLJapNZW6fjje6q1tVmNjU2qr29Q3Y6dqt/VquZmqdmSquqlR7/geOHTUDEj114raf7f6u3sVQCwmamjY0ymK0GutASlpsRpdNfdPnndBy/Z/xj4aXmjthVXyFtRp/zyBj3+KaHjSFiPniLz+7PdtmlQl5s8dAAACEG3DJfJSuumjJQ4pcRG6aT0xKDavnc3FmndhhLduZygcTARceEUAQAQwPBw/tGmZ1IXHZcWqZ8lhc52jz8mQ+OPydC08/aMbjznqdDavGo9vaKOkPFDqOifYZ/GvPRVHXsUADrZNbkyGUlSn5xUpcV30dDMJFu283fuZMmdrLnn7wkZTy/foCn/cPZyBhHxUfZpzLd5xXyaASBAZpyVYNISYpSdkazTXJGOr8fkEcdq8giZJeXN8nxXppv+t8RxAcNqmOW2zYmanE8BAL5z1fEy6QnS0RlhyklP0pCe2RTlCC3aXKAPPy/XnDXOOA+DUAEATg8PI8JNlitBGcmxykqK1egkTrbzh6fXFGvKq8W2Pk5FsJsBwP5uPVEmO1XKSu2qtORE5fZMpSgBNnlQuiYPSjfvfLVNl/yt2pbhwjahYol3Fz0WgONNPyPZ9EqPlys+WuOyoilIEDp/wFFqmCWzcGOJznm2yFbhwjahYmfDbnoqANu7up/MUdmSKzlGfXskKjfNRVFC1NhjXGqY5TLv51XowsfzbREubBMqWu15GxMADjVtTBfTMzVersRonX10IgWxsTNzktUwK9k8vbZGU17eGtLhwjahYvPmzfRMACHl/hEymd0kV3q8Rp/Qi4I43OTceE3OdZv7F36nOxfUhmS4sE2oiIyMlNRErwQQVP5wokxOVoJyMhKVmtxdI1O4sgKHNm3s0RozRObn94TeFY22CRXdY7tKqqE3Agi4KcfIZKdLmeld1MOVqJOy0ygKOmRonNQwy21e21Cky58PnUW0bBMqYrsSKgD41+1jo0xmaqLSUxKV0jVMg1OiKAr8asKxGep3d44ZdtunIREsbBMqomMYUgTQcXePlumdGav0xC46+ahMCoJOlxu1Ww2z3ObN9eX61UsFQR0u7DNS0a0rPQ9Am0wZE2/SEmJ0rKu7UmMjdFJKF4qCoHfRCSlqmJVignn1aNuEipHphAoA/3Z1f5nje8UoLTZKWSnd5c7iPAfYQ8Mst5n9gUe3fRh89xNhmW4AIWtirkx2Yph69shQz6w0jUg0FAWOcMNpbsVm1pnrXtoSVMGCUAEgqE0+TibHJeVkRCk7LUFDMw92ngOBAs5y5QmxOvG6LDP2ocKgCRa2ukvp/e94dOcKcadSIARdPSra9HQlKislXhlJXXVyPCEBaKtgOc/C+uBXMiNPdNuiqAs2leiCeUWECiAITeoj0yNVynRFKiMtRWN7c88KwG7BIqK43D4FPaOvS1IRPQvoZDPPTTHp8THql5OqIXGMOACB0DDLbW59y6M5qzpvxD6iqIwdAeDITBwkk5UgDc6JUWqXSLlzeh/kkQQKIJDuudCtNNdmM+2dHZ0SLCK8FfYq6CMXpppr3ipjCgTwgemnRZqMxK7KyUzQuAzulAmEginD+0hNW8y09+oCfiy0pD1DJnYqaDAvDAIEk2tzZTISpewMKSMtWSMye1AUwCYe+GCL7vgwsMHClpeUTuwtM28LV4EAe8PDiDCTkxGvjJSuSk3sqpEJ3SgKYHM3ntZbTU0bzMyPdwXseGhJ0qKbcs2wJPscg9dU7dKI+zcQKuAofx4sk5ESruy0WPV0xWtwKtMVAKS753+pe5e0BuSYGCFJeSV1GpYUZ5sCDkqMoRfBtqaOjzbZWenKiu+uc5MjKQiAQ7rtnBNVv9tj5gbgqhBLkq4fHm3uOf84WxXxnW9LdclzXkYrEHImHifTO8dSekp3HZWRqGEpSRQFQIcF4nzDvW9gt5M1A1VAoL1uHJVkjkmPlCsuXKcew82uAIT+cdHWoWL5xq069dkaggU6ze1jZFzx4cpJS9C43lxZAcDewWLvCy+7sZcZnBxvu+L9deE63bKgmWABv5p5XoLJyXbJlRirUXHNFARA0FpRukvj/ss/FzPsfdF5F8r8apibVAYcwLUnyGSnST3SwpSZlqifZTPqACB0vbDcoz/+w/cnbu59wamDZWZOsGeoWFhh6ZwHviBY4LCmjkkwfXqmKSMhWmdkhlMQALblj/9w7/eCdjyv4gdzF+Zp2oIqggU0Y4RMz6w4uRK6cadMAAQLH9pvRc2Py1t1SkqYLQs3ZWyOtmyqMs98x0qbTjBleJRJj4/RgL5Zio+2NCQliqIAwI+8P7GrOXPeTp8dF/d7oTvO6G6mje1DKkNImDRYZkAPKSMhUulpqRqSzGWZAHCkHln8jW78V6NPjo0/eRE7T4EQLELTzWPizNHZScrJTNSoJG6lDQDBelx0ZKggWASXK/vJ9MiWjurhUqYrSScnRVMUAAigNUUVGvFQfoePiz95gcfP7WKuGNnPEUW84UWPHvuacywC5fpTYkxWWoIyUuKUlpKgEd13UxQACBIPLNmiO+Z37FbpB3yyU0YrJEYsfO3Wk2V6pHVTdnKskuIiNTAjmaIAgEOOiQd88vI7hppBXRsdU8RHlhTqxvllhIs2unJwhMnKyFRmclf1c0VpSHIYRQEAG1iwMV8XPFvR7uPhAZ942/gUc8uobEcVcklBjc54ZCvB4ntTTpRJT5L69UxVWkKUBmelUhQAcICOjFYc9IlOmgLZ1zNrKnTtq/mOCRf3neoy6fExys5I1cge3LMCAJxuVVG9xjy0qV3HwYM+6aNr0s3w7HTHFvWxxR7d8K/QP4nzyv4y6fHS0RlhyklP0NAePfnEAAAOacbbHs1aeeTHwIM+YdKxMg9f4XZ8Ye9916O7lwZ/uJg0OtxkpSUpI7mbspJiNS6B+1YAANqvPdMgh3zCyluONe74GCor6X8+36zfvbajU8PFrQNkstKkzNQ4uZIT5O6ZxI4BAPjFbQu+0eyFR7bS5iEffPMomdvHu6nsPtbUGa1an6+pb1X6LWBMPyPZ9EqPlys+WuOyWAgKABB4X9Tu0vB7NvguVEjOPWGzrf61pVSF5TuUV1ir2Z+0fZpkxikyafFhyu3bQ4PSEikkACDoPLrAo78sbPux7bAPfGKMzG/PdFNZAEDQ+ay6WSWlFSosrpC3bLce+PTwx7U/5cokdZUGHxOhM47vTxEP40jOrWjTAxmtAAB0llW1YSqtaVBRea22e0s1Z0mTX6afn7w8yQzITtCguDiKvo9HF63VX943bap5mx506xjLTD8zl8oCAPxmtbdE20uqtLV4l4qqpcc8nXPl3dVumZ/1i9LFg45np0j6vKRcI+cU+C5USIxWAAA6bnl+gwq9JfJW7tLNi3cF/eX6038eYU4f3kcnOfxKyOte8uip9YfPDG3eobefInPz2W4+EQCAQ/pie7Eqd7Zow5YyFddIs9eG/kKCM8bK3HSGc4+B/9pUpovmFfouVEjSB1NPMCPTIvnEAAD0xlc7VFyzW/neEj38eaMjbm/w9IRYc9ng3o7c3205YfOIOsEkt8zDl7r5JAGAQ6zcUq6C8hoVlNapsFR6bKO48aKkpXcONUNiGh3V5hn/941mfXTo8HjEnePNKzLMWce66FEAYBMfFTbKW1atgtJa3fVRPaGhjf7nyqPMBUcnOKa9n+0wGn33Wt+GComTNgEg1HxSvkPekmrlF5bLWyTN/ZoRB194cHykuXrUCY5p7+GmQNrVqe47J9ZcN7o3vQkAgik47GhWYUmdthRUq6iiQU98spvgEADX5Mo88Eu3I9r66rqt+u1/11g+DRWStPT6o8wQVwK9CQACbPGmdfJWN+ubEmn2UkYcgsEf+8vMucwZweJQoxUd6oxMgwCAfywvNfr6u2KV1Dbqno+qCQ4hYGKuzCMOGLHwW6h49Jwo8/vRrDgGAO2xYoNX1XW7VVxZrcJS6d51jDqEukm5Mg/bPFg8uGiDbn//wAuXdbgDfzSlrxme2Y2eBAAHsKgyQt6Kem0vq9Zd7xQRGhxgxqkyN51m32CxpGynzpi90T+hQmIaBAAWf7tVheU7tLWoRfd8xoiD0829oLuZfHIf27bvYFMgPun4M0fJTB3vphcBsC3PzmiV1jQqr7BcW/IKNfdTQ3DAIb0+Od2M751uy7ZNedmjpw+w/LrPPhRPTUgyvxnck14EIKStzPdqe1GFvFUt2uqVntnAqAPaz64j+X/7fIMmvbbLf6FCkuZflWHG5rDaJoDgtqqgTt6aRq3Nr9MDi2oIDfCbaeMSzR2n59iybQeaAvH5h4nzKwAEi3+uK1JR1Q5tK6jXXz2MOKBzrLxliHHHNzsiVET4400IFgACYVGlVFHfrNKyKhUWlWrOkiaCA4LO3+evltshK2765QN4/Yky9/zKTU8C4BOL80rlLatRQVm9CkqkZ75h1AGh5b2rB5gxPcJt1aa7lxTq3vlllt9DhSTdd0qEue7s/vQkAG2yyGupqKxWW71lmrm4ltAA27HbKP4r25p0xRPr9/usRvjrzW7+uNmKSyowvxuWTU8CIEn6oqRYBcUlyvcalVZJs9Yy4gDnWJVXqmE5abZpT0ZC9E/+LcKfb/int8qtiPAW85uTcuhNgEN8XtGkwvJ6ldbt1trNXs37guAASNJbS7wadpl9QsUpCa2BDRWSdOUbVZZlWeayIaxhAdjJii1F2lxcp6LKnZqxjOAAHM7D62TNkmx9IUNEIN5k8uuVVlNzGFMhQIiZ/12tiqobtb2kTg9yngPQYY+szNM1J9tn9P4PA2Se/Orf/6mICNQb/+mtcssyreaKkxmxAILJp4WVKi2rUkFJnfLLpDlfMeoA+MuNb1dZ15ycY5vRipTY/b+PCOSbX/V2pVW3o8Zce9oAehYQQItLjPJLq1VYXqM7368mNADwibTETgwVknTThy3Wdq/HzL7czd4AfGzFxi3aVlKnrcVScbU0bzOjDkCwWVpQplHZqbZoS2pchKTmzgsVkvTY17Ieu8nDkt5AO3yQJxV6S1VUXa+7FnPfCiDUeDYW2iZUuBK7S6re+32n/0JadstAMziebAHs97nIK1ZZbZM25VWouEp6Yh0jDoCd2Ok/1fveAySiszdm5L1fWO/+Md2MOyqdXgZHWV0ernXeWnmrduru9woJDQBCXkQwbMT4J4qt+08rNlNOdbNHYDsLN+Xru+0VyiuSZnNlBQAbC7pfcCtu7GUGJsezZxAyVu2MV2FJmQpLKlVUWqOHljcQHAAc0muT+ptz+0TYoi1BNf3xY8Mf2Gq9PjHFjO/LQlkILh9t9qq0okZFJY0qKZUe3sSoA4D2Ma3htmxXUMaki+eVWxNPLDePcPt0BNhyb6PySsq1paBc9y4zhAYAflFeVSkpmVARKPO+lDXvS4/eu7q3GdMjlh4In1ldUKyi4lIV17Rqg1d6nCsrAARYWUU5oaIznP3oFuuO0TFm2jnH0gvRZp+W7VRVg7RuS4G81Y16fFULwQFA0Njd3GzLdoXEWSJ3Ltll3bnEo7kXdTOTh/alN2Kvpd+VqLiqVlu31+uOVYw4AAgNVngYoaKzTXmz3prypkcv/yHHXNgrkV7pAGsqm1Xe0KrC8h3aXlKl+z+qIzgACHmx3bsSKoLFL5/Ms6Q8Lb25jxmS0J3eaQNfFJUpz1uqgpImFZZLD61n1AGAfblSEwgVwWbUfZutKcNkTh2SqVN7pNFLgzk0NEWpcmeTSirrtL2oTHe+wz0rADhXYvdoQkUwmrtK1txVXklevXlVL3NWDgtndbYPNuWpoLRGJbWtunMxIw4A8GMJ3VinIuhd9PhWS5KeuSjW/Hpob3qtH324uVTFtc36Kr9WD6/YRXAAgCMwNDnSlu2y9cFg5nCZqee76b3ttKK0QHnF1Soub9bWAukZznMAAJ/gLqUhaPoKWdNXeCRJj1+eY3J7JWtQl1Z68z6WlrXKW71L2wqKNON9rqwAAH+bcryMXdsW4ZSdeNWLe64YkaRnL+lqfjnwGMd0YE/1TpWU1SqvqEL5hU2a7WHEAQA6ywl97HM+xeLNec4MFfv6/Ss7rd+/4pEk/XV8jDm+Z6pG54T2cqmraiNUUl4lb1mNCkqqNGc5K0gCQFCGimOOsk1bKiqrCRX7+vO7uywpX3v+SA+MkRl4XJZG5qQG5fZ+ll+ogsIybfdKRbXS3G8YdQCAUDIo1T73syquMISKQ7lxkSwtKpRU+O9/Gx1u+uRkqFdmikYm+X8bFm7foaKKOhWU1WnGRzsJDQBgE5MG2et8iqLa/b/ngNVBM0bIRIZJMVFSXPdwxXbvqm5dYhQdGa4wS2psbFRLq5GxwmWFR2hXY5MqqqpVV9+q3c1SaaX0MHfJBABH+HD6SDMidodt2rPvlR8SIxUdDxXL9w0ELZLqvv8DAMD+7BQoDiSMXQwAgP89eVF3Y/c2EioAAAiAy4f2sVV7PipqIFQAABBo00eH226UYou3glABAECg3XrOANu1acO2ckIFAACB9NyFsbY8l+KJT3965SKhAgAAP7p0mHPumk2oAADATxZNOdaWoxTvf1dGqAAAIFBuHyozLDPGlm1b9VXhAf+dlRwBAPCDhllu265L8eOVNH/ASAUAAASKNluzs8tBf0aoAADAh5be3MfWK2eu3VR40J8x/QEAgI8svOU4c3J8tK3beLCpD4mRCgAAfOJ/r+1n+0BxOIQKAAA66O8TjzZnZ3WxfTtXF5Yd8ufc+hwAgA545w+9zem9Yh3R1gXLCgkVAAD4g52v8jiQmWsOfS4m0x8AAByh68elGqcFirc3lBz2MVz9AQDAEXjnt4nm9ONyHNfuQ1318QOmPwAAaIMnL442lw85jkIQKgAAaJ/bRsjccp7b0TV4dNG6Nj2O6Q8AAA7gmQndzK8H96UQatvUh8RIBQAAe90zVGb0wG4a0osw8YPnVhe1+bGMVAAAHO2xX7uMu1eKBnWPpBgH0NZRComRCnSiq0+QcSVJ4YZaADhy5keHOutHv0vCvv8+OkqKjQ1XXFyc4hNiFR8fr9y4cArYBos2Fh7R420zUnHD6SnmF6OPU25kHb0AAAAfOJJRCslGi1/FtuwkUAAA4CNvbyg/4ufYJlSEmyZ6AAAAPnLp8wVHPJthm1DR0MrEPAAAvvDP9dva9Tz7jFSEESoAAPCFCS9Vt+ucS/uEiuYWegEAAB308mdb2/1c24SKiFY6AgAAHfX7N2rafWUotz4HAACSpDnvftWh5xMqAACAFm2r161LWzq0fhWhAgAA6OwnNnV4QUxCBQAADvdfSzw+eR1CBQAADvZxyW5Nn++b23YQKgAAcLAz53zts/uAESoAAHCom9/y+PT1CBUAADjQvM/z9dAq396tnFABAIDDLCso1TWvVVi+fl1CBQAADnPaI17LH69LqAAAwEGmveLx22sTKgAAcIhHVxZo7hey/PX6hAoAABzg7+sL9Ze3yy1/vgehAgAAm1tcsVMTXyqz/P0+hAoAAGzsg7ImnfXARisQ70WoAADAxs6bvd4K1HsRKgAAsKFP62PU5SaPFcj3JFQAAGAza+ujdcpdq6xAvy+hAgAAmxl21ydWZ7wvoQIAAJv4uKwx4FMehAoAAGzmwzJLZ87+xurMbYhgNwAAENpe+bJUV/zda3X2djBSAQBACPvrkvygCBQSIxUAAISsm1/16KE1soJlewgVAACEmLVVlobd/4UVbNtFqAAAIIS8sa5Kl/13nhWM20aoAAAgRNz69peas7LVCtbtI1QAABDk3t1SrIufLraCfTsJFQAABLHZ76/XbYuarFDYVkIFAABB6OO8Kp35eJ4VSttMqAAAIIh8Ul2jf63cqlmLZYXathMqAAAIErMXenTbgtALE4QKAACCxCvry3XFSwVWqLeDUAEAQCd5Z2ulLnlyu2WX9hAqAAAIsMXbi3TWYyWW3dpFqAAAIECeXu7RlH/Ismv7CBUAAPjRp9UNenf5t3pwiX3DBKECAAA/+tuKtZr0jrGc1GZCBQAAPvL6xmr95tltllPbT6gAAKCd1paV6sstpZr8VrNFNQgVAAC02SeVYdq4vUhbS+p038IdBAlCBQAAbbNg/Xat31apWx1wkiWhAgCADlj7rUd1u6TNBVJlo7S9XHpqCwGivf4fIqVJvN75JnAAAAAASUVORK5CYII=" alt="SONNO" style="width:26px;height:auto;margin-right:2px">
+      <span>SONNO <em>POS</em></span>
     </div>
     <div class="topbar-title" id="topbar-title">Dashboard</div>
     <div class="topbar-right">
@@ -377,6 +449,15 @@ textarea{resize:vertical;min-height:80px}
       <!-- DASHBOARD -->
       <div id="sc-dash" class="sc on">
         <div class="pg-hd">Dashboard <small id="dash-date"></small></div>
+        <!-- Pending sifarişlər bildirişi -->
+        <div id="pending-banner" style="display:none;background:linear-gradient(135deg,#F78930,#E2742C);color:#fff;border-radius:12px;padding:14px 18px;margin-bottom:12px;box-shadow:0 4px 12px rgba(247,137,48,.2);cursor:pointer;align-items:center;gap:12px" onclick="goTo('admin');setTimeout(()=>adminSec('pending'),150)">
+          <div style="font-size:28px">🔔</div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:700" id="pending-banner-title">Yeni müştəri sifarişi</div>
+            <div style="font-size:12px;opacity:0.9;margin-top:2px">Təsdiq üçün admin paneli → Yeni sifarişlər</div>
+          </div>
+          <div style="font-size:18px">›</div>
+        </div>
         <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
           <input type="date" id="dash-date-from" style="flex:1;min-width:140px" onchange="renderDash()">
           <input type="date" id="dash-date-to" style="flex:1;min-width:140px" onchange="renderDash()">
@@ -637,6 +718,7 @@ textarea{resize:vertical;min-height:80px}
       <div id="sc-admin" class="sc">
         <div class="pg-hd">Admin Panel</div>
         <div class="admin-menu" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr))">
+          <div class="ami" onclick="adminSec('pending')" style="position:relative"><div class="ami-icon">🔔</div><div class="ami-name">Yeni sifarişlər</div><div class="ami-sub" id="ami-pending">—</div><div id="ami-pending-badge" style="display:none;position:absolute;top:8px;right:8px;background:#E24B4A;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;min-width:18px;text-align:center">0</div></div>
           <div class="ami" onclick="adminSec('stats')"><div class="ami-icon">📊</div><div class="ami-name">Statistika</div><div class="ami-sub">Analiz & sıralama</div></div>
           <div class="ami" onclick="adminSec('users')"><div class="ami-icon">👥</div><div class="ami-name">İstifadəçilər</div><div class="ami-sub" id="ami-u">—</div></div>
           <div class="ami" onclick="adminSec('pins')"><div class="ami-icon">🔑</div><div class="ami-name">PIN Kodlar</div><div class="ami-sub">Şöbə girişi</div></div>
@@ -730,12 +812,13 @@ textarea{resize:vertical;min-height:80px}
       </div>
     </div>
     <div class="fg">
-      <label>Şəkil / Emoji</label>
-      <div style="display:flex;gap:10px;align-items:center">
+      <label>Şəkil / Emoji <span style="font-size:11px;color:var(--t3);font-weight:400">(1-3 şəkil yüklə bilərsiniz)</span></label>
+      <div id="am-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;min-height:0"></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <div id="am-prev" style="width:80px;height:64px;border-radius:var(--r);border:1px solid var(--bd);background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:30px;overflow:hidden">🛋️</div>
-        <div style="flex:1">
+        <div style="flex:1;min-width:200px">
           <label style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;font-size:13px;font-weight:500;color:var(--t1)">
-            📷 Şəkil seç <input type="file" accept="image/*" style="display:none" onchange="previewImg(this)">
+            📷 Şəkil əlavə et <input id="am-img-input" type="file" accept="image/*" style="display:none" onchange="addModelImage(this)">
           </label>
           <div style="display:flex;gap:6px;margin-top:8px">
             <span style="cursor:pointer;font-size:20px;padding:2px" onclick="setEmoji('🛋️')">🛋️</span>
@@ -913,8 +996,102 @@ let selModel = null, qty = 1;
 let pinDept = null, pinBuf = '', pinUnlocked = {}, curPinCode = '';
 let editingUserId = null, editingModelId = null;
 let modelEmoji = '🛋️', modelImgData = null;
+let modelImagesArr = []; // Yeni modellər üçün 1-3 şəkil array
 let aiHistory = [];
 let appClients = [];
+
+// ═══════════ IMAGE HELPERS ═══════════
+// Model şəkilləri — həm köhnə format (string), həm yeni format (JSON array) dəstəyi
+function getModelImages(m){
+  if(!m || !m.img_url) return [];
+  const v = m.img_url;
+  // JSON array stringdir?
+  if(typeof v === 'string'){
+    if(v.startsWith('[')){
+      try{ const arr = JSON.parse(v); return Array.isArray(arr) ? arr.filter(Boolean) : [v]; }
+      catch(e){ return [v]; }
+    }
+    return [v]; // köhnə format — 1 şəkil
+  }
+  if(Array.isArray(v)) return v.filter(Boolean);
+  return [];
+}
+
+function getFirstImage(m){
+  const arr = getModelImages(m);
+  return arr.length ? arr[0] : null;
+}
+
+// Şəkli tam ekranda göstər (lightbox)
+function showLightbox(urls, startIdx){
+  if(typeof urls === 'string') urls = [urls];
+  if(!urls || !urls.length) return;
+  let idx = startIdx || 0;
+  
+  let lb = document.getElementById('img-lightbox');
+  if(!lb){
+    lb = document.createElement('div');
+    lb.id = 'img-lightbox';
+    lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer';
+    document.body.appendChild(lb);
+  }
+  
+  function render(){
+    const hasMulti = urls.length > 1;
+    lb.innerHTML = `
+      <div style="position:absolute;top:20px;right:20px;z-index:10">
+        <button onclick="closeLightbox(event)" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;width:44px;height:44px;border-radius:50%;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center">✕</button>
+      </div>
+      ${hasMulti ? `<div style="position:absolute;top:20px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.15);color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600">${idx+1} / ${urls.length}</div>` : ''}
+      ${hasMulti ? `<button onclick="lbNav(event,-1)" style="position:absolute;left:20px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;width:44px;height:44px;border-radius:50%;cursor:pointer;font-size:20px;z-index:10">‹</button>` : ''}
+      ${hasMulti ? `<button onclick="lbNav(event,1)" style="position:absolute;right:20px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;width:44px;height:44px;border-radius:50%;cursor:pointer;font-size:20px;z-index:10">›</button>` : ''}
+      <img src="${urls[idx]}" style="max-width:95%;max-height:90vh;object-fit:contain;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.5)" onclick="event.stopPropagation()">
+    `;
+  }
+  
+  window.lbNav = function(e, dir){
+    e.stopPropagation();
+    idx = (idx + dir + urls.length) % urls.length;
+    render();
+  };
+  
+  render();
+  lb.style.display = 'flex';
+  lb.onclick = closeLightbox;
+}
+
+function closeLightbox(e){
+  if(e) e.stopPropagation();
+  const lb = document.getElementById('img-lightbox');
+  if(lb) lb.style.display = 'none';
+}
+
+// ESC ilə bağla
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape'){
+    const lb = document.getElementById('img-lightbox');
+    if(lb && lb.style.display === 'flex') closeLightbox();
+  }
+  if(e.key === 'ArrowLeft'){
+    const lb = document.getElementById('img-lightbox');
+    if(lb && lb.style.display === 'flex' && window.lbNav) window.lbNav({stopPropagation:()=>{}}, -1);
+  }
+  if(e.key === 'ArrowRight'){
+    const lb = document.getElementById('img-lightbox');
+    if(lb && lb.style.display === 'flex' && window.lbNav) window.lbNav({stopPropagation:()=>{}}, 1);
+  }
+});
+
+// Model thumbnail HTML yaradan universal funksiya (şəkil klik → lightbox)
+function getModelThumbHtml(m, size){
+  size = size || 48;
+  const imgs = getModelImages(m);
+  if(imgs.length){
+    const urlsJson = JSON.stringify(imgs).replace(/"/g,'&quot;');
+    return `<img src="${imgs[0]}" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:8px;border:1px solid var(--bd);cursor:zoom-in;flex-shrink:0" onclick="event.stopPropagation();showLightbox(${urlsJson},0)" title="Böyük görmək üçün basın">`;
+  }
+  return `<div style="width:${size}px;height:${size}px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:${Math.round(size/2)}px;border:1px solid var(--bd);flex-shrink:0">${m.emoji||'🛋️'}</div>`;
+}
 
 async function loadClients(){
   try{
@@ -1502,6 +1679,25 @@ async function startCatalogMode(){
   }
 }
 
+// Katalog karusel — növbəti/əvvəlki şəkili göstər
+window._catCarouselState = {};
+function catCarousel(modelId, total, dir, e){
+  if(e) e.stopPropagation();
+  const cur = window._catCarouselState[modelId] || 0;
+  const next = (cur + dir + total) % total;
+  // Köhnəni gizlət
+  const curEl = document.getElementById('cat-img-'+modelId+'-'+cur);
+  const nextEl = document.getElementById('cat-img-'+modelId+'-'+next);
+  if(curEl) curEl.style.display = 'none';
+  if(nextEl) nextEl.style.display = 'block';
+  // Dotları yenilə
+  for(let i=0;i<total;i++){
+    const d = document.getElementById('cat-img-'+modelId+'-dot-'+i);
+    if(d) d.style.background = (i===next) ? '#fff' : 'rgba(255,255,255,.5)';
+  }
+  window._catCarouselState[modelId] = next;
+}
+
 function renderCatalog(models){
   const body = document.getElementById('catalog-body');
   if(!models.length){
@@ -1544,14 +1740,26 @@ function renderCatalog(models){
           <span style="font-size:12px;color:#888;font-weight:500;margin-left:8px">${items.length} məhsul</span>
         </h2>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">
-          ${items.map(m => `
+          ${items.map(m => {
+            const imgs = getModelImages(m);
+            const hasMulti = imgs.length > 1;
+            const imgId = 'cat-img-'+m.id;
+            const imageDisplay = imgs.length
+              ? `<div style="position:relative;width:100%;height:240px;background:#f8f8f6;overflow:hidden">
+                  <img id="${imgId}-0" src="${imgs[0]}" style="width:100%;height:100%;object-fit:contain;cursor:zoom-in;display:block" onclick="showLightbox(${JSON.stringify(imgs).replace(/"/g,'&quot;')}, 0)" alt="${m.name}">
+                  ${imgs.slice(1).map((u,i)=>`<img id="${imgId}-${i+1}" src="${u}" style="width:100%;height:100%;object-fit:contain;cursor:zoom-in;display:none;position:absolute;top:0;left:0" onclick="showLightbox(${JSON.stringify(imgs).replace(/"/g,'&quot;')}, ${i+1})">`).join('')}
+                  ${hasMulti ? `
+                    <button onclick="catCarousel('${m.id}',${imgs.length},-1,event)" style="position:absolute;left:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">‹</button>
+                    <button onclick="catCarousel('${m.id}',${imgs.length},1,event)" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">›</button>
+                    <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:4px">
+                      ${imgs.map((_,i)=>`<div id="${imgId}-dot-${i}" style="width:6px;height:6px;border-radius:50%;background:${i===0?'#fff':'rgba(255,255,255,.5)'};transition:background .2s"></div>`).join('')}
+                    </div>
+                  ` : ''}
+                </div>`
+              : `<div style="width:100%;height:240px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center"><div style="font-size:60px">${m.emoji || '🛋️'}</div></div>`;
+            return `
             <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #eee">
-              <div style="width:100%;height:200px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;overflow:hidden">
-                ${m.img_url 
-                  ? `<img src="${m.img_url}" style="width:100%;height:100%;object-fit:cover" alt="${m.name}">`
-                  : `<div style="font-size:60px">${m.emoji || '🛋️'}</div>`
-                }
-              </div>
+              ${imageDisplay}
               <div style="padding:14px">
                 <div style="font-size:15px;font-weight:700;color:#111820;line-height:1.3">${m.name}</div>
                 ${m.description ? `<div style="font-size:12px;color:#888;margin-top:4px">${m.description}</div>` : ''}
@@ -1561,7 +1769,7 @@ function renderCatalog(models){
                 </div>
               </div>
             </div>
-          `).join('')}
+          `;}).join('')}
         </div>
       </div>
     `;
@@ -1821,6 +2029,18 @@ async function renderDash(){
     if(dateTo) query = query.lte('created_at', dateTo+'T23:59:59');
     const{data:orders}=await query;
     const all=orders||[];
+    
+    // Pending sifariş bildirişi
+    const pending = all.filter(o => o.status === 'pending_approval');
+    const banner = document.getElementById('pending-banner');
+    const bannerTitle = document.getElementById('pending-banner-title');
+    if(banner && pending.length && ['admin','manager'].includes(currentUser?.role)){
+      banner.style.display = 'flex';
+      if(bannerTitle) bannerTitle.textContent = `${pending.length} yeni müştəri sifarişi gözləyir`;
+    } else if(banner){
+      banner.style.display = 'none';
+    }
+    
     document.getElementById('k-act').textContent=all.filter(o=>['in_progress','created','late'].includes(o.status)).length;
     document.getElementById('k-lat').textContent=all.filter(o=>o.status==='late').length;
     document.getElementById('k-rdy').textContent=all.filter(o=>o.status==='ready').length;
@@ -2244,21 +2464,60 @@ function renderProductGrid(models){
     return;
   }
   grid.innerHTML = models.map(m=>{
-    // Şəkil yoxudursa emoji göstər
-    const imgContent = m.img_url
-      ? `<img src="${m.img_url}" alt="${m.name}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy">`
-      : `<div style="font-size:44px">${m.emoji || '📦'}</div>`;
-    return`<div class="pcard" id="pc-${m.id}" onclick="selProd('${m.id}')">
+    const imgs = getModelImages(m);
+    const hasMulti = imgs.length > 1;
+    const pgId = 'pg-img-'+m.id;
+    const imgContent = imgs.length
+      ? `<div style="position:relative;width:100%;height:120px;background:#f8f8f6;overflow:hidden">
+          <img id="${pgId}-0" src="${imgs[0]}" style="width:100%;height:100%;object-fit:contain;display:block;cursor:zoom-in" onclick="event.stopPropagation();showLightbox(${JSON.stringify(imgs).replace(/"/g,'&quot;')}, 0)" alt="${m.name}" loading="lazy">
+          ${imgs.slice(1).map((u,i)=>`<img id="${pgId}-${i+1}" src="${u}" style="width:100%;height:100%;object-fit:contain;display:none;position:absolute;top:0;left:0;cursor:zoom-in" onclick="event.stopPropagation();showLightbox(${JSON.stringify(imgs).replace(/"/g,'&quot;')}, ${i+1})" loading="lazy">`).join('')}
+          ${hasMulti ? `
+            <button onclick="pgCarousel('${m.id}',${imgs.length},-1,event)" style="position:absolute;left:4px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);color:#fff;border:none;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:14px">‹</button>
+            <button onclick="pgCarousel('${m.id}',${imgs.length},1,event)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);color:#fff;border:none;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:14px">›</button>
+            <div style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);display:flex;gap:3px">
+              ${imgs.map((_,i)=>`<div id="${pgId}-dot-${i}" style="width:5px;height:5px;border-radius:50%;background:${i===0?'#fff':'rgba(255,255,255,.5)'}"></div>`).join('')}
+            </div>
+          ` : ''}
+        </div>`
+      : `<div style="width:100%;height:120px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#f0f9f6,#e1f5ee)"><div style="font-size:44px">${m.emoji || '📦'}</div></div>`;
+    
+    return`<div class="pcard" id="pc-${m.id}">
       <div class="pcard-chk">✓</div>
-      <div style="width:100%;height:120px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);overflow:hidden">${imgContent}</div>
-      <div class="pcard-body">
+      ${imgContent}
+      <div class="pcard-body" onclick="selProd('${m.id}')">
         <div class="pcard-name">${m.name.split('—')[0].trim()}</div>
         <div class="pcard-info">${m.description||''}</div>
         <div class="pcard-h">${(m.stages||[]).length} mərhələ · ${m.total_hours}s</div>
         ${m.sale_price?`<div style="font-size:13px;font-weight:700;color:var(--tl);margin-top:4px">${m.sale_price} ₼</div>`:''}
       </div>
+      <button onclick="selProd('${m.id}');scrollToOrderForm()" style="width:100%;padding:10px;background:var(--tl);color:#fff;border:none;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-top:-1px">🛒 Sifariş et</button>
     </div>`;
   }).join('');
+}
+
+// Product grid karusel
+window._pgCarouselState = {};
+function pgCarousel(modelId, total, dir, e){
+  if(e) e.stopPropagation();
+  const cur = window._pgCarouselState[modelId] || 0;
+  const next = (cur + dir + total) % total;
+  const curEl = document.getElementById('pg-img-'+modelId+'-'+cur);
+  const nextEl = document.getElementById('pg-img-'+modelId+'-'+next);
+  if(curEl) curEl.style.display = 'none';
+  if(nextEl) nextEl.style.display = 'block';
+  for(let i=0;i<total;i++){
+    const d = document.getElementById('pg-img-'+modelId+'-dot-'+i);
+    if(d) d.style.background = (i===next) ? '#fff' : 'rgba(255,255,255,.5)';
+  }
+  window._pgCarouselState[modelId] = next;
+}
+
+// Sifariş et düyməsi — formaya scroll
+function scrollToOrderForm(){
+  const qbar = document.getElementById('qty-bar');
+  if(qbar){
+    qbar.scrollIntoView({behavior:'smooth', block:'center'});
+  }
 }
 
 function filterProducts(query){
@@ -2715,7 +2974,7 @@ async function renderDeptTasks(dept){
         return`<div class="wchip"><div class="wchip-av">${ini}</div><span>${w.name.split(' ')[0]}</span></div>`;
       }).join('')}</div>`:'';
       
-      const modelImg=m.img_url?`<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
+      const modelImg = getModelThumbHtml(m, 48);
 
       if(isShared){
         // Ötürülmüş sifariş — "Aldım" sistemi
@@ -3002,7 +3261,7 @@ async function renderDeptTasks(dept){
     
     // Shared kartları render et (eyni kod aktiv tab kimi)
     tl.innerHTML = vis.map(({o,m,s,si})=>{
-      const modelImg=m.img_url?`<img src="${m.img_url}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
+      const modelImg = getModelThumbHtml(m, 48);
       const total = (m.stages||[]).length;
       const sharedDoneDepts = (o.shared_done_depts||'').split(',').filter(x=>x);
       const received = sharedDoneDepts.includes(dept);
@@ -3122,7 +3381,7 @@ async function renderDeptTasks(dept){
           if(!dm && t0 && dt) dm = Math.round((new Date(dt)-new Date(t0))/60000);
           
           const st=ST[o.status]||ST.created;
-          const modelImg=m.img_url?`<img src="${m.img_url}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">`:`<div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
+          const modelImg = getModelThumbHtml(m, 40);
           const completedTime = new Date(dt).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'});
           
           // Sifariş qəbul tarixi: order_date (menecerin verdiyi) yoxdursa created_at
@@ -3875,6 +4134,7 @@ async function doCustomerLogin(){
 }
 
 async function showCustomerOrders(client){
+  _currentCustomer = client; // Mövcud müştərini qlobal saxla
   document.getElementById('login-screen').style.display = 'none';
   const cs = document.getElementById('customer-screen');
   cs.style.display = 'block';
@@ -3892,6 +4152,7 @@ async function showCustomerOrders(client){
     return;
   }
   const statusInfo = {
+    pending_approval: {label:'Təsdiq gözləyir', icon:'⏳', color:'#F78930', bg:'#FFF4E8'},
     created:    {label:'Sıraya alındı', icon:'📋', color:'#888',    bg:'#f5f5f5'},
     in_progress:{label:'Hazırlanır',    icon:'⚙️', color:'#F78930', bg:'#FFF5E6'},
     ready:      {label:'Hazırdır',      icon:'✅', color:'#007565', bg:'#E6F5F2'},
@@ -3954,6 +4215,273 @@ function doCustomerLogout(){
   hideCustomerLogin();
   document.getElementById('c-phone').value='';
   document.getElementById('c-code').value='';
+}
+
+// ═══════════ MÜŞTƏRİ KATALOQ & SİFARİŞ ═══════════
+let _currentCustomer = null; // Giriş etmiş müştəri
+
+async function openCustomerCatalog(){
+  const body = document.getElementById('customer-catalog-body');
+  body.innerHTML = '<div style="text-align:center;padding:40px;color:#888">Yüklənir...</div>';
+  document.getElementById('customer-catalog-screen').style.display = 'block';
+  
+  try {
+    const {data:models} = await sb.from('models').select('*').order('name');
+    const active = (models || []).filter(m => m.is_active !== false);
+    renderCustomerCatalog(active);
+  } catch(e) {
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:#E24B4A">Yüklənmə xətası</div>';
+  }
+}
+
+function closeCustomerCatalog(){
+  document.getElementById('customer-catalog-screen').style.display = 'none';
+}
+
+function renderCustomerCatalog(models){
+  const body = document.getElementById('customer-catalog-body');
+  if(!models.length){
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:#888">Kataloqda məhsul yoxdur</div>';
+    return;
+  }
+  
+  const categories = {
+    divan:       {icon:'🛋️', name:'Divanlar'},
+    kunc_divan:  {icon:'🛋️', name:'Künc Divanlar'},
+    oturacaq:    {icon:'🪑', name:'Oturacaqlar'},
+    kreslo:      {icon:'💺', name:'Kreslolar'},
+    masa:        {icon:'🪑', name:'Masalar'},
+    dest:        {icon:'🎁', name:'Dəstlər'},
+    diger:       {icon:'📦', name:'Digər'},
+  };
+  
+  const grouped = {};
+  models.forEach(m=>{
+    const cat = m.category || 'diger';
+    if(!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(m);
+  });
+  
+  const order = ['divan','kunc_divan','oturacaq','kreslo','masa','dest','diger'];
+  
+  let html = '';
+  order.forEach(catKey => {
+    if(!grouped[catKey] || !grouped[catKey].length) return;
+    const info = categories[catKey];
+    const items = grouped[catKey];
+    
+    html += `
+      <div style="margin-bottom:28px">
+        <h2 style="font-size:18px;font-weight:700;margin:0 0 12px 0;color:#111820;padding-bottom:8px;border-bottom:2px solid #007565">
+          ${info.icon} ${info.name}
+          <span style="font-size:12px;color:#888;font-weight:500;margin-left:8px">${items.length}</span>
+        </h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+          ${items.map(m => {
+            const imgs = getModelImages(m);
+            const hasMulti = imgs.length > 1;
+            const ccId = 'cc-img-'+m.id;
+            const imageDisplay = imgs.length
+              ? `<div style="position:relative;width:100%;height:200px;background:#f8f8f6;overflow:hidden">
+                  <img id="${ccId}-0" src="${imgs[0]}" style="width:100%;height:100%;object-fit:contain;cursor:zoom-in;display:block" onclick="showLightbox(${JSON.stringify(imgs).replace(/"/g,'&quot;')}, 0)">
+                  ${imgs.slice(1).map((u,i)=>`<img id="${ccId}-${i+1}" src="${u}" style="width:100%;height:100%;object-fit:contain;cursor:zoom-in;display:none;position:absolute;top:0;left:0" onclick="showLightbox(${JSON.stringify(imgs).replace(/"/g,'&quot;')}, ${i+1})">`).join('')}
+                  ${hasMulti ? `
+                    <button onclick="ccCarousel('${m.id}',${imgs.length},-1,event)" style="position:absolute;left:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px">‹</button>
+                    <button onclick="ccCarousel('${m.id}',${imgs.length},1,event)" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px">›</button>
+                    <div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);display:flex;gap:3px">
+                      ${imgs.map((_,i)=>`<div id="${ccId}-dot-${i}" style="width:5px;height:5px;border-radius:50%;background:${i===0?'#fff':'rgba(255,255,255,.5)'}"></div>`).join('')}
+                    </div>
+                  ` : ''}
+                </div>`
+              : `<div style="width:100%;height:200px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center"><div style="font-size:54px">${m.emoji || '🛋️'}</div></div>`;
+            
+            return `
+            <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #eee">
+              ${imageDisplay}
+              <div style="padding:12px">
+                <div style="font-size:14px;font-weight:700;color:#111820;line-height:1.3">${m.name}</div>
+                ${m.description ? `<div style="font-size:11px;color:#888;margin-top:3px">${m.description}</div>` : ''}
+                <div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+                  <div style="font-size:18px;font-weight:800;color:#F78930">${(m.sale_price||0).toFixed(0)} ₼</div>
+                </div>
+                <button onclick="openCustomerOrderForm('${m.id}')" style="width:100%;padding:10px;background:#007565;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px">🛒 Sifariş et</button>
+              </div>
+            </div>
+          `;}).join('')}
+        </div>
+      </div>
+    `;
+  });
+  
+  body.innerHTML = html;
+}
+
+// Katalog karusel (müştəri)
+window._ccCarouselState = {};
+function ccCarousel(modelId, total, dir, e){
+  if(e) e.stopPropagation();
+  const cur = window._ccCarouselState[modelId] || 0;
+  const next = (cur + dir + total) % total;
+  const curEl = document.getElementById('cc-img-'+modelId+'-'+cur);
+  const nextEl = document.getElementById('cc-img-'+modelId+'-'+next);
+  if(curEl) curEl.style.display = 'none';
+  if(nextEl) nextEl.style.display = 'block';
+  for(let i=0;i<total;i++){
+    const d = document.getElementById('cc-img-'+modelId+'-dot-'+i);
+    if(d) d.style.background = (i===next) ? '#fff' : 'rgba(255,255,255,.5)';
+  }
+  window._ccCarouselState[modelId] = next;
+}
+
+// Müştəri sifariş forması açır
+async function openCustomerOrderForm(modelId){
+  // Modeli yüklə
+  showLoader();
+  const {data:m} = await sb.from('models').select('*').eq('id', modelId).single();
+  hideLoader();
+  if(!m){ toast('⚠ Model tapılmadı'); return; }
+  
+  window._customerOrderModel = m;
+  
+  // Preview
+  const imgs = getModelImages(m);
+  const preview = document.getElementById('cof-model-preview');
+  const thumb = imgs.length
+    ? `<img src="${imgs[0]}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid #ddd">`
+    : `<div style="width:56px;height:56px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:28px">${m.emoji||'🛋️'}</div>`;
+  preview.innerHTML = `
+    ${thumb}
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:700">${m.name}</div>
+      ${m.description?`<div style="font-size:11px;color:#888;margin-top:2px">${m.description}</div>`:''}
+      <div style="font-size:15px;font-weight:700;color:#F78930;margin-top:4px">${(m.sale_price||0).toFixed(0)} ₼</div>
+    </div>
+  `;
+  
+  // Müştəri giriş etmişsə avtomatik doldur
+  if(_currentCustomer){
+    document.getElementById('cof-name').value = _currentCustomer.name || '';
+    document.getElementById('cof-phone').value = _currentCustomer.phone || '';
+  } else {
+    document.getElementById('cof-name').value = '';
+    document.getElementById('cof-phone').value = '';
+  }
+  document.getElementById('cof-qty').value = 1;
+  document.getElementById('cof-fabric').value = '';
+  document.getElementById('cof-color').value = '';
+  document.getElementById('cof-notes').value = '';
+  document.getElementById('cof-err').textContent = '';
+  
+  // Minimum tarix = bu gün + 14 gün (istehsal müddəti)
+  const minDate = new Date();
+  minDate.setDate(minDate.getDate() + 14);
+  document.getElementById('cof-deadline').min = minDate.toISOString().split('T')[0];
+  document.getElementById('cof-deadline').value = '';
+  
+  document.getElementById('customer-order-form').style.display = 'flex';
+}
+
+function closeCustomerOrderForm(){
+  document.getElementById('customer-order-form').style.display = 'none';
+}
+
+async function submitCustomerOrder(){
+  const err = document.getElementById('cof-err');
+  err.textContent = '';
+  
+  const name = document.getElementById('cof-name').value.trim();
+  const phone = document.getElementById('cof-phone').value.trim();
+  const qty = parseInt(document.getElementById('cof-qty').value) || 1;
+  const deadline = document.getElementById('cof-deadline').value;
+  const fabric = document.getElementById('cof-fabric').value.trim();
+  const color = document.getElementById('cof-color').value.trim();
+  const notes = document.getElementById('cof-notes').value.trim();
+  
+  if(!name){ err.textContent = '⚠ Adınızı yazın'; return; }
+  if(!phone || phone.length < 6){ err.textContent = '⚠ Düzgün telefon yazın'; return; }
+  if(qty < 1){ err.textContent = '⚠ Ədəd 1-dən az ola bilməz'; return; }
+  
+  const m = window._customerOrderModel;
+  if(!m){ err.textContent = '⚠ Model tapılmadı'; return; }
+  
+  showLoader();
+  try {
+    // Sifariş nömrəsi: CUS-timestamp
+    const orderNumber = 'CUS-' + Date.now().toString().slice(-6);
+    
+    const payload = {
+      order_number: orderNumber,
+      client: name,
+      model_id: m.id,
+      qty: qty,
+      fabric: fabric || null,
+      color: color || null,
+      notes: notes || '',
+      deadline: deadline || null,
+      status: 'pending_approval', // Yeni status — admin təsdiqi gözləyir
+      current_stage: 0,
+      progress: {},
+      sale_price: m.sale_price || 0,
+      final_price: (m.sale_price || 0) * qty,
+      order_date: new Date().toISOString().split('T')[0],
+      // Xüsusi sahələr — müştəri tərəfindən gələn
+      source: 'customer',
+      customer_phone: phone,
+    };
+    
+    // Əgər müştəri giriş etmişsə, onun id-si
+    if(_currentCustomer && _currentCustomer.id){
+      payload.customer_id = _currentCustomer.id;
+    }
+    
+    const {data, error} = await sb.from('orders').insert(payload).select().single();
+    hideLoader();
+    
+    if(error){
+      console.error('Customer order error:', error);
+      // Əgər 'source' və ya 'customer_phone' sütunları yoxdursa, qeydləri içinə salıb yenidən cəhd et
+      if(error.message && (error.message.includes('source') || error.message.includes('customer_phone') || error.message.includes('customer_id'))){
+        // Sadələşdirilmiş payload
+        delete payload.source;
+        delete payload.customer_phone;
+        delete payload.customer_id;
+        payload.notes = `[📱 Müştəri sifarişi — ${phone}]\n` + (fabric?`Parça: ${fabric}\n`:'') + (color?`Rəng: ${color}\n`:'') + (notes?`Qeyd: ${notes}`:'');
+        showLoader();
+        const {data:data2, error:error2} = await sb.from('orders').insert(payload).select().single();
+        hideLoader();
+        if(error2){ err.textContent = 'Xəta: ' + error2.message; return; }
+      } else {
+        err.textContent = 'Xəta: ' + error.message;
+        return;
+      }
+    }
+    
+    closeCustomerOrderForm();
+    closeCustomerCatalog();
+    
+    // Uğur mesajı göstər
+    const successDiv = document.createElement('div');
+    successDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:16px;padding:30px;box-shadow:0 10px 40px rgba(0,0,0,.2);z-index:100001;text-align:center;max-width:340px;width:90%';
+    successDiv.innerHTML = `
+      <div style="font-size:56px;margin-bottom:12px">✅</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px">Sifariş göndərildi!</div>
+      <div style="font-size:13px;color:#666;line-height:1.5;margin-bottom:16px">
+        Sifariş №: <b>${orderNumber}</b><br>
+        Admin sizinlə əlaqə saxlayacaq və sifarişi təsdiqləyəcək.
+      </div>
+      <button onclick="this.parentElement.remove()" style="padding:12px 24px;background:#007565;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700">Anladım</button>
+    `;
+    document.body.appendChild(successDiv);
+    
+    // Müştəri ekranına sifarişi yenilə (əgər giriş edibsə)
+    if(_currentCustomer){
+      setTimeout(()=>showCustomerOrders(_currentCustomer), 500);
+    }
+    
+  } catch(e) {
+    hideLoader();
+    err.textContent = 'Xəta: ' + e.message;
+  }
 }
 
 function qaCheckAll(oid){
@@ -4913,10 +5441,12 @@ async function renderAdmin(){
   const mc=document.getElementById('ami-m');if(mc)mc.textContent=(models?.length||0)+' model';
   const wc=document.getElementById('ami-w');if(wc)wc.textContent=(workers?.length||0)+' işçi';
   const cc=document.getElementById('ami-c');if(cc)cc.textContent=(clients?.length||0)+' nəfər';
+  updatePendingBadge(); // Badge-i yenilə
 }
 
 async function adminSec(sec){
   const el=document.getElementById('admin-sec');
+  if(sec==='pending') await renderPendingOrdersSection(el);
   if(sec==='stats') await renderStatsSection(el);
   if(sec==='users') await renderUsersSection(el);
   if(sec==='pins') await renderPinsSection(el);
@@ -4925,6 +5455,155 @@ async function adminSec(sec){
   if(sec==='clients') await renderClientsSection(el);
   if(sec==='settings') await renderSettingsSection(el);
   if(sec==='deptanalytics') await renderDeptAnalytics(el);
+}
+
+// ═══════════ PENDING MÜŞTƏRİ SİFARİŞLƏRİ ═══════════
+async function renderPendingOrdersSection(el){
+  showLoader();
+  const {data:orders} = await sb.from('orders').select('*').eq('status','pending_approval').order('created_at',{ascending:false});
+  const {data:models} = await sb.from('models').select('*');
+  hideLoader();
+  
+  const pending = orders || [];
+  const allModels = models || [];
+  
+  if(!pending.length){
+    el.innerHTML = `
+      <div style="padding:40px;text-align:center;background:#fff;border-radius:12px;border:1px solid var(--bd)">
+        <div style="font-size:48px;margin-bottom:12px">✅</div>
+        <div style="font-size:16px;font-weight:600;color:var(--dp)">Yeni sifariş yoxdur</div>
+        <div style="font-size:13px;color:var(--t3);margin-top:6px">Müştərilər kataloqdan sifariş verdikdə burada görünəcək</div>
+      </div>`;
+    return;
+  }
+  
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="slbl" style="margin:0">🔔 Təsdiq gözləyən sifarişlər — ${pending.length}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${pending.map(o => {
+        const m = allModels.find(x => x.id === o.model_id) || {name:'?', emoji:'📦'};
+        const thumb = getModelThumbHtml(m, 56);
+        const phone = o.customer_phone || (o.notes && o.notes.match(/\+?\d[\d\s-]{5,}/)?.[0]) || '—';
+        const notesClean = (o.notes || '').replace(/^\[📱[^\]]*\]\n?/, '');
+        const createdAt = o.created_at ? new Date(o.created_at).toLocaleString('az-AZ', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+        
+        return `
+          <div style="background:#fff;border:2px solid #F78930;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(247,137,48,.1)">
+            <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
+              ${thumb}
+              <div style="flex:1;min-width:0">
+                <div style="font-size:15px;font-weight:700">${m.name}</div>
+                <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${o.qty} ədəd · ${(o.final_price||0).toFixed(0)} ₼</div>
+                <div style="margin-top:6px;display:inline-block;background:#FFF4E8;color:#F78930;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700">⏳ Təsdiq gözləyir</div>
+              </div>
+              <div style="font-size:10px;color:var(--t3);text-align:right;white-space:nowrap">${createdAt}</div>
+            </div>
+            
+            <div style="background:#f8f8f6;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                <div><div style="font-size:10px;color:var(--t3);font-weight:600;text-transform:uppercase">Müştəri</div><div style="font-weight:600;margin-top:2px">${o.client || '—'}</div></div>
+                <div><div style="font-size:10px;color:var(--t3);font-weight:600;text-transform:uppercase">Telefon</div><div style="font-weight:600;margin-top:2px;font-family:'DM Mono',monospace">${phone}</div></div>
+              </div>
+              ${o.fabric||o.color?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                ${o.fabric?`<div><div style="font-size:10px;color:var(--t3);font-weight:600;text-transform:uppercase">Parça</div><div style="margin-top:2px">${o.fabric}</div></div>`:''}
+                ${o.color?`<div><div style="font-size:10px;color:var(--t3);font-weight:600;text-transform:uppercase">Rəng</div><div style="margin-top:2px">${o.color}</div></div>`:''}
+              </div>`:''}
+              ${o.deadline?`<div style="margin-bottom:8px"><div style="font-size:10px;color:var(--t3);font-weight:600;text-transform:uppercase">İstənilən tarix</div><div style="font-weight:600;margin-top:2px">${o.deadline}</div></div>`:''}
+              ${notesClean?`<div><div style="font-size:10px;color:var(--t3);font-weight:600;text-transform:uppercase">Qeydlər</div><div style="margin-top:2px;white-space:pre-wrap">${notesClean}</div></div>`:''}
+            </div>
+            
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button onclick="approvePendingOrder('${o.id}')" style="flex:2;min-width:140px;padding:12px;background:#007565;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700">✓ Təsdiq et — Pipeline başlat</button>
+              <button onclick="callCustomer('${phone}')" style="flex:1;min-width:100px;padding:12px;background:#fff;color:#007565;border:1px solid #007565;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600">📞 Zəng et</button>
+              <button onclick="rejectPendingOrder('${o.id}','${o.order_number}')" style="flex:1;min-width:100px;padding:12px;background:#fff;color:#E24B4A;border:1px solid #E24B4A;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600">✕ İmtina</button>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+async function approvePendingOrder(id){
+  if(!confirm('Sifarişi təsdiqləmək və istehsalata göndərmək istədiyinizə əminsiniz?')) return;
+  showLoader();
+  
+  // Sifarişi yüklə və modeli tap
+  const {data:order} = await sb.from('orders').select('*').eq('id', id).single();
+  if(!order){ hideLoader(); toast('⚠ Sifariş tapılmadı'); return; }
+  
+  const {data:model} = await sb.from('models').select('*').eq('id', order.model_id).single();
+  if(!model){ hideLoader(); toast('⚠ Model tapılmadı'); return; }
+  
+  // İlk mərhələni başlat
+  const stages = model.stages || [];
+  const progress = {};
+  if(stages.length){
+    const firstStage = stages[0];
+    progress[firstStage.dept] = { started: new Date().toISOString(), done: null };
+  }
+  
+  // Təsdiq et — statusu in_progress edir və pipeline başlayır
+  const updates = {
+    status: 'in_progress',
+    current_stage: 1,
+    progress: progress,
+  };
+  
+  const {error} = await sb.from('orders').update(updates).eq('id', id);
+  hideLoader();
+  
+  if(error){ toast('Xəta: ' + error.message); return; }
+  toast('✓ Sifariş təsdiqləndi və istehsalata göndərildi');
+  await adminSec('pending');
+  await updatePendingBadge();
+}
+
+async function rejectPendingOrder(id, orderNumber){
+  const reason = prompt(`"${orderNumber}" sifarişinə imtina səbəbi (istəyə bağlı):`, '');
+  if(reason === null) return;
+  if(!confirm('Sifariş "İmtina edildi" statusuna keçəcək. Davam?')) return;
+  
+  showLoader();
+  const notesUpd = reason ? `[❌ İmtina: ${reason}]` : '[❌ Admin tərəfindən imtina edildi]';
+  const {error} = await sb.from('orders').update({
+    status: 'cancelled',
+    notes: notesUpd
+  }).eq('id', id);
+  hideLoader();
+  
+  if(error){ toast('Xəta: ' + error.message); return; }
+  toast('Sifariş imtina edildi');
+  await adminSec('pending');
+  await updatePendingBadge();
+}
+
+function callCustomer(phone){
+  if(!phone || phone === '—'){ toast('⚠ Telefon yoxdur'); return; }
+  const clean = phone.replace(/[^\d+]/g, '');
+  window.location.href = 'tel:' + clean;
+}
+
+// Bildiriş badge-i yenilə
+async function updatePendingBadge(){
+  try {
+    const {count} = await sb.from('orders').select('*', {count:'exact', head:true}).eq('status','pending_approval');
+    const badge = document.getElementById('ami-pending-badge');
+    const sub = document.getElementById('ami-pending');
+    if(badge){
+      if(count > 0){
+        badge.textContent = count;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+    if(sub){
+      sub.textContent = count > 0 ? `${count} gözləyir` : 'Heç biri';
+    }
+  } catch(e){ console.error('updatePendingBadge:', e); }
 }
 
 async function renderClientsSection(el){
@@ -6053,6 +6732,7 @@ async function delWorker(id){
 // ═══════════ MODEL MANAGEMENT ═══════════
 function openAddModel(){
   editingModelId=null; modelEmoji='🛋️'; modelImgData=null;
+  modelImagesArr = []; // Array sıfırla
   document.getElementById('am-title').textContent='Yeni model';
   document.getElementById('am-name').value='';
   document.getElementById('am-desc').value='';
@@ -6061,6 +6741,7 @@ function openAddModel(){
   const catEl = document.getElementById('am-category');
   if(catEl) catEl.value = '';
   document.getElementById('am-prev').innerHTML='🛋️';
+  renderImagesPreview(); // Thumbnail-ları sıfırla
   window._currentStageOrder = [];
   window._parallelModes = {};
   renderDeptChecklist([]);
@@ -6071,7 +6752,10 @@ async function editModel(id){
   showLoader();
   const{data:m}=await sb.from('models').select('*').eq('id',id).single();
   hideLoader();if(!m)return;
-  editingModelId=id; modelEmoji=m.emoji||'🛋️'; modelImgData=m.img_url||null;
+  editingModelId=id; modelEmoji=m.emoji||'🛋️';
+  // Mövcud şəkilləri yüklə (həm köhnə, həm yeni format)
+  modelImagesArr = getModelImages(m);
+  modelImgData = modelImagesArr[0] || null;
   document.getElementById('am-title').textContent='Modeli düzəlt';
   document.getElementById('am-name').value=m.name;
   document.getElementById('am-desc').value=m.description||'';
@@ -6079,9 +6763,9 @@ async function editModel(id){
   document.getElementById('am-cost-price').value=m.cost_price||'';
   const catEl = document.getElementById('am-category');
   if(catEl) catEl.value = m.category || '';
+  renderImagesPreview(); // Yeni preview
   const prev=document.getElementById('am-prev');
-  if(m.img_url)prev.innerHTML=`<img src="${m.img_url}" style="width:80px;height:64px;object-fit:cover;border-radius:var(--r)">`;
-  else prev.innerHTML=m.emoji||'🛋️';
+  if(!modelImagesArr.length) prev.innerHTML = m.emoji || '🛋️';
   const selectedKeys=(m.stages||[]).map(s=>s.dept);
   window._currentStageOrder = selectedKeys;
   
@@ -6099,17 +6783,65 @@ async function editModel(id){
 
 function setEmoji(e){
   modelEmoji=e; modelImgData=null;
-  document.getElementById('am-prev').innerHTML=e;
+  // Emoji seçiləndə bütün şəkillər sıfırlanmır, amma preview emoji göstərir
+  const preview = document.getElementById('am-prev');
+  if(preview && !modelImagesArr.length) preview.innerHTML = e;
 }
 
+// Köhnə previewImg — köhnə kodun işləyə bilməsi üçün
 function previewImg(input){
-  if(!input.files[0])return;
-  const r=new FileReader();
-  r.onload=e=>{
-    modelImgData=e.target.result;
-    document.getElementById('am-prev').innerHTML=`<img src="${modelImgData}" style="width:80px;height:64px;object-fit:cover;border-radius:var(--r)">`;
+  addModelImage(input);
+}
+
+// Yeni: 3 şəkilə qədər əlavə et
+function addModelImage(input){
+  if(!input.files[0]) return;
+  if(modelImagesArr.length >= 3){
+    toast('⚠ Maksimum 3 şəkil');
+    input.value = '';
+    return;
+  }
+  const r = new FileReader();
+  r.onload = e => {
+    modelImagesArr.push(e.target.result);
+    // Köhnə single-image kodu ilə uyğunluq üçün:
+    modelImgData = modelImagesArr[0];
+    renderImagesPreview();
+    input.value = ''; // Eyni faylı yenidən yükləmək mümkün olsun
   };
   r.readAsDataURL(input.files[0]);
+}
+
+function removeModelImage(idx){
+  modelImagesArr.splice(idx, 1);
+  modelImgData = modelImagesArr[0] || null;
+  renderImagesPreview();
+}
+
+function renderImagesPreview(){
+  const container = document.getElementById('am-images-preview');
+  const mainPrev = document.getElementById('am-prev');
+  if(!container) return;
+  
+  if(!modelImagesArr.length){
+    container.innerHTML = '';
+    if(mainPrev) mainPrev.innerHTML = modelEmoji || '🛋️';
+    return;
+  }
+  
+  // Ana preview — birinci şəkli göstər
+  if(mainPrev){
+    mainPrev.innerHTML = `<img src="${modelImagesArr[0]}" style="width:100%;height:100%;object-fit:cover">`;
+  }
+  
+  // Thumbnail-ları göstər
+  container.innerHTML = modelImagesArr.map((url, idx) => `
+    <div style="position:relative;width:70px;height:56px;border-radius:6px;overflow:hidden;border:2px solid ${idx===0?'var(--tl)':'var(--bd)'}">
+      <img src="${url}" style="width:100%;height:100%;object-fit:cover" onclick="showLightbox(modelImagesArr, ${idx})">
+      <button onclick="removeModelImage(${idx})" style="position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(226,75,74,.9);color:#fff;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>
+      ${idx===0?'<div style="position:absolute;bottom:2px;left:2px;background:var(--tl);color:#fff;font-size:9px;padding:1px 4px;border-radius:3px;font-weight:600">ƏSAS</div>':''}
+    </div>
+  `).join('') + (modelImagesArr.length < 3 ? '' : '<div style="font-size:11px;color:var(--t3);align-self:center">Max 3</div>');
 }
 
 function renderDeptChecklist(selectedKeys){
@@ -6425,14 +7157,29 @@ async function saveModel(){
   
   const totalHours=stages.reduce((s,x)=>s+x.hours,0);
   const category = document.getElementById('am-category')?.value || null;
+  
+  // Şəkilləri hazırla — yeni format: JSON array (1-3 şəkil)
+  // Köhnə format: single string (köhnə modellər üçün)
+  let imgUrlValue = null;
+  if(modelImagesArr.length > 1){
+    // Birdən çox şəkil → JSON array
+    imgUrlValue = JSON.stringify(modelImagesArr);
+  } else if(modelImagesArr.length === 1){
+    // Tək şəkil → adi string (köhnə uyumluluq)
+    imgUrlValue = modelImagesArr[0];
+  } else if(modelImgData && modelImgData.startsWith('data:')){
+    // Backup — köhnə kod üçün
+    imgUrlValue = modelImgData;
+  }
+  
   showLoader();
   if(editingModelId){
     const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category};
-    if(modelImgData&&modelImgData.startsWith('data:'))upd.img_url=modelImgData;
+    if(imgUrlValue) upd.img_url = imgUrlValue;
     await sb.from('models').update(upd).eq('id',editingModelId);
     toast('✓ Model yeniləndi: '+name);
   }else{
-    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:modelImgData&&modelImgData.startsWith('data:')?modelImgData:null,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:true});
+    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:imgUrlValue,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:true});
     toast('✓ Model əlavə edildi: '+name);
   }
   hideLoader();
