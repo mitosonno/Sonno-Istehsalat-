@@ -3044,18 +3044,28 @@ function dStart(oid,si,key,dept){
 
 async function renderLogisticsDone(){
   showLoader();
-  const [{data:orders},{data:models}] = await Promise.all([
-    sb.from('orders').select('*').eq('status','delivered').order('delivered_at',{ascending:false,nullsFirst:false}),
+  const [{data:orders, error:oErr},{data:models}] = await Promise.all([
+    sb.from('orders').select('*').eq('status','delivered'),
     sb.from('models').select('*'),
   ]);
   hideLoader();
   
+  if(oErr) console.error('[logisticsDone] error:', oErr);
+  
   const allModels = models || [];
-  const all = orders || [];
+  let all = orders || [];
   
-  console.log('[logisticsDone] delivered sifarişlər:', all.length);
+  // Tarixə görə sırala (ən yeni üstdə)
+  all.sort((a,b)=>{
+    const aDate = new Date(a.delivered_at || a.created_at || 0);
+    const bDate = new Date(b.delivered_at || b.created_at || 0);
+    return bDate - aDate;
+  });
   
-  document.getElementById('dt-cnt').textContent = all.length;
+  console.log('[logisticsDone] delivered sifarişlər:', all.length, all.map(o=>o.order_number));
+  
+  const cntEl = document.getElementById('dt-cnt');
+  if(cntEl) cntEl.textContent = all.length;
   const tl = document.getElementById('dept-task-list');
   
   if(!all.length){
