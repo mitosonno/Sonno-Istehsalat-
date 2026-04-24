@@ -3144,6 +3144,7 @@ async function renderLogisticsDept(){
   
   // İndi filter
   const all = (orders||[]).filter(o=>o.status === 'ready' || o.status === 'delivering');
+  window._logisticsOrders = all; // markDel üçün cache
   
   console.log('[LOGISTICS] Göstərilir:', all.length);
   
@@ -3884,15 +3885,34 @@ async function startDel(id){
   toast('🚛 Yola çıxıldı');renderLogi();
 }
 async function markDel(id){
-  // Sifariş məlumatını yüklə
-  const {data:order} = await sb.from('orders').select('*').eq('id',id).single();
-  if(!order){toast('Xəta: sifariş tapılmadı');return;}
+  // Cached data istifadə et — sürətli
+  let order = null;
+  let model = null;
   
-  const {data:models} = await sb.from('models').select('*');
-  const model = models?.find(m=>m.id===order.model_id);
+  // Əvvəl yaddaşda axtar
+  if(window._logisticsOrders){
+    order = window._logisticsOrders.find(o=>o.id===id);
+  }
+  if(order && appModels.length){
+    model = appModels.find(m=>m.id===order.model_id);
+  }
+  
+  // Yaddaşda yoxdursa Supabase-dən yüklə
+  if(!order){
+    const {data} = await sb.from('orders').select('*').eq('id',id).single();
+    order = data;
+  }
+  if(order && !model){
+    model = appModels.find(m=>m.id===order.model_id);
+    if(!model){
+      const {data:models} = await sb.from('models').select('*').eq('id', order.model_id);
+      model = models?.[0];
+    }
+  }
+  
+  if(!order){toast('Xəta: sifariş tapılmadı');return;}
   if(!model){toast('Xəta: model tapılmadı');return;}
-
-  // İmza PDF-i göstər
+  
   openSignatureSheet(order,model);
 }
 
@@ -3973,10 +3993,16 @@ function openSignatureSheet(order,model){
     window._pendingDriverId = null;
     closeSheet('signature');
     toast('✅ Təslim edildi — '+driverName);
-    // Tamamlananlar tab-ına keç
+    // Tamamlananlar tab-ına keç və render et
     curDeptTab = 'done';
     switchDeptTab('done');
-    renderLogi();
+    setTimeout(()=>{
+      if(pinDept === 'logistics'){
+        renderDeptTasks('logistics');
+      } else {
+        renderLogi();
+      }
+    }, 300);
   };
   
   openSheet('signature');
