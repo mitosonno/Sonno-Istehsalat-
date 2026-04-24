@@ -2656,6 +2656,15 @@ async function createOrder(){
 
 // ═══════════ DEPT / PIN ═══════════
 async function renderDeptPick(){
+  // Cache-i təmizlə — hər dəfə təzə data gətir (şöbə statistikası real olsun)
+  invalidateCache('orders','logs');
+  
+  // Əgər modellər hələ yüklənməyibsə, birlikdə yüklə
+  if(!appModels || !appModels.length){
+    const {data:modelsData} = await sb.from('models').select('*');
+    appModels = (modelsData||[]).filter(m => m.is_active !== false);
+  }
+  
   const [{data:orders},{data:completedLogs}] = await Promise.all([
     sb.from('orders').select('*').in('status',['in_progress','created','late','ready']),
     sb.from('task_logs').select('order_id,stage_index,dept_key').not('completed_at','is',null),
@@ -2676,16 +2685,23 @@ async function renderDeptPick(){
     const si=o.current_stage-1;
     if(si>=0 && si<stages.length){
       const d=stages[si].dept;
+      // Paralel mərhələlərdə artıq tamamlananları at
+      const parallelDone = (o.parallel_done_depts || '').split(',').filter(x=>x);
+      
       if(d.includes('||')){
         d.split('||').forEach(part=>{
           // Bu şöbə artıq tamamlayıbsa — sayma
           const k = o.id+'_'+si+'_'+part;
-          if(!completedSet.has(k)){
+          if(!completedSet.has(k) && !parallelDone.includes(part)){
             dCnt[part]=(dCnt[part]||0)+1;
           }
         });
       } else {
-        dCnt[d]=(dCnt[d]||0)+1;
+        // Bu şöbə artıq tamamlayıbsa — sayma
+        const k = o.id+'_'+si+'_'+d;
+        if(!completedSet.has(k)){
+          dCnt[d]=(dCnt[d]||0)+1;
+        }
       }
     }
   });
@@ -2694,10 +2710,12 @@ async function renderDeptPick(){
   const pinMap={};(pins||[]).forEach(p=>pinMap[p.dept_key]=p.pin_code);
   document.getElementById('dept-grid').innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
     const cnt=dCnt[key]||0;
-    return`<div onclick="deptCard('${key}','${pinMap[key]||'1234'}')" style="background:var(--sf);border:2px solid var(--bd);border-radius:var(--rl);padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative">
+    const hasTasks = cnt > 0;
+    return`<div onclick="deptCard('${key}','${pinMap[key]||'1234'}')" style="background:var(--sf);border:2px solid ${hasTasks?'var(--or)':'var(--bd)'};border-radius:var(--rl);padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative;${hasTasks?'box-shadow:0 2px 8px rgba(247,137,48,.15)':''}">
+      ${hasTasks?`<div style="position:absolute;top:-8px;right:-8px;background:var(--or);color:#fff;font-size:13px;font-weight:700;min-width:26px;height:26px;border-radius:13px;display:flex;align-items:center;justify-content:center;padding:0 8px;box-shadow:0 2px 6px rgba(247,137,48,.4);border:2px solid #fff">${cnt}</div>`:''}
       <div style="font-size:28px;margin-bottom:8px">${info.icon}</div>
       <div style="font-size:12px;font-weight:600;line-height:1.4">${info.name}</div>
-      <div style="font-size:11px;margin-top:6px;color:${cnt>0?'var(--or)':'var(--t3)'};font-weight:${cnt>0?'600':'400'}">${cnt>0?cnt+' tapşırıq':'Boş'}</div>
+      <div style="font-size:11px;margin-top:6px;color:${hasTasks?'var(--or)':'var(--t3)'};font-weight:${hasTasks?'700':'400'}">${hasTasks?cnt+' tapşırıq':'Boş'}</div>
     </div>`;
   }).join('');
   showDV('dept-pick');
@@ -2871,7 +2889,7 @@ async function renderDeptTasks(dept){
     const tasks=[];
     const addedStages = new Set();
     
-    orders.filter(o=>!['delivered','delivering'].includes(o.status)).forEach(o=>{
+    orders.filter(o=>!['delivered','delivering','pending_approval','cancelled'].includes(o.status)).forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);
       if(!m){console.warn('Model tapilmadi:',o.model_id,o.order_number);return;}
       const stages=m.stages||[];
@@ -3220,7 +3238,7 @@ async function renderDeptTasks(dept){
     console.log('[shared tab] dept:', dept, 'altDept:', altDept);
     console.log('[shared tab] orders count:', orders.length);
     
-    orders.filter(o=>!['delivered','delivering'].includes(o.status)).forEach(o=>{
+    orders.filter(o=>!['delivered','delivering','pending_approval','cancelled'].includes(o.status)).forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);
       if(!m) return;
       const stages=m.stages||[];
@@ -5547,7 +5565,14 @@ async function approvePendingOrder(id){
   const progress = {};
   if(stages.length){
     const firstStage = stages[0];
-    progress[firstStage.dept] = { started: new Date().toISOString(), done: null };
+    // Paralel mərhələdirsə, bütün hissələri set et
+    if(firstStage.dept && firstStage.dept.includes('||')){
+      firstStage.dept.split('||').forEach(part=>{
+        progress[part] = { started: new Date().toISOString(), done: null };
+      });
+    } else {
+      progress[firstStage.dept] = { started: new Date().toISOString(), done: null };
+    }
   }
   
   // Təsdiq et — statusu in_progress edir və pipeline başlayır
@@ -5561,6 +5586,10 @@ async function approvePendingOrder(id){
   hideLoader();
   
   if(error){ toast('Xəta: ' + error.message); return; }
+  
+  // Cache-i təmizlə ki şöbə paneli yeni sifarişi görsün
+  invalidateCache('orders','logs');
+  
   toast('✓ Sifariş təsdiqləndi və istehsalata göndərildi');
   await adminSec('pending');
   await updatePendingBadge();
