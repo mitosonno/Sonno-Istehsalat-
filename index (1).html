@@ -1265,6 +1265,27 @@ window.addEventListener('popstate', (e)=>{
   }
 });
 
+// ═══════════ SUPABASE KEEP-ALIVE ═══════════
+// Hər 4 dəqiqədə kiçik ping göndər - Supabase yuxuya getməsin
+let _keepAliveInterval = null;
+function startKeepAlive(){
+  if(_keepAliveInterval) clearInterval(_keepAliveInterval);
+  _keepAliveInterval = setInterval(async()=>{
+    try{
+      await sb.from('app_settings').select('key').limit(1);
+      console.log('[keep-alive] Supabase ping ok');
+    }catch(e){
+      console.warn('[keep-alive] ping failed:', e.message);
+    }
+  }, 4 * 60 * 1000); // 4 dəqiqə
+}
+
+// Səhifə açılan kimi ping başla + dərhal bir ping göndər ki cold start-dan oyansın
+startKeepAlive();
+sb.from('app_settings').select('key').limit(1).then(()=>{
+  console.log('[keep-alive] İlk ping - Supabase oyandırıldı');
+});
+
 // ═══════════ PAGE LOAD ═══════════
 (async()=>{
   const urlParams = new URLSearchParams(window.location.search);
