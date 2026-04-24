@@ -1203,18 +1203,22 @@ async function tryRestoreSession(){
       localStorage.removeItem('sonno_session');
       return false;
     }
-    // Supabase-dən fresh user yüklə
-    const {data,error} = await sb.from('users').select('*').eq('id',saved.user.id).eq('is_active',true).single();
-    if(error||!data){
-      localStorage.removeItem('sonno_session');
-      return false;
-    }
-    currentUser = data;
-    localStorage.setItem('sonno_session', JSON.stringify({user:data, ts:Date.now()}));
+    // Supabase-ə sorğu etmədən localStorage-dan restore et
+    // (Supabase cold start-dan qaçmaq üçün)
+    currentUser = saved.user;
+    // Arxa planda user-i yenilə (bloklamadan)
+    sb.from('users').select('*').eq('id',saved.user.id).eq('is_active',true).single()
+      .then(({data,error})=>{
+        if(data && !error){
+          currentUser = data;
+          localStorage.setItem('sonno_session', JSON.stringify({user:data, ts:Date.now()}));
+        } else if(error){
+          console.warn('Background session refresh failed:', error.message);
+        }
+      }).catch(e=>console.warn('Background refresh error:', e));
     return true;
   }catch(e){
     console.error('Session restore error:', e);
-    localStorage.removeItem('sonno_session');
     return false;
   }
 }
@@ -1234,34 +1238,29 @@ window.addEventListener('popstate', (e)=>{
 
 // ═══════════ PAGE LOAD ═══════════
 (async()=>{
-  showLoader();
+  const urlParams = new URLSearchParams(window.location.search);
 
-  // URL-də ?catalog=1 varsa — public katalog mode
+  // URL-də ?catalog=1 varsa — public katalog mode (login lazım deyil)
   if(urlParams.get('catalog') === '1'){
-    hideLoader();
     startCatalogMode();
     return;
   }
   
   // URL-də ?dept=karkaz varsa — kiosk mode
-  const urlParams = new URLSearchParams(window.location.search);
   const urlDept = urlParams.get('dept');
-
   if(urlDept && DEPT_INFO[urlDept]){
-    // Kiosk mode — yalnız bu şöbə
-    hideLoader();
     startKioskMode(urlDept);
     return;
   }
 
-  // Normal mode — session yoxla
+  // Normal mode — session yoxla (Supabase-siz, dərhal)
   const restored = await tryRestoreSession();
   if(restored){
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').classList.add('visible');
     await initApp();
   }
-  hideLoader();
+  // Session yoxdursa login ekranı görünür (artıq hazırdır)
 })();
 
 // ═══════════ KATALOG MODE (PUBLIC) ═══════════
@@ -1527,7 +1526,6 @@ document.addEventListener('visibilitychange', ()=>{
 async function initApp(){
   // UI-i dərhal göstər (data gözləmədən)
   const u=currentUser;
-  const ini=u.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
   document.getElementById('topbar-av').textContent=ini;
   const rL={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
   document.getElementById('topbar-role').textContent=rL[u.role]||u.role;
