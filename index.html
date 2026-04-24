@@ -558,10 +558,13 @@ textarea{resize:vertical;min-height:80px}
       <!-- BÜTÜN SİFARİŞLƏR -->
       <div id="sc-allorders" class="sc">
         <div class="pg-hd">📋 Bütün sifarişlər</div>
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px">
-          <input type="text" id="ao-search" placeholder="🔍 Sifariş kodu, müştəri, model..." style="padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px" oninput="filterAllOrdersPage()">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px">
+          <input type="text" id="ao-search" placeholder="🔍 Sifariş, müştəri, model..." style="padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;grid-column:span 2" oninput="filterAllOrdersPage()">
           <input type="date" id="ao-from" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px" onchange="filterAllOrdersPage()">
           <input type="date" id="ao-to" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px" onchange="filterAllOrdersPage()">
+          <select id="ao-manager" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:#fff" onchange="filterAllOrdersPage()">
+            <option value="">👤 Bütün menecerlər</option>
+          </select>
           <select id="ao-status" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:#fff" onchange="filterAllOrdersPage()">
             <option value="">Bütün statuslar</option>
             <option value="created">Yaradıldı</option>
@@ -571,11 +574,12 @@ textarea{resize:vertical;min-height:80px}
             <option value="delivered">Təslim</option>
             <option value="cancelled">İmtina</option>
             <option value="late">Gecikmiş</option>
+            <option value="pending_approval">Təsdiq gözləyir</option>
           </select>
         </div>
         <div id="ao-count" style="font-size:13px;color:var(--t2);margin-bottom:10px">—</div>
         <div class="tbl-wrap">
-          <table><thead><tr><th>Sifariş</th><th>Müştəri</th><th>Model</th><th>Ədəd</th><th>Məbləğ</th><th>Deadline</th><th>Status</th></tr></thead>
+          <table><thead><tr><th>Sifariş</th><th>Müştəri</th><th>Model</th><th>Ədəd</th><th>Məbləğ</th><th>Deadline</th><th>Menecer</th><th>Status</th></tr></thead>
           <tbody id="ao-tbody"></tbody></table>
         </div>
       </div>
@@ -4033,15 +4037,38 @@ async function renderAllOrdersPage(){
   showLoader();
   const [{data:orders},{data:users}] = await Promise.all([
     sb.from('orders').select('*').order('created_at',{ascending:false}),
-    sb.from('users').select('id,name'),
+    sb.from('users').select('id,name,username,role'),
   ]);
   hideLoader();
   
   const userMap = {};
-  (users||[]).forEach(u=>userMap[u.id]=u.name);
+  (users||[]).forEach(u=>userMap[u.id]=u.name||u.username);
   
   window._aoAllOrders = orders || [];
   window._aoUserMap = userMap;
+  window._aoAllUsers = users || [];
+  
+  // Menecer dropdown-u doldur
+  const mgrSelect = document.getElementById('ao-manager');
+  if(mgrSelect){
+    // Yalnız admin və menecerləri əlavə et + sifarişlərdə olan bütün adları
+    const managerNames = new Set();
+    (users||[]).filter(u => u.role === 'admin' || u.role === 'manager').forEach(u=>{
+      managerNames.add(u.name || u.username);
+    });
+    // Sifarişlərdə olan created_by də əlavə et (müştəri sifarişləri də daxil)
+    (orders||[]).forEach(o=>{
+      if(o.created_by) managerNames.add(o.created_by);
+      if(o.manager) managerNames.add(o.manager);
+    });
+    
+    const currentVal = mgrSelect.value;
+    const names = Array.from(managerNames).filter(n=>n).sort();
+    mgrSelect.innerHTML = '<option value="">👤 Bütün menecerlər</option>' + 
+      names.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('') +
+      '<option value="__customer__">🛒 Müştəri sifarişləri</option>';
+    mgrSelect.value = currentVal;
+  }
   
   filterAllOrdersPage();
 }
@@ -4053,6 +4080,7 @@ function filterAllOrdersPage(){
   const fromDate = document.getElementById('ao-from')?.value || '';
   const toDate = document.getElementById('ao-to')?.value || '';
   const statusFilter = document.getElementById('ao-status')?.value || '';
+  const managerFilter = document.getElementById('ao-manager')?.value || '';
   
   let filtered = all.filter(o=>{
     if(search){
@@ -4073,17 +4101,39 @@ function filterAllOrdersPage(){
     
     if(statusFilter && o.status !== statusFilter) return false;
     
+    // Menecer filtri
+    if(managerFilter){
+      if(managerFilter === '__customer__'){
+        // Müştəri sifarişləri: order_number CUS- ilə başlayır və ya source=customer
+        const isCustomer = (o.order_number||'').startsWith('CUS-') || o.source === 'customer' || (o.notes||'').includes('[📱');
+        if(!isCustomer) return false;
+      } else {
+        const mgr = o.created_by || o.manager || '';
+        if(mgr !== managerFilter) return false;
+      }
+    }
+    
     return true;
   });
   
   const countEl = document.getElementById('ao-count');
-  if(countEl) countEl.textContent = filtered.length + ' sifariş göstərilir (cəmi ' + all.length + ')';
+  if(countEl){
+    let extra = '';
+    if(managerFilter){
+      const mgrLabel = managerFilter === '__customer__' ? '🛒 Müştəri sifarişləri' : '👤 '+managerFilter;
+      // Toplam məbləğ
+      const totalRev = filtered.reduce((s,o)=>s+(o.final_price||0),0);
+      const totalQty = filtered.reduce((s,o)=>s+(o.qty||0),0);
+      extra = ` · <b>${mgrLabel}</b> · ${totalQty} ədəd · ${totalRev.toFixed(0)} ₼`;
+    }
+    countEl.innerHTML = filtered.length + ' sifariş göstərilir (cəmi ' + all.length + ')' + extra;
+  }
   
   const tbody = document.getElementById('ao-tbody');
   if(!tbody) return;
   
   if(!filtered.length){
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--t3)">Nəticə yoxdur</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--t3)">Nəticə yoxdur</td></tr>';
     return;
   }
   
@@ -4098,6 +4148,12 @@ function filterAllOrdersPage(){
   return _u ? `<img src="${_u}" style="width:32px;height:32px;object-fit:cover;border-radius:6px" onclick="event.stopPropagation();showLightbox(getModelImages(m),0)" title="Böyük gör">` : `<div style="width:32px;height:32px;border-radius:6px;background:var(--lt);display:flex;align-items:center;justify-content:center;font-size:16px">${m.emoji||'🛋️'}</div>`;
 })();
     
+    // Menecer adını müəyyən et
+    const isCustomerOrder = (o.order_number||'').startsWith('CUS-') || o.source === 'customer';
+    const mgrDisplay = isCustomerOrder 
+      ? '<span style="background:#FFF4E8;color:#F78930;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">🛒 Müştəri</span>'
+      : (o.created_by || o.manager || '<span style="color:var(--t3)">—</span>');
+    
     return `<tr onclick="showOD('${o.id}')" style="background:${rowBg};cursor:pointer">
       <td><span class="mono">${o.order_number}</span><div style="font-size:10px;color:var(--t3);margin-top:2px">${dateStr}</div></td>
       <td>${o.client}</td>
@@ -4105,6 +4161,7 @@ function filterAllOrdersPage(){
       <td style="font-weight:600">${o.qty}</td>
       <td style="font-weight:600;color:var(--tl)">${o.final_price?o.final_price+' ₼':'—'}</td>
       <td style="${o.status==='late'?'color:#E24B4A;font-weight:600':''}">${o.deadline||'—'}</td>
+      <td style="font-size:12px">${mgrDisplay}</td>
       <td><span class="badge ${st.c}">${st.t}</span></td>
     </tr>`;
   }).join('');
@@ -4387,13 +4444,40 @@ async function openCustomerOrderForm(modelId){
   document.getElementById('cof-notes').value = '';
   document.getElementById('cof-err').textContent = '';
   
-  // Minimum tarix = bu gün + 14 gün (istehsal müddəti)
-  const minDate = new Date();
-  minDate.setDate(minDate.getDate() + 14);
-  document.getElementById('cof-deadline').min = minDate.toISOString().split('T')[0];
-  document.getElementById('cof-deadline').value = '';
+  // Minimum tarix = bu gün + 7 iş günü (bazar sayılmasın)
+  const minDate = getMinDeadlineDate();
+  const dlInput = document.getElementById('cof-deadline');
+  dlInput.min = minDate.toISOString().split('T')[0];
+  dlInput.value = minDate.toISOString().split('T')[0];
+  // Validasiya — bazar seçiləndə avto düzəlt
+  dlInput.onchange = function(){ validateCustomerDeadline(this); };
   
   document.getElementById('customer-order-form').style.display = 'flex';
+}
+
+// Müştəri forması üçün tarix yoxlaması
+function validateCustomerDeadline(input){
+  const dateStr = input.value;
+  if(!dateStr) return;
+  
+  let d = new Date(dateStr);
+  d.setHours(0,0,0,0);
+  const minDate = getMinDeadlineDate();
+  
+  // Bazar günü yoxla — ən yaxın Bazar ertəsinə keç
+  if(d.getDay() === 0){
+    d.setDate(d.getDate()+1);
+    toast('⚠ Bazar günü qəbul olunmur — Bazar ertəsinə köçürüldü');
+  }
+  
+  // Minimum 7 iş günü yoxla (müştərilər üçün həmişə tətbiq olunur)
+  if(d < minDate){
+    d = new Date(minDate);
+    const minStr = minDate.toLocaleDateString('az-AZ');
+    toast('⚠ Minimum 7 iş günü sonraya sifariş verilə bilər. Ən tez: '+minStr, 5000);
+  }
+  
+  input.value = d.toISOString().split('T')[0];
 }
 
 function closeCustomerOrderForm(){
@@ -4415,6 +4499,17 @@ async function submitCustomerOrder(){
   if(!name){ err.textContent = '⚠ Adınızı yazın'; return; }
   if(!phone || phone.length < 6){ err.textContent = '⚠ Düzgün telefon yazın'; return; }
   if(qty < 1){ err.textContent = '⚠ Ədəd 1-dən az ola bilməz'; return; }
+  
+  // Tarix yoxlaması
+  if(deadline){
+    const d = new Date(deadline); d.setHours(0,0,0,0);
+    const minDate = getMinDeadlineDate();
+    if(d.getDay() === 0){ err.textContent = '⚠ Bazar günü qəbul olunmur'; return; }
+    if(d < minDate){ 
+      err.textContent = '⚠ Minimum 7 iş günü sonraya tarix seçin (ən tez: '+minDate.toLocaleDateString('az-AZ')+')'; 
+      return; 
+    }
+  }
   
   const m = window._customerOrderModel;
   if(!m){ err.textContent = '⚠ Model tapılmadı'; return; }
@@ -6203,18 +6298,14 @@ async function renderStatsSection(el){
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;align-items:end">
         <div>
           <label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:block">Başlanğıc tarixi</label>
-          <input type="date" id="stats-date-from" value="${fromStr}" onchange="refreshStats()" style="width:100%;padding:9px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px">
+          <input type="date" id="stats-date-from" value="${fromStr}" style="width:100%;padding:9px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px">
         </div>
         <div>
           <label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:block">Son tarix</label>
-          <input type="date" id="stats-date-to" value="${toStr}" onchange="refreshStats()" style="width:100%;padding:9px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px">
+          <input type="date" id="stats-date-to" value="${toStr}" style="width:100%;padding:9px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px">
         </div>
         <div>
-          <label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:block">Menecer</label>
-          <select id="stats-manager" onchange="refreshStats()" style="width:100%;padding:9px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:#fff">
-            <option value="">Hamısı</option>
-            ${managers.map(m=>`<option value="${(m.name||m.username||'').replace(/"/g,'&quot;')}">${m.name||m.username}</option>`).join('')}
-          </select>
+          <button onclick="refreshStats()" style="width:100%;padding:10px 16px;background:var(--tl);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700">🔎 Axtar</button>
         </div>
         <div style="display:flex;gap:6px">
           <button onclick="setStatsRange('today')" style="flex:1;padding:9px 8px;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">Bu gün</button>
@@ -6260,7 +6351,6 @@ function refreshStats(){
   
   const dateFrom = document.getElementById('stats-date-from')?.value;
   const dateTo = document.getElementById('stats-date-to')?.value;
-  const selectedManager = document.getElementById('stats-manager')?.value || '';
   
   // Tarix filtrasiyası
   const fromDate = dateFrom ? new Date(dateFrom + 'T00:00:00') : null;
@@ -6273,11 +6363,6 @@ function refreshStats(){
     if(toDate && d > toDate) return false;
     return true;
   });
-  
-  // Menecer filtrasiyası
-  if(selectedManager){
-    filteredOrders = filteredOrders.filter(o => o.created_by === selectedManager || o.manager === selectedManager);
-  }
   
   // 1. Ən çox satılan model
   const modelSales={};
@@ -6373,12 +6458,10 @@ function refreshStats(){
   const profitMargin=totalRevenue>0?(profit/totalRevenue*100):0;
   const deliveredProfit=deliveredRevenue-deliveredCost;
   
-  const managerBadge = selectedManager ? `<span style="background:var(--lt);color:var(--tl);padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-left:8px">👤 ${selectedManager}</span>` : '';
-  
   const target = document.getElementById('stats-content');
   if(!target) return;
   target.innerHTML = `
-    <div class="slbl">💰 Maliyyə Analizi ${managerBadge}</div>
+    <div class="slbl">💰 Maliyyə Analizi </div>
     <div class="sec-card card-pad" style="margin-bottom:14px">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
         <div style="background:var(--lt);padding:14px;border-radius:10px">
@@ -6404,7 +6487,7 @@ function refreshStats(){
       </div>
     </div>
     
-    <div class="slbl">Performans analizi ${managerBadge}</div>
+    <div class="slbl">Performans analizi </div>
     
     <div class="sec-card" style="margin-bottom:14px">
       <div class="sec-card-hd"><h3>🏆 Ən çox satılan modellər</h3></div>
