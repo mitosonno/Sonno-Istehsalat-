@@ -293,6 +293,9 @@ textarea{resize:vertical;min-height:80px}
   .sheet{bottom:0;left:0;right:0;border-radius:20px 20px 0 0;transform:translateY(100%);max-height:92dvh;padding-bottom:env(safe-area-inset-bottom,0px)}
   .sheet.on{transform:translateY(0)}
   #toast{bottom:calc(80px + env(safe-area-inset-bottom,0px) + 8px);left:14px;right:14px;max-width:none;text-align:center}
+  /* Mobile: model grid və şəkilər */
+  .pgrid{grid-template-columns:1fr 1fr !important;gap:10px}
+  .pcard img{display:block !important;width:100% !important;height:100% !important;object-fit:cover !important}
 }
 @media(min-width:769px){
   .sheet{top:52px;right:0;width:480px;height:calc(100vh - 52px);border-radius:0;transform:translateX(100%)}
@@ -1730,12 +1733,13 @@ async function initApp(){
   
   // Data arxa planda yüklə (parallel)
   const dataPromise = Promise.all([
-    sb.from('models').select('*').eq('is_active',true),
+    sb.from('models').select('*'),  // Bütün modelləri çək - is_active filtrini client-də et
     sb.from('workers').select('*').eq('status','active'),
     sb.from('clients').select('*').order('name'),
     getForwardingConfig(),
   ]).then(([mr,wr,cr,fwd])=>{
-    appModels=mr.data||[];
+    // Yalnız is_active === false olanları çıxart (null/undefined/true qalsın)
+    appModels=(mr.data||[]).filter(m => m.is_active !== false);
     appWorkers=wr.data||[];
     appClients=cr.data||[];
     window.forwardingConfig = fwd || {};
@@ -2203,6 +2207,14 @@ function copyOrderLink(oid){
 }
 
 function renderOrderForm(){
+  // Əgər modellər hələ yüklənməyibsə, biraz gözlə
+  if(!appModels.length){
+    // Modelləri yenidən çəkməyə cəhd et
+    sb.from('models').select('*').then(({data})=>{
+      appModels = (data||[]).filter(m => m.is_active !== false);
+      renderProductGrid(appModels);
+    });
+  }
   renderProductGrid(appModels);
   const deadInput = document.getElementById('o-dead');
   const minDate = getMinDeadlineDate();
@@ -2225,9 +2237,13 @@ function renderProductGrid(models){
     return;
   }
   grid.innerHTML = models.map(m=>{
-    const img=m.img_url?`<img src="${m.img_url}" style="width:100%;height:100px;object-fit:cover">`:`<div class="pcard-img">${m.emoji}</div>`;
+    // Şəkil yoxudursa emoji göstər
+    const imgContent = m.img_url
+      ? `<img src="${m.img_url}" alt="${m.name}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy">`
+      : `<div style="font-size:44px">${m.emoji || '📦'}</div>`;
     return`<div class="pcard" id="pc-${m.id}" onclick="selProd('${m.id}')">
-      <div class="pcard-chk">✓</div>${img}
+      <div class="pcard-chk">✓</div>
+      <div style="width:100%;height:120px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);overflow:hidden">${imgContent}</div>
       <div class="pcard-body">
         <div class="pcard-name">${m.name.split('—')[0].trim()}</div>
         <div class="pcard-info">${m.description||''}</div>
