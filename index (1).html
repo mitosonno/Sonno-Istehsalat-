@@ -3993,16 +3993,23 @@ function openSignatureSheet(order,model){
     window._pendingDriverId = null;
     closeSheet('signature');
     toast('✅ Təslim edildi — '+driverName);
-    // Tamamlananlar tab-ına keç və render et
+    
+    // Dərhal Tamamlananlar tab-ına keç və render et
     curDeptTab = 'done';
-    switchDeptTab('done');
-    setTimeout(()=>{
-      if(pinDept === 'logistics'){
-        renderDeptTasks('logistics');
-      } else {
-        renderLogi();
-      }
-    }, 300);
+    
+    // Tab button vizual yenilə
+    const ta = document.getElementById('dept-tab-active');
+    const ts = document.getElementById('dept-tab-shared');
+    const td = document.getElementById('dept-tab-done');
+    [ta, ts, td].forEach(btn => {
+      if(btn){btn.style.background='transparent';btn.style.color='var(--t2)';btn.style.boxShadow='none';}
+    });
+    if(td){td.style.background='var(--sf)';td.style.color='var(--tl)';td.style.boxShadow='0 1px 4px rgba(0,0,0,.08)';}
+    
+    // BİRBAŞA Tamamlananlar render et - gecikmə yoxdur
+    if(typeof renderLogisticsDone === 'function'){
+      await renderLogisticsDone();
+    }
   };
   
   openSheet('signature');
