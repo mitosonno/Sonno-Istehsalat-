@@ -1994,6 +1994,16 @@ async function goTo(key, fromHistory){
     navHistory.push(key);
     history.pushState({page:key}, '', '#'+key);
   }
+  
+  // Topbar həmişə görünsün (dept-mode-dan çıxarkən)
+  const topbar = document.querySelector('.topbar');
+  if(topbar) topbar.style.display = 'flex';
+  const sidebar = document.getElementById('sidebar');
+  if(sidebar) sidebar.style.display = '';
+  const mainContent = document.getElementById('main-content');
+  if(mainContent) mainContent.style.marginLeft = '';
+  document.body.classList.remove('dept-mode');
+  
   document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.sidebar-item').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('.bnav-item').forEach(b=>b.classList.remove('on'));
@@ -2656,15 +2666,6 @@ async function createOrder(){
 
 // ═══════════ DEPT / PIN ═══════════
 async function renderDeptPick(){
-  // Cache-i təmizlə — hər dəfə təzə data gətir (şöbə statistikası real olsun)
-  invalidateCache('orders','logs');
-  
-  // Əgər modellər hələ yüklənməyibsə, birlikdə yüklə
-  if(!appModels || !appModels.length){
-    const {data:modelsData} = await sb.from('models').select('*');
-    appModels = (modelsData||[]).filter(m => m.is_active !== false);
-  }
-  
   const [{data:orders},{data:completedLogs}] = await Promise.all([
     sb.from('orders').select('*').in('status',['in_progress','created','late','ready']),
     sb.from('task_logs').select('order_id,stage_index,dept_key').not('completed_at','is',null),
@@ -2685,23 +2686,16 @@ async function renderDeptPick(){
     const si=o.current_stage-1;
     if(si>=0 && si<stages.length){
       const d=stages[si].dept;
-      // Paralel mərhələlərdə artıq tamamlananları at
-      const parallelDone = (o.parallel_done_depts || '').split(',').filter(x=>x);
-      
       if(d.includes('||')){
         d.split('||').forEach(part=>{
           // Bu şöbə artıq tamamlayıbsa — sayma
           const k = o.id+'_'+si+'_'+part;
-          if(!completedSet.has(k) && !parallelDone.includes(part)){
+          if(!completedSet.has(k)){
             dCnt[part]=(dCnt[part]||0)+1;
           }
         });
       } else {
-        // Bu şöbə artıq tamamlayıbsa — sayma
-        const k = o.id+'_'+si+'_'+d;
-        if(!completedSet.has(k)){
-          dCnt[d]=(dCnt[d]||0)+1;
-        }
+        dCnt[d]=(dCnt[d]||0)+1;
       }
     }
   });
@@ -2710,12 +2704,10 @@ async function renderDeptPick(){
   const pinMap={};(pins||[]).forEach(p=>pinMap[p.dept_key]=p.pin_code);
   document.getElementById('dept-grid').innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
     const cnt=dCnt[key]||0;
-    const hasTasks = cnt > 0;
-    return`<div onclick="deptCard('${key}','${pinMap[key]||'1234'}')" style="background:var(--sf);border:2px solid ${hasTasks?'var(--or)':'var(--bd)'};border-radius:var(--rl);padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative;${hasTasks?'box-shadow:0 2px 8px rgba(247,137,48,.15)':''}">
-      ${hasTasks?`<div style="position:absolute;top:-8px;right:-8px;background:var(--or);color:#fff;font-size:13px;font-weight:700;min-width:26px;height:26px;border-radius:13px;display:flex;align-items:center;justify-content:center;padding:0 8px;box-shadow:0 2px 6px rgba(247,137,48,.4);border:2px solid #fff">${cnt}</div>`:''}
+    return`<div onclick="deptCard('${key}','${pinMap[key]||'1234'}')" style="background:var(--sf);border:2px solid var(--bd);border-radius:var(--rl);padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative">
       <div style="font-size:28px;margin-bottom:8px">${info.icon}</div>
       <div style="font-size:12px;font-weight:600;line-height:1.4">${info.name}</div>
-      <div style="font-size:11px;margin-top:6px;color:${hasTasks?'var(--or)':'var(--t3)'};font-weight:${hasTasks?'700':'400'}">${hasTasks?cnt+' tapşırıq':'Boş'}</div>
+      <div style="font-size:11px;margin-top:6px;color:${cnt>0?'var(--or)':'var(--t3)'};font-weight:${cnt>0?'600':'400'}">${cnt>0?cnt+' tapşırıq':'Boş'}</div>
     </div>`;
   }).join('');
   showDV('dept-pick');
@@ -2808,7 +2800,7 @@ function showDV(v){
     // Body-də full-screen class əlavə et
     document.body.classList.add('dept-mode');
   } else {
-    if(topbar) topbar.style.display = '';
+    if(topbar) topbar.style.display = 'flex';
     if(sidebar) sidebar.style.display = '';
     if(mainContent) mainContent.style.marginLeft = '';
     document.body.classList.remove('dept-mode');
@@ -2889,7 +2881,7 @@ async function renderDeptTasks(dept){
     const tasks=[];
     const addedStages = new Set();
     
-    orders.filter(o=>!['delivered','delivering','pending_approval','cancelled'].includes(o.status)).forEach(o=>{
+    orders.filter(o=>!['delivered','delivering'].includes(o.status)).forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);
       if(!m){console.warn('Model tapilmadi:',o.model_id,o.order_number);return;}
       const stages=m.stages||[];
@@ -3238,7 +3230,7 @@ async function renderDeptTasks(dept){
     console.log('[shared tab] dept:', dept, 'altDept:', altDept);
     console.log('[shared tab] orders count:', orders.length);
     
-    orders.filter(o=>!['delivered','delivering','pending_approval','cancelled'].includes(o.status)).forEach(o=>{
+    orders.filter(o=>!['delivered','delivering'].includes(o.status)).forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);
       if(!m) return;
       const stages=m.stages||[];
@@ -4443,7 +4435,6 @@ async function submitCustomerOrder(){
       deadline: deadline || null,
       status: 'pending_approval', // Yeni status — admin təsdiqi gözləyir
       current_stage: 0,
-      progress: {},
       sale_price: m.sale_price || 0,
       final_price: (m.sale_price || 0) * qty,
       order_date: new Date().toISOString().split('T')[0],
@@ -4457,26 +4448,47 @@ async function submitCustomerOrder(){
       payload.customer_id = _currentCustomer.id;
     }
     
-    const {data, error} = await sb.from('orders').insert(payload).select().single();
+    // Sütun olmayan sahələri avtomatik çıxart və yenidən cəhd et
+    let attempts = 0;
+    let lastError = null;
+    let successData = null;
+    
+    while(attempts < 5){
+      attempts++;
+      const {data, error} = await sb.from('orders').insert(payload).select().single();
+      if(!error){
+        successData = data;
+        break;
+      }
+      lastError = error;
+      console.warn('Attempt', attempts, 'failed:', error.message);
+      
+      // Hansı sütun problemlidir tap və çıxart
+      const msg = error.message || '';
+      const colMatch = msg.match(/column [""']?(\w+)[""']?/i) || msg.match(/find the [""']?(\w+)[""']? column/i);
+      if(colMatch && colMatch[1] && payload[colMatch[1]] !== undefined){
+        const col = colMatch[1];
+        console.log('Removing column:', col);
+        // Sütun qeydə salınmalı olan datanı notes-a əlavə et
+        if(col === 'source' || col === 'customer_phone' || col === 'customer_id'){
+          payload.notes = `[📱 Müştəri — ${phone}]\n` + (fabric?`Parça: ${fabric}\n`:'') + (color?`Rəng: ${color}\n`:'') + (notes?`Qeyd: ${notes}`:'');
+        }
+        delete payload[col];
+      } else if(msg.includes('pending_approval')){
+        // 'pending_approval' status enum-da yoxdursa, 'created' istifadə et
+        payload.status = 'created';
+        payload.notes = (payload.notes || '') + '\n[⏳ TƏSDIQ GÖZLƏYİR]';
+      } else {
+        // Başqa xəta — dayan
+        break;
+      }
+    }
+    
     hideLoader();
     
-    if(error){
-      console.error('Customer order error:', error);
-      // Əgər 'source' və ya 'customer_phone' sütunları yoxdursa, qeydləri içinə salıb yenidən cəhd et
-      if(error.message && (error.message.includes('source') || error.message.includes('customer_phone') || error.message.includes('customer_id'))){
-        // Sadələşdirilmiş payload
-        delete payload.source;
-        delete payload.customer_phone;
-        delete payload.customer_id;
-        payload.notes = `[📱 Müştəri sifarişi — ${phone}]\n` + (fabric?`Parça: ${fabric}\n`:'') + (color?`Rəng: ${color}\n`:'') + (notes?`Qeyd: ${notes}`:'');
-        showLoader();
-        const {data:data2, error:error2} = await sb.from('orders').insert(payload).select().single();
-        hideLoader();
-        if(error2){ err.textContent = 'Xəta: ' + error2.message; return; }
-      } else {
-        err.textContent = 'Xəta: ' + error.message;
-        return;
-      }
+    if(!successData){
+      err.textContent = 'Xəta: ' + (lastError?.message || 'bilinməyən xəta');
+      return;
     }
     
     closeCustomerOrderForm();
@@ -5560,36 +5572,24 @@ async function approvePendingOrder(id){
   const {data:model} = await sb.from('models').select('*').eq('id', order.model_id).single();
   if(!model){ hideLoader(); toast('⚠ Model tapılmadı'); return; }
   
-  // İlk mərhələni başlat
-  const stages = model.stages || [];
-  const progress = {};
-  if(stages.length){
-    const firstStage = stages[0];
-    // Paralel mərhələdirsə, bütün hissələri set et
-    if(firstStage.dept && firstStage.dept.includes('||')){
-      firstStage.dept.split('||').forEach(part=>{
-        progress[part] = { started: new Date().toISOString(), done: null };
-      });
-    } else {
-      progress[firstStage.dept] = { started: new Date().toISOString(), done: null };
-    }
-  }
-  
   // Təsdiq et — statusu in_progress edir və pipeline başlayır
+  // Qeyd: current_stage:1 pipeline-ı başladır, progress sütunu lazım deyil
   const updates = {
     status: 'in_progress',
     current_stage: 1,
-    progress: progress,
   };
   
-  const {error} = await sb.from('orders').update(updates).eq('id', id);
+  let {error} = await sb.from('orders').update(updates).eq('id', id);
+  
+  // Əgər 'in_progress' status enum-da yoxdursa, 'created' ilə yenidən cəhd et
+  if(error && error.message && error.message.includes('in_progress')){
+    const retry = await sb.from('orders').update({status:'created', current_stage:1}).eq('id', id);
+    error = retry.error;
+  }
+  
   hideLoader();
   
   if(error){ toast('Xəta: ' + error.message); return; }
-  
-  // Cache-i təmizlə ki şöbə paneli yeni sifarişi görsün
-  invalidateCache('orders','logs');
-  
   toast('✓ Sifariş təsdiqləndi və istehsalata göndərildi');
   await adminSec('pending');
   await updatePendingBadge();
@@ -6179,134 +6179,241 @@ async function renderStatsSection(el){
   const allLogs = logs||[];
   const allUsers = users||[];
   const allModels = models||[];
+  
+  // Menecerləri çıxart (admin və menecer rolları)
+  const managers = allUsers.filter(u => u.role === 'admin' || u.role === 'manager');
+  
+  // Data-nı window-a yadda saxla ki filtr funksiyası istifadə edə bilsin
+  window._statsAllOrders = allOrders;
+  window._statsAllModels = allModels;
+  window._statsAllLogs = allLogs;
+  window._statsAllUsers = allUsers;
+  window._statsManagers = managers;
 
-  // ── 1. Ən çox satılan model ──
-  const modelSales={};
-  allOrders.forEach(o=>{
-    if(!o.model_id)return;
-    if(!modelSales[o.model_id])modelSales[o.model_id]={qty:0,revenue:0};
-    modelSales[o.model_id].qty+=o.qty||1;
-    modelSales[o.model_id].revenue+=(o.final_price||0);
+  // Default — son 30 gün
+  const today = new Date();
+  const monthAgo = new Date();
+  monthAgo.setDate(today.getDate() - 30);
+  const toStr = today.toISOString().split('T')[0];
+  const fromStr = monthAgo.toISOString().split('T')[0];
+
+  el.innerHTML = `
+    <div class="slbl" style="margin-top:0">🔎 Filtrlər</div>
+    <div class="sec-card card-pad" style="margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;align-items:end">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:block">Başlanğıc tarixi</label>
+          <input type="date" id="stats-date-from" value="${fromStr}" onchange="refreshStats()" style="width:100%;padding:9px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:block">Son tarix</label>
+          <input type="date" id="stats-date-to" value="${toStr}" onchange="refreshStats()" style="width:100%;padding:9px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:block">Menecer</label>
+          <select id="stats-manager" onchange="refreshStats()" style="width:100%;padding:9px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:#fff">
+            <option value="">Hamısı</option>
+            ${managers.map(m=>`<option value="${(m.name||m.username||'').replace(/"/g,'&quot;')}">${m.name||m.username}</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="setStatsRange('today')" style="flex:1;padding:9px 8px;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">Bu gün</button>
+          <button onclick="setStatsRange('week')" style="flex:1;padding:9px 8px;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">7 gün</button>
+          <button onclick="setStatsRange('month')" style="flex:1;padding:9px 8px;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">Ay</button>
+          <button onclick="setStatsRange('year')" style="flex:1;padding:9px 8px;border:1px solid var(--bd);background:#fff;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">İl</button>
+        </div>
+      </div>
+    </div>
+    
+    <div id="stats-content"></div>
+  `;
+  
+  refreshStats();
+}
+
+// Tarix aralığını təyin edən sürətli düymələr
+function setStatsRange(range){
+  const today = new Date();
+  const from = new Date();
+  
+  if(range === 'today'){
+    // Bu gün
+  } else if(range === 'week'){
+    from.setDate(today.getDate() - 7);
+  } else if(range === 'month'){
+    from.setDate(today.getDate() - 30);
+  } else if(range === 'year'){
+    from.setFullYear(today.getFullYear() - 1);
+  }
+  
+  document.getElementById('stats-date-from').value = from.toISOString().split('T')[0];
+  document.getElementById('stats-date-to').value = today.toISOString().split('T')[0];
+  refreshStats();
+}
+
+// Statistikanı filtrlərə uyğun yenilə
+function refreshStats(){
+  const allOrders = window._statsAllOrders || [];
+  const allLogs = window._statsAllLogs || [];
+  const allModels = window._statsAllModels || [];
+  const allUsers = window._statsAllUsers || [];
+  
+  const dateFrom = document.getElementById('stats-date-from')?.value;
+  const dateTo = document.getElementById('stats-date-to')?.value;
+  const selectedManager = document.getElementById('stats-manager')?.value || '';
+  
+  // Tarix filtrasiyası
+  const fromDate = dateFrom ? new Date(dateFrom + 'T00:00:00') : null;
+  const toDate = dateTo ? new Date(dateTo + 'T23:59:59') : null;
+  
+  let filteredOrders = allOrders.filter(o=>{
+    if(!o.created_at) return true;
+    const d = new Date(o.created_at);
+    if(fromDate && d < fromDate) return false;
+    if(toDate && d > toDate) return false;
+    return true;
   });
-  const topModels=Object.entries(modelSales)
+  
+  // Menecer filtrasiyası
+  if(selectedManager){
+    filteredOrders = filteredOrders.filter(o => o.created_by === selectedManager || o.manager === selectedManager);
+  }
+  
+  // 1. Ən çox satılan model
+  const modelSales={};
+  filteredOrders.forEach(o=>{
+    if(!o.model_id) return;
+    if(!modelSales[o.model_id]) modelSales[o.model_id]={qty:0,revenue:0};
+    modelSales[o.model_id].qty += o.qty||1;
+    modelSales[o.model_id].revenue += (o.final_price||0);
+  });
+  const topModels = Object.entries(modelSales)
     .map(([id,s])=>{const m=allModels.find(x=>x.id===id)||{name:'?',emoji:'📦'};return{...s,name:m.name,emoji:m.emoji};})
     .sort((a,b)=>b.qty-a.qty).slice(0,5);
-
-  // ── 2. Ən uzun istehsal alan model ──
+  
+  // 2. Ən uzun istehsal alan modellər
+  const orderIdsSet = new Set(filteredOrders.map(o=>o.id));
+  const filteredLogs = allLogs.filter(l => orderIdsSet.has(l.order_id));
   const modelTime={};
-  allLogs.filter(l=>l.duration_minutes).forEach(l=>{
-    const o=allOrders.find(x=>x.id===l.order_id);if(!o||!o.model_id)return;
-    if(!modelTime[o.model_id])modelTime[o.model_id]={total:0,count:0};
-    modelTime[o.model_id].total+=l.duration_minutes;
+  filteredLogs.filter(l=>l.duration_minutes).forEach(l=>{
+    const o=filteredOrders.find(x=>x.id===l.order_id);if(!o||!o.model_id)return;
+    if(!modelTime[o.model_id]) modelTime[o.model_id]={total:0,count:0};
+    modelTime[o.model_id].total += l.duration_minutes;
     modelTime[o.model_id].count++;
   });
-  const topSlowModels=Object.entries(modelTime)
-    .map(([id,s])=>{
-      const m=allModels.find(x=>x.id===id)||{name:'?',emoji:'📦'};
-      return{name:m.name,emoji:m.emoji,avg:s.count?s.total/s.count:0};
-    })
+  const topSlowModels = Object.entries(modelTime)
+    .map(([id,s])=>{const m=allModels.find(x=>x.id===id)||{name:'?',emoji:'📦'};return{name:m.name,emoji:m.emoji,avg:s.count?s.total/s.count:0};})
     .sort((a,b)=>b.avg-a.avg).slice(0,5);
-
-  // ── 3. Şöbə performansı ──
+  
+  // 3. Şöbə performansı
   const deptPerf={};
-  allLogs.filter(l=>l.duration_minutes&&l.dept_key).forEach(l=>{
+  filteredLogs.filter(l=>l.duration_minutes&&l.dept_key).forEach(l=>{
     const d=l.dept_key;
-    if(!deptPerf[d])deptPerf[d]={total:0,count:0,planned:0};
-    deptPerf[d].total+=l.duration_minutes;
+    if(!deptPerf[d]) deptPerf[d]={total:0,count:0,planned:0};
+    deptPerf[d].total += l.duration_minutes;
     deptPerf[d].count++;
-    // find planned hours from model stage
-    const o=allOrders.find(x=>x.id===l.order_id);
+    const o=filteredOrders.find(x=>x.id===l.order_id);
     if(o){
-      const m=appModels.find(x=>x.id===o.model_id);
+      const m=allModels.find(x=>x.id===o.model_id);
       if(m&&m.stages){
         const stage=m.stages[l.stage_index-1];
-        if(stage)deptPerf[d].planned+=stage.hours*60;
+        if(stage) deptPerf[d].planned += stage.hours*60;
       }
     }
   });
-  const topDepts=Object.entries(deptPerf)
+  const topDepts = Object.entries(deptPerf)
     .filter(([,s])=>s.count>=1)
     .map(([dept,s])=>{
       const info=DEPT_INFO[dept]||{name:dept,icon:'🔧'};
       const avg=s.total/s.count;
-      const planned=s.planned/s.count||avg;
-      const eff=Math.round(planned/Math.max(avg,1)*100);
-      return{name:info.name,icon:info.icon,avg,eff,count:s.count};
+      const avgPlanned=s.planned/s.count;
+      const eff=avgPlanned>0?Math.round((avgPlanned/avg)*100):0;
+      return{name:info.name,icon:info.icon,avg,count:s.count,eff};
     })
-    .sort((a,b)=>b.eff-a.eff);
-
-  // ── 4. Ən çox satış edən menecer ──
+    .sort((a,b)=>b.eff-a.eff).slice(0,8);
+  
+  // 4. Menecer satışları
   const mgrSales={};
-  allOrders.forEach(o=>{
-    if(!o.created_by)return;
-    if(!mgrSales[o.created_by])mgrSales[o.created_by]={qty:0,revenue:0,count:0};
-    mgrSales[o.created_by].qty+=o.qty||1;
-    mgrSales[o.created_by].revenue+=(o.final_price||0);
-    mgrSales[o.created_by].count++;
+  filteredOrders.forEach(o=>{
+    const mgr = o.created_by || o.manager || '—';
+    if(!mgrSales[mgr]) mgrSales[mgr]={count:0,qty:0,revenue:0};
+    mgrSales[mgr].count++;
+    mgrSales[mgr].qty += o.qty||1;
+    mgrSales[mgr].revenue += (o.final_price||0);
   });
-  const topMgrs=Object.entries(mgrSales)
-    .map(([id,s])=>{const u=allUsers.find(x=>x.id===id)||{name:'?'};return{...s,name:u.name};})
-    .sort((a,b)=>b.revenue-a.revenue).slice(0,5);
-
-  // ── 5. Ən çox sifariş verən müştəri ──
-  const clientStats={};
-  allOrders.forEach(o=>{
-    if(!o.client)return;
-    if(!clientStats[o.client])clientStats[o.client]={count:0,revenue:0,qty:0};
-    clientStats[o.client].count++;
-    clientStats[o.client].revenue+=(o.final_price||0);
-    clientStats[o.client].qty+=o.qty||1;
-  });
-  const topClients=Object.entries(clientStats)
+  const topMgrs = Object.entries(mgrSales)
+    .filter(([n])=>n!=='—')
     .map(([name,s])=>({name,...s}))
-    .sort((a,b)=>b.count-a.count).slice(0,5);
-
-  // ── RENDER ──
-  const rankList=(items,fields)=>items.length
-    ? items.map((item,i)=>`
-      <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(17,24,32,.05);background:${i===0?'rgba(247,137,48,.04)':'transparent'}">
-        <div style="width:28px;height:28px;border-radius:50%;background:${i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'rgba(17,24,32,.08)'};color:${i<3?'#fff':'var(--t2)'};font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
-        ${item.emoji?`<span style="font-size:20px;flex-shrink:0">${item.emoji}</span>`:''}
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:600;margin-bottom:2px">${item.name}</div>
-          <div style="font-size:12px;color:var(--t2)">${fields(item)}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0;font-size:16px;font-weight:700;color:var(--tl)">${item._main}</div>
-      </div>`).join('')
-    : '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Məlumat yoxdur</div>';
-
-  topModels.forEach(x=>x._main=x.qty+' ədəd');
-  topSlowModels.forEach(x=>x._main=fmtTime(x.avg));
-  topDepts.forEach(x=>x._main=x.eff+'%');
-  topMgrs.forEach(x=>x._main=x.revenue?x.revenue.toFixed(0)+' ₼':'—');
-  topClients.forEach(x=>x._main=x.count+' sifariş');
-
-  // Maliyyə analizi — ay üzrə
-  const now = new Date();
-  const defaultMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-  window._statsAllOrders = allOrders;
-  window._statsAllModels = allModels;
-
-  el.innerHTML=`
-    <div class="slbl" style="margin-top:0">💰 Maliyyə Analizi</div>
+    .sort((a,b)=>b.revenue-a.revenue).slice(0,10);
+  
+  // 5. Müştərilər
+  const clientStats={};
+  filteredOrders.forEach(o=>{
+    const n = o.client || '—';
+    if(!clientStats[n]) clientStats[n]={count:0,qty:0,revenue:0};
+    clientStats[n].count++;
+    clientStats[n].qty += o.qty||1;
+    clientStats[n].revenue += (o.final_price||0);
+  });
+  const topClients = Object.entries(clientStats)
+    .map(([name,s])=>({name,...s}))
+    .sort((a,b)=>b.count-a.count).slice(0,10);
+  
+  // Maliyyə analizi (filtr aralığında)
+  let totalRevenue=0, totalCost=0, totalQty=0, deliveredRevenue=0, deliveredCost=0;
+  filteredOrders.forEach(o=>{
+    const m=allModels.find(x=>x.id===o.model_id);
+    const qty=o.qty||0;
+    const final=o.final_price||0;
+    const cost=(m?.cost_price||0)*qty;
+    totalRevenue+=final; totalCost+=cost; totalQty+=qty;
+    if(o.status==='delivered'){ deliveredRevenue+=final; deliveredCost+=cost; }
+  });
+  const profit=totalRevenue-totalCost;
+  const profitMargin=totalRevenue>0?(profit/totalRevenue*100):0;
+  const deliveredProfit=deliveredRevenue-deliveredCost;
+  
+  const managerBadge = selectedManager ? `<span style="background:var(--lt);color:var(--tl);padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-left:8px">👤 ${selectedManager}</span>` : '';
+  
+  const target = document.getElementById('stats-content');
+  if(!target) return;
+  target.innerHTML = `
+    <div class="slbl">💰 Maliyyə Analizi ${managerBadge}</div>
     <div class="sec-card card-pad" style="margin-bottom:14px">
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
-        <label style="font-size:13px;font-weight:600">Ay:</label>
-        <input type="month" id="finance-month" value="${defaultMonth}" onchange="renderFinanceStats()" style="padding:8px 12px;border:1px solid var(--bd);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+        <div style="background:var(--lt);padding:14px;border-radius:10px">
+          <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Ümumi satış</div>
+          <div style="font-size:22px;font-weight:700;color:var(--tl);margin-top:4px">${totalRevenue.toFixed(0)} ₼</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:2px">${filteredOrders.length} sifariş · ${totalQty} ədəd</div>
+        </div>
+        <div style="background:#FEEEED;padding:14px;border-radius:10px">
+          <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Maya dəyəri</div>
+          <div style="font-size:22px;font-weight:700;color:#E24B4A;margin-top:4px">${totalCost.toFixed(0)} ₼</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:2px">istehsal xərci</div>
+        </div>
+        <div style="background:var(--lo);padding:14px;border-radius:10px">
+          <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Mənfəət (plan)</div>
+          <div style="font-size:22px;font-weight:700;color:${profit>=0?'var(--tl)':'#E24B4A'};margin-top:4px">${profit.toFixed(0)} ₼</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:2px">${profitMargin.toFixed(1)}% marj</div>
+        </div>
+        <div style="background:#E8F5E9;padding:14px;border-radius:10px;border:2px solid var(--tl)">
+          <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Təslim edilən mənfəət</div>
+          <div style="font-size:22px;font-weight:700;color:var(--tl);margin-top:4px">${deliveredProfit.toFixed(0)} ₼</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:2px">real qazanc</div>
+        </div>
       </div>
-      <div id="finance-stats"></div>
     </div>
-
-    <div class="slbl">Performans analizi</div>
+    
+    <div class="slbl">Performans analizi ${managerBadge}</div>
     
     <div class="sec-card" style="margin-bottom:14px">
       <div class="sec-card-hd"><h3>🏆 Ən çox satılan modellər</h3></div>
-      ${rankList(topModels,x=>`${x.qty} ədəd · ${x.revenue?x.revenue.toFixed(0)+' ₼':''}`)}
+      ${rankList(topModels.map(x=>({...x,_main:`${x.qty} ədəd · ${x.revenue?x.revenue.toFixed(0)+' ₼':''}`})),x=>`${x.qty} ədəd · ${x.revenue?x.revenue.toFixed(0)+' ₼':''}`)}
     </div>
 
     <div class="sec-card" style="margin-bottom:14px">
       <div class="sec-card-hd"><h3>⏱ Ən uzun istehsal alan modellər</h3></div>
-      ${rankList(topSlowModels,x=>`Ortalama: ${fmtTime(x.avg)}`)}
+      ${rankList(topSlowModels.map(x=>({...x,_main:'Ortalama: '+fmtTime(x.avg)})),x=>`Ortalama: ${fmtTime(x.avg)}`)}
     </div>
 
     <div class="sec-card" style="margin-bottom:14px">
@@ -6328,160 +6435,35 @@ async function renderStatsSection(el){
     </div>
 
     <div class="sec-card" style="margin-bottom:14px">
-      <div class="sec-card-hd"><h3>👤 Ən çox satış edən menecerlər</h3></div>
-      ${rankList(topMgrs,x=>`${x.count} sifariş · ${x.qty} ədəd`)}
+      <div class="sec-card-hd"><h3>👤 Menecer satışları</h3></div>
+      ${topMgrs.length ? topMgrs.map((x,i)=>{
+        const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+        return `<div style="padding:12px 16px;border-bottom:1px solid rgba(17,24,32,.05);display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:14px;font-weight:600">${medal} ${x.name}</div>
+            <div style="font-size:11px;color:var(--t2);margin-top:2px">${x.count} sifariş · ${x.qty} ədəd</div>
+          </div>
+          <div style="font-size:15px;font-weight:700;color:var(--tl)">${x.revenue.toFixed(0)} ₼</div>
+        </div>`;
+      }).join('') : '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Məlumat yoxdur</div>'}
     </div>
 
     <div class="sec-card">
       <div class="sec-card-hd"><h3>🤝 Ən çox sifariş verən müştərilər</h3></div>
-      ${rankList(topClients,x=>`${x.qty} ədəd · ${x.revenue?x.revenue.toFixed(0)+' ₼':''}`)}
-    </div>
-  `;
-  renderFinanceStats();
-}
-
-function renderFinanceStats(){
-  const orders = window._statsAllOrders || [];
-  const models = window._statsAllModels || [];
-  const monthInput = document.getElementById('finance-month');
-  const target = document.getElementById('finance-stats');
-  if(!target) return;
-  
-  const selectedMonth = monthInput?.value || '';
-  const [year, month] = selectedMonth ? selectedMonth.split('-').map(Number) : [new Date().getFullYear(), new Date().getMonth()+1];
-  
-  // Ay üzrə filterlə
-  const monthOrders = orders.filter(o=>{
-    if(!o.created_at) return false;
-    const d = new Date(o.created_at);
-    return d.getFullYear()===year && (d.getMonth()+1)===month;
-  });
-  
-  let totalRevenue = 0;
-  let totalCost = 0;
-  let totalQty = 0;
-  let deliveredRevenue = 0;
-  let deliveredCost = 0;
-  
-  monthOrders.forEach(o=>{
-    const m = models.find(x=>x.id===o.model_id);
-    const qty = o.qty || 0;
-    const final = o.final_price || 0;
-    const cost = (m?.cost_price || 0) * qty;
-    totalRevenue += final;
-    totalCost += cost;
-    totalQty += qty;
-    if(o.status === 'delivered'){
-      deliveredRevenue += final;
-      deliveredCost += cost;
-    }
-  });
-  
-  const profit = totalRevenue - totalCost;
-  const profitMargin = totalRevenue > 0 ? (profit/totalRevenue*100) : 0;
-  const deliveredProfit = deliveredRevenue - deliveredCost;
-  
-  target.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">
-      <div style="background:var(--lt);padding:14px;border-radius:10px">
-        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Ümumi satış</div>
-        <div style="font-size:22px;font-weight:700;color:var(--tl);margin-top:4px">${totalRevenue.toFixed(0)} ₼</div>
-        <div style="font-size:11px;color:var(--t3);margin-top:2px">${monthOrders.length} sifariş · ${totalQty} ədəd</div>
-      </div>
-      <div style="background:#FEEEED;padding:14px;border-radius:10px">
-        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Maya dəyəri</div>
-        <div style="font-size:22px;font-weight:700;color:#E24B4A;margin-top:4px">${totalCost.toFixed(0)} ₼</div>
-        <div style="font-size:11px;color:var(--t3);margin-top:2px">istehsal xərci</div>
-      </div>
-      <div style="background:var(--lo);padding:14px;border-radius:10px">
-        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Mənfəət (plan)</div>
-        <div style="font-size:22px;font-weight:700;color:${profit>=0?'var(--tl)':'#E24B4A'};margin-top:4px">${profit.toFixed(0)} ₼</div>
-        <div style="font-size:11px;color:var(--t3);margin-top:2px">${profitMargin.toFixed(1)}% marj</div>
-      </div>
-      <div style="background:#E8F5E9;padding:14px;border-radius:10px;border:2px solid var(--tl)">
-        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Təslim edilən mənfəət</div>
-        <div style="font-size:22px;font-weight:700;color:var(--tl);margin-top:4px">${deliveredProfit.toFixed(0)} ₼</div>
-        <div style="font-size:11px;color:var(--t3);margin-top:2px">real qazanc</div>
-      </div>
-    </div>
-    <div style="font-size:12px;color:var(--t2);padding:10px;background:rgba(17,24,32,.03);border-radius:8px">
-      💡 Maya dəyəri hesablanması: hər modelin <b>cost_price</b> × ədəd. Plan — bütün sifarişlər, Real — yalnız təslim edilənlər.
-    </div>
-  `;
-  renderDeptMonthStats();
-}
-
-async function renderDeptMonthStats(){
-  const monthInput = document.getElementById('finance-month');
-  const selectedMonth = monthInput?.value || '';
-  if(!selectedMonth) return;
-  const [year, month] = selectedMonth.split('-').map(Number);
-  
-  // Task log-ları ay üzrə yüklə
-  const startDate = new Date(year, month-1, 1).toISOString();
-  const endDate = new Date(year, month, 0, 23, 59, 59).toISOString();
-  
-  const {data:logs} = await sb.from('task_logs')
-    .select('*')
-    .gte('completed_at', startDate)
-    .lte('completed_at', endDate)
-    .not('completed_at', 'is', null);
-  
-  const deptStats = {};
-  (logs||[]).forEach(l=>{
-    if(!l.dept_key || !l.duration_minutes) return;
-    // Paralel varsa split et
-    const depts = l.dept_key.includes('||') ? l.dept_key.split('||') : [l.dept_key];
-    depts.forEach(d=>{
-      if(!deptStats[d]) deptStats[d] = {completed:0, totalMin:0};
-      deptStats[d].completed++;
-      deptStats[d].totalMin += l.duration_minutes;
-    });
-  });
-  
-  // Target element tap
-  let target = document.getElementById('dept-month-stats');
-  if(!target){
-    const financeSec = document.querySelector('#finance-stats');
-    if(!financeSec) return;
-    target = document.createElement('div');
-    target.id = 'dept-month-stats';
-    target.style.marginTop = '20px';
-    target.style.paddingTop = '20px';
-    target.style.borderTop = '1px solid var(--bd)';
-    financeSec.parentElement.appendChild(target);
-  }
-  
-  const sortedDepts = Object.entries(deptStats)
-    .map(([d,s])=>({dept:d, ...s, avgMin: s.totalMin/s.completed}))
-    .sort((a,b)=>a.avgMin - b.avgMin); // Ən sürətli → ən yavaş
-  
-  if(!sortedDepts.length){
-    target.innerHTML = `<div style="padding:16px;text-align:center;color:var(--t3);font-size:13px;background:rgba(17,24,32,.03);border-radius:8px">Bu ay üçün şöbə məlumatı yoxdur</div>`;
-    return;
-  }
-  
-  target.innerHTML = `
-    <div style="font-size:13px;font-weight:600;margin-bottom:10px">🏭 Şöbə performansı — ${monthInput.value}</div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      ${sortedDepts.map((d,i)=>{
-        const info = DEPT_INFO[d.dept] || {name:d.dept, icon:'🏭'};
-        const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
-        const totalHours = (d.totalMin/60).toFixed(1);
-        return `<div style="background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px 14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <span style="font-size:14px;font-weight:600">${medal} ${info.icon} ${info.name}</span>
-            <span style="font-size:13px;color:var(--tl);font-weight:700">ort. ${fmtTime(d.avgMin)}</span>
+      ${topClients.length ? topClients.map((x,i)=>{
+        const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+        return `<div style="padding:12px 16px;border-bottom:1px solid rgba(17,24,32,.05);display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:14px;font-weight:600">${medal} ${x.name}</div>
+            <div style="font-size:11px;color:var(--t2);margin-top:2px">${x.count} sifariş · ${x.qty} ədəd</div>
           </div>
-          <div style="display:flex;gap:12px;font-size:12px;color:var(--t2)">
-            <span>✓ ${d.completed} sifariş tamamlanıb</span>
-            <span>⏱ Cəmi ${totalHours} saat</span>
-          </div>
+          <div style="font-size:15px;font-weight:700;color:var(--or)">${x.revenue.toFixed(0)} ₼</div>
         </div>`;
-      }).join('')}
+      }).join('') : '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Məlumat yoxdur</div>'}
     </div>
   `;
 }
+
 
 async function renderUsersSection(el){
   showLoader();
