@@ -471,6 +471,28 @@ textarea{resize:vertical;min-height:80px}
           <div class="kpi kO" onclick="showOrderSheet('ready')" style="cursor:pointer"><div class="kl">HAZIR</div><div class="kv" id="k-rdy" style="color:var(--or)">—</div><div class="ks">çatdırılma</div></div>
           <div class="kpi kD" onclick="showOrderSheet('delivered')" style="cursor:pointer"><div class="kl">TƏSLİM</div><div class="kv" id="k-don">—</div><div class="ks">bu həftə</div></div>
         </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">
+          <div style="background:var(--lt);padding:12px 16px;border-radius:10px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Bu gün — sifariş</div>
+              <div style="font-size:24px;font-weight:800;color:var(--tl)" id="k-today-count">—</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Məbləğ</div>
+              <div style="font-size:18px;font-weight:700;color:var(--tl)" id="k-today-rev">—</div>
+            </div>
+          </div>
+          <div style="background:#FFF4E8;padding:12px 16px;border-radius:10px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Bu ay — sifariş</div>
+              <div style="font-size:24px;font-weight:800;color:var(--or)" id="k-month-count">—</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Məbləğ</div>
+              <div style="font-size:18px;font-weight:700;color:var(--or)" id="k-month-rev">—</div>
+            </div>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
           <div>
             <div class="slbl" style="margin-bottom:6px">🆕 Bu gün gələn</div>
@@ -2086,7 +2108,22 @@ async function renderDash(){
     const late=all.filter(o=>o.status==='late' && !isPendingCustomerOrder(o));
     // Today card — pending müştəri sifarişləri çıxarılsın (banner-də göstərilir)
     const today = new Date().toISOString().split('T')[0];
+    const thisMonth = new Date().toISOString().slice(0,7); // YYYY-MM
     const todayOrders = all.filter(o=>o.created_at && o.created_at.startsWith(today) && !isPendingCustomerOrder(o));
+    const monthOrders = all.filter(o=>o.created_at && o.created_at.startsWith(thisMonth) && !isPendingCustomerOrder(o));
+    
+    // Bu gün sayğacları
+    const todayRev = todayOrders.reduce((s,o)=>s+(o.final_price||0),0);
+    const monthRev = monthOrders.reduce((s,o)=>s+(o.final_price||0),0);
+    const kTodayCount = document.getElementById('k-today-count');
+    const kTodayRev = document.getElementById('k-today-rev');
+    const kMonthCount = document.getElementById('k-month-count');
+    const kMonthRev = document.getElementById('k-month-rev');
+    if(kTodayCount) kTodayCount.textContent = todayOrders.length;
+    if(kTodayRev) kTodayRev.textContent = todayRev.toFixed(0)+' ₼';
+    if(kMonthCount) kMonthCount.textContent = monthOrders.length;
+    if(kMonthRev) kMonthRev.textContent = monthRev.toFixed(0)+' ₼';
+    
     document.getElementById('today-card').innerHTML = todayOrders.length
       ? todayOrders.map(o=>orderListItem(o)).join('')
       : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Bu gün sifariş yoxdur</div>';
@@ -6616,32 +6653,26 @@ function setStatsRange(range){
 
 // Statistikanı filtrlərə uyğun yenilə
 function refreshStats(){
-  console.log('[Stats] refreshStats çağırıldı');
   const allOrders = window._statsAllOrders || [];
   const allLogs = window._statsAllLogs || [];
   const allModels = window._statsAllModels || [];
   const allUsers = window._statsAllUsers || [];
-  console.log('[Stats] Data: orders='+allOrders.length+' logs='+allLogs.length+' models='+allModels.length);
   
   const target = document.getElementById('stats-content');
-  if(!target){
-    console.warn('[Stats] stats-content div tapılmadı!');
-    return;
-  }
+  if(!target) return;
   
   if(!allOrders.length){
-    target.innerHTML = '<div style="padding:40px;text-align:center;background:#fff;border-radius:12px;border:1px solid var(--bd)"><div style="font-size:48px;margin-bottom:12px">📊</div><div style="font-size:15px;font-weight:600">Sifariş yoxdur</div><div style="font-size:12px;color:var(--t3);margin-top:6px">Hələ heç bir sifariş yaradılmayıb</div></div>';
+    target.innerHTML = '<div style="padding:40px;text-align:center;background:#fff;border-radius:12px;border:1px solid var(--bd)"><div style="font-size:48px;margin-bottom:12px">📊</div><div style="font-size:15px;font-weight:600">Sifariş yoxdur</div></div>';
     return;
   }
   
   const dateFrom = document.getElementById('stats-date-from')?.value;
   const dateTo = document.getElementById('stats-date-to')?.value;
   
-  // Tarix filtrasiyası
   const fromDate = dateFrom ? new Date(dateFrom + 'T00:00:00') : null;
   const toDate = dateTo ? new Date(dateTo + 'T23:59:59') : null;
   
-  let filteredOrders = allOrders.filter(o=>{
+  const filteredOrders = allOrders.filter(o=>{
     if(!o.created_at) return true;
     const d = new Date(o.created_at);
     if(fromDate && d < fromDate) return false;
@@ -6649,188 +6680,156 @@ function refreshStats(){
     return true;
   });
   
-  // 1. Ən çox satılan model
+  // Maliyyə
+  let totalRevenue=0, totalQty=0, deliveredRevenue=0;
+  filteredOrders.forEach(o=>{
+    totalRevenue += o.final_price||0;
+    totalQty += o.qty||0;
+    if(o.status==='delivered') deliveredRevenue += o.final_price||0;
+  });
+  
+  // Ən çox satılan modellər
   const modelSales={};
   filteredOrders.forEach(o=>{
     if(!o.model_id) return;
     if(!modelSales[o.model_id]) modelSales[o.model_id]={qty:0,revenue:0};
     modelSales[o.model_id].qty += o.qty||1;
-    modelSales[o.model_id].revenue += (o.final_price||0);
+    modelSales[o.model_id].revenue += o.final_price||0;
   });
   const topModels = Object.entries(modelSales)
-    .map(([id,s])=>{const m=allModels.find(x=>x.id===id)||{name:'?',emoji:'📦'};return{...s,name:m.name,emoji:m.emoji};})
-    .sort((a,b)=>b.qty-a.qty).slice(0,5);
+    .map(([id,s])=>{ const m=allModels.find(x=>x.id===id)||{name:'?',emoji:'📦'}; return{...s,name:m.name,emoji:m.emoji||'📦'}; })
+    .sort((a,b)=>b.qty-a.qty).slice(0,8);
   
-  // 2. Ən uzun istehsal alan modellər
-  const orderIdsSet = new Set(filteredOrders.map(o=>o.id));
-  const filteredLogs = allLogs.filter(l => orderIdsSet.has(l.order_id));
-  const modelTime={};
-  filteredLogs.filter(l=>l.duration_minutes).forEach(l=>{
-    const o=filteredOrders.find(x=>x.id===l.order_id);if(!o||!o.model_id)return;
-    if(!modelTime[o.model_id]) modelTime[o.model_id]={total:0,count:0};
-    modelTime[o.model_id].total += l.duration_minutes;
-    modelTime[o.model_id].count++;
-  });
-  const topSlowModels = Object.entries(modelTime)
-    .map(([id,s])=>{const m=allModels.find(x=>x.id===id)||{name:'?',emoji:'📦'};return{name:m.name,emoji:m.emoji,avg:s.count?s.total/s.count:0};})
-    .sort((a,b)=>b.avg-a.avg).slice(0,5);
-  
-  // 3. Şöbə performansı
-  const deptPerf={};
-  filteredLogs.filter(l=>l.duration_minutes&&l.dept_key).forEach(l=>{
-    const d=l.dept_key;
-    if(!deptPerf[d]) deptPerf[d]={total:0,count:0,planned:0};
-    deptPerf[d].total += l.duration_minutes;
-    deptPerf[d].count++;
-    const o=filteredOrders.find(x=>x.id===l.order_id);
-    if(o){
-      const m=allModels.find(x=>x.id===o.model_id);
-      if(m&&m.stages){
-        const stage=m.stages[l.stage_index-1];
-        if(stage) deptPerf[d].planned += stage.hours*60;
-      }
-    }
-  });
-  const topDepts = Object.entries(deptPerf)
-    .filter(([,s])=>s.count>=1)
-    .map(([dept,s])=>{
-      const info=DEPT_INFO[dept]||{name:dept,icon:'🔧'};
-      const avg=s.total/s.count;
-      const avgPlanned=s.planned/s.count;
-      const eff=avgPlanned>0?Math.round((avgPlanned/avg)*100):0;
-      return{name:info.name,icon:info.icon,avg,count:s.count,eff};
-    })
-    .sort((a,b)=>b.eff-a.eff).slice(0,8);
-  
-  // 4. Menecer satışları
+  // Menecer satışları
+  const userMap={};
+  allUsers.forEach(u=>userMap[u.id]=u.name||u.username||u.id);
   const mgrSales={};
   filteredOrders.forEach(o=>{
-    const mgr = o.created_by || o.manager || '—';
+    const mgr = userMap[o.created_by] || o.created_by || '—';
     if(!mgrSales[mgr]) mgrSales[mgr]={count:0,qty:0,revenue:0};
     mgrSales[mgr].count++;
-    mgrSales[mgr].qty += o.qty||1;
-    mgrSales[mgr].revenue += (o.final_price||0);
+    mgrSales[mgr].qty += o.qty||0;
+    mgrSales[mgr].revenue += o.final_price||0;
   });
   const topMgrs = Object.entries(mgrSales)
-    .filter(([n])=>n!=='—')
+    .filter(([n])=>n&&n!=='—')
     .map(([name,s])=>({name,...s}))
     .sort((a,b)=>b.revenue-a.revenue).slice(0,10);
   
-  // 5. Müştərilər
+  // Müştərilər
   const clientStats={};
   filteredOrders.forEach(o=>{
-    const n = o.client || '—';
+    const n=o.client||'—';
     if(!clientStats[n]) clientStats[n]={count:0,qty:0,revenue:0};
     clientStats[n].count++;
-    clientStats[n].qty += o.qty||1;
-    clientStats[n].revenue += (o.final_price||0);
+    clientStats[n].qty += o.qty||0;
+    clientStats[n].revenue += o.final_price||0;
   });
   const topClients = Object.entries(clientStats)
     .map(([name,s])=>({name,...s}))
     .sort((a,b)=>b.count-a.count).slice(0,10);
   
-  // Maliyyə analizi (filtr aralığında)
-  let totalRevenue=0, totalCost=0, totalQty=0, deliveredRevenue=0, deliveredCost=0;
-  filteredOrders.forEach(o=>{
-    const m=allModels.find(x=>x.id===o.model_id);
-    const qty=o.qty||0;
-    const final=o.final_price||0;
-    const cost=(m?.cost_price||0)*qty;
-    totalRevenue+=final; totalCost+=cost; totalQty+=qty;
-    if(o.status==='delivered'){ deliveredRevenue+=final; deliveredCost+=cost; }
-  });
-  const profit=totalRevenue-totalCost;
-  const profitMargin=totalRevenue>0?(profit/totalRevenue*100):0;
-  const deliveredProfit=deliveredRevenue-deliveredCost;
+  // Status üzrə
+  const statusCount={};
+  filteredOrders.forEach(o=>{ statusCount[o.status]=(statusCount[o.status]||0)+1; });
   
+  // Şöbə performansı
+  const orderIdsSet = new Set(filteredOrders.map(o=>o.id));
+  const filteredLogs = allLogs.filter(l=>orderIdsSet.has(l.order_id)&&l.duration_minutes);
+  const deptPerf={};
+  filteredLogs.forEach(l=>{
+    const d=l.dept_key; if(!d) return;
+    if(!deptPerf[d]) deptPerf[d]={total:0,count:0};
+    deptPerf[d].total += l.duration_minutes;
+    deptPerf[d].count++;
+  });
+  const topDepts = Object.entries(deptPerf)
+    .map(([dept,s])=>{ const info=DEPT_INFO[dept]||{name:dept,icon:'🔧'}; return{name:info.name,icon:info.icon,avg:s.total/s.count,count:s.count}; })
+    .sort((a,b)=>b.count-a.count).slice(0,12);
+
+  const medal = i => i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+  const ST_NAMES = {created:'Yaradıldı',in_progress:'İstehsalda',ready:'Hazır',delivering:'Yolda',delivered:'Təslim',cancelled:'İmtina',late:'Gecikmiş'};
+
   target.innerHTML = `
-    <div class="slbl">💰 Maliyyə Analizi </div>
-    <div class="sec-card card-pad" style="margin-bottom:14px">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
-        <div style="background:var(--lt);padding:14px;border-radius:10px">
-          <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Ümumi satış</div>
-          <div style="font-size:22px;font-weight:700;color:var(--tl);margin-top:4px">${totalRevenue.toFixed(0)} ₼</div>
-          <div style="font-size:11px;color:var(--t3);margin-top:2px">${filteredOrders.length} sifariş · ${totalQty} ədəd</div>
-        </div>
-        <div style="background:#FEEEED;padding:14px;border-radius:10px">
-          <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Maya dəyəri</div>
-          <div style="font-size:22px;font-weight:700;color:#E24B4A;margin-top:4px">${totalCost.toFixed(0)} ₼</div>
-          <div style="font-size:11px;color:var(--t3);margin-top:2px">istehsal xərci</div>
-        </div>
-        <div style="background:var(--lo);padding:14px;border-radius:10px">
-          <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Mənfəət (plan)</div>
-          <div style="font-size:22px;font-weight:700;color:${profit>=0?'var(--tl)':'#E24B4A'};margin-top:4px">${profit.toFixed(0)} ₼</div>
-          <div style="font-size:11px;color:var(--t3);margin-top:2px">${profitMargin.toFixed(1)}% marj</div>
-        </div>
-        <div style="background:#E8F5E9;padding:14px;border-radius:10px;border:2px solid var(--tl)">
-          <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Təslim edilən mənfəət</div>
-          <div style="font-size:22px;font-weight:700;color:var(--tl);margin-top:4px">${deliveredProfit.toFixed(0)} ₼</div>
-          <div style="font-size:11px;color:var(--t3);margin-top:2px">real qazanc</div>
-        </div>
+    <!-- Maliyyə -->
+    <div class="slbl">💰 Maliyyə xülasəsi</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px">
+      <div style="background:var(--lt);padding:14px;border-radius:10px">
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Cəmi satış</div>
+        <div style="font-size:22px;font-weight:700;color:var(--tl);margin-top:4px">${totalRevenue.toFixed(0)} ₼</div>
+        <div style="font-size:11px;color:var(--t3)">${filteredOrders.length} sifariş · ${totalQty} ədəd</div>
+      </div>
+      <div style="background:#E8F5E9;padding:14px;border-radius:10px">
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Təslim edilən</div>
+        <div style="font-size:22px;font-weight:700;color:var(--tl);margin-top:4px">${deliveredRevenue.toFixed(0)} ₼</div>
+        <div style="font-size:11px;color:var(--t3)">${statusCount['delivered']||0} sifariş</div>
+      </div>
+      <div style="background:#FFF4E8;padding:14px;border-radius:10px">
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">İstehsalda</div>
+        <div style="font-size:22px;font-weight:700;color:var(--or);margin-top:4px">${statusCount['in_progress']||0}</div>
+        <div style="font-size:11px;color:var(--t3)">aktiv sifariş</div>
+      </div>
+      <div style="background:#FEEEED;padding:14px;border-radius:10px">
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Gecikmiş</div>
+        <div style="font-size:22px;font-weight:700;color:#E24B4A;margin-top:4px">${statusCount['late']||0}</div>
+        <div style="font-size:11px;color:var(--t3)">sifariş</div>
       </div>
     </div>
     
-    <div class="slbl">Performans analizi </div>
-    
+    <!-- Ən çox satılan modellər -->
+    <div class="slbl">🏆 Ən çox satılan modellər</div>
     <div class="sec-card" style="margin-bottom:14px">
-      <div class="sec-card-hd"><h3>🏆 Ən çox satılan modellər</h3></div>
-      ${rankList(topModels.map(x=>({...x,_main:`${x.qty} ədəd · ${x.revenue?x.revenue.toFixed(0)+' ₼':''}`})),x=>`${x.qty} ədəd · ${x.revenue?x.revenue.toFixed(0)+' ₼':''}`)}
-    </div>
-
-    <div class="sec-card" style="margin-bottom:14px">
-      <div class="sec-card-hd"><h3>⏱ Ən uzun istehsal alan modellər</h3></div>
-      ${rankList(topSlowModels.map(x=>({...x,_main:'Ortalama: '+fmtTime(x.avg)})),x=>`Ortalama: ${fmtTime(x.avg)}`)}
-    </div>
-
-    <div class="sec-card" style="margin-bottom:14px">
-      <div class="sec-card-hd"><h3>⚡ Şöbə performansı — effektivlik</h3></div>
-      ${topDepts.length ? topDepts.map((d,i)=>{
-        const color=d.eff>=90?'var(--tl)':d.eff>=70?'var(--or)':'#E24B4A';
-        const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
-        return`<div style="padding:12px 16px;border-bottom:1px solid rgba(17,24,32,.05)">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <span style="font-size:14px;font-weight:600">${medal} ${d.icon} ${d.name}</span>
-            <span style="font-size:15px;font-weight:700;color:${color}">${d.eff}%</span>
-          </div>
-          <div style="font-size:11px;color:var(--t2);margin-bottom:4px">Ortalama: ${fmtTime(d.avg)} · ${d.count} tapşırıq</div>
-          <div style="height:6px;background:rgba(17,24,32,.08);border-radius:3px;overflow:hidden">
-            <div style="height:6px;width:${Math.min(d.eff,100)}%;background:${color};border-radius:3px;transition:width .5s"></div>
-          </div>
-        </div>`;
-      }).join('') : '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Məlumat yoxdur</div>'}
-    </div>
-
-    <div class="sec-card" style="margin-bottom:14px">
-      <div class="sec-card-hd"><h3>👤 Menecer satışları</h3></div>
-      ${topMgrs.length ? topMgrs.map((x,i)=>{
-        const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
-        return `<div style="padding:12px 16px;border-bottom:1px solid rgba(17,24,32,.05);display:flex;justify-content:space-between;align-items:center">
+      ${topModels.length ? topModels.map((x,i)=>`
+        <div style="padding:12px 16px;border-bottom:1px solid rgba(17,24,32,.05);display:flex;justify-content:space-between;align-items:center">
           <div>
-            <div style="font-size:14px;font-weight:600">${medal} ${x.name}</div>
+            <div style="font-size:14px;font-weight:600">${medal(i)} ${x.emoji} ${x.name}</div>
+            <div style="font-size:11px;color:var(--t2);margin-top:2px">${x.qty} ədəd</div>
+          </div>
+          <div style="font-size:15px;font-weight:700;color:var(--tl)">${x.revenue.toFixed(0)} ₼</div>
+        </div>`).join('') : '<div style="padding:24px;text-align:center;color:var(--t3)">Məlumat yoxdur</div>'}
+    </div>
+    
+    <!-- Menecer satışları -->
+    <div class="slbl">👤 Menecer satışları</div>
+    <div class="sec-card" style="margin-bottom:14px">
+      ${topMgrs.length ? topMgrs.map((x,i)=>`
+        <div style="padding:12px 16px;border-bottom:1px solid rgba(17,24,32,.05);display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:14px;font-weight:600">${medal(i)} ${x.name}</div>
             <div style="font-size:11px;color:var(--t2);margin-top:2px">${x.count} sifariş · ${x.qty} ədəd</div>
           </div>
           <div style="font-size:15px;font-weight:700;color:var(--tl)">${x.revenue.toFixed(0)} ₼</div>
-        </div>`;
-      }).join('') : '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Məlumat yoxdur</div>'}
+        </div>`).join('') : '<div style="padding:24px;text-align:center;color:var(--t3)">Məlumat yoxdur</div>'}
     </div>
-
-    <div class="sec-card">
-      <div class="sec-card-hd"><h3>🤝 Ən çox sifariş verən müştərilər</h3></div>
-      ${topClients.length ? topClients.map((x,i)=>{
-        const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
-        return `<div style="padding:12px 16px;border-bottom:1px solid rgba(17,24,32,.05);display:flex;justify-content:space-between;align-items:center">
+    
+    <!-- Müştərilər -->
+    <div class="slbl">🤝 Müştərilər</div>
+    <div class="sec-card" style="margin-bottom:14px">
+      ${topClients.length ? topClients.map((x,i)=>`
+        <div style="padding:12px 16px;border-bottom:1px solid rgba(17,24,32,.05);display:flex;justify-content:space-between;align-items:center">
           <div>
-            <div style="font-size:14px;font-weight:600">${medal} ${x.name}</div>
+            <div style="font-size:14px;font-weight:600">${medal(i)} ${x.name}</div>
             <div style="font-size:11px;color:var(--t2);margin-top:2px">${x.count} sifariş · ${x.qty} ədəd</div>
           </div>
           <div style="font-size:15px;font-weight:700;color:var(--or)">${x.revenue.toFixed(0)} ₼</div>
-        </div>`;
-      }).join('') : '<div style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Məlumat yoxdur</div>'}
+        </div>`).join('') : '<div style="padding:24px;text-align:center;color:var(--t3)">Məlumat yoxdur</div>'}
+    </div>
+    
+    <!-- Şöbə statistikası -->
+    <div class="slbl">⚡ Şöbə tapşırıqları</div>
+    <div class="sec-card">
+      ${topDepts.length ? topDepts.map(d=>`
+        <div style="padding:12px 16px;border-bottom:1px solid rgba(17,24,32,.05);display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:14px;font-weight:600">${d.icon} ${d.name}</div>
+          <div style="text-align:right">
+            <div style="font-size:14px;font-weight:700;color:var(--tl)">${d.count} tapşırıq</div>
+            <div style="font-size:11px;color:var(--t2)">ort. ${fmtTime(d.avg)}</div>
+          </div>
+        </div>`).join('') : '<div style="padding:24px;text-align:center;color:var(--t3)">Məlumat yoxdur</div>'}
     </div>
   `;
 }
-
-
+  
 async function renderUsersSection(el){
   showLoader();
   const{data:users}=await sb.from('users').select('*').order('created_at');
