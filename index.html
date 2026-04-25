@@ -2880,13 +2880,40 @@ async function renderDeptTasks(dept){
       .in('status', ['in_progress','created','late','ready'])
       .gt('current_stage', 0)
       .order('created_at', {ascending: true}),
-    sb.from('models').select('*'),
-    sb.from('task_logs').select('*').order('started_at', {ascending: false}),
+    sb.from('models').select('*').limit(10000),
+    sb.from('task_logs').select('*').order('started_at', {ascending: false}).limit(10000),
   ]);
+  
+  // Debug
+  console.log('[DEBUG] Orders:', ordersRes.data?.length, 'Models:', modelsRes.data?.length, 'Logs:', logsRes.data?.length);
+  if(modelsRes.error) console.error('[DEBUG] Models error:', modelsRes.error);
+  if(ordersRes.error) console.error('[DEBUG] Orders error:', ordersRes.error);
   
   const allOrders = ordersRes.data || [];
   const allModels = modelsRes.data || [];
   const allLogs = logsRes.data || [];
+  
+  // Yoxla: sifarişlərdə olan model_id-lər models cədvəlində varmı?
+  const modelIds = new Set(allModels.map(m=>m.id));
+  const missingModelIds = new Set();
+  allOrders.forEach(o=>{
+    if(o.model_id && !modelIds.has(o.model_id)){
+      missingModelIds.add(o.model_id);
+    }
+  });
+  
+  // Əgər bəzi modellər çatışmırsa, onları ayrıca yüklə
+  if(missingModelIds.size > 0){
+    console.warn('[DEBUG] '+missingModelIds.size+' model çatışmır, ayrıca yüklənir...');
+    const {data: extraModels, error: extraErr} = await sb.from('models')
+      .select('*')
+      .in('id', Array.from(missingModelIds));
+    if(extraErr) console.error('[DEBUG] Extra models error:', extraErr);
+    if(extraModels && extraModels.length){
+      console.log('[DEBUG] Əlavə '+extraModels.length+' model tapıldı');
+      extraModels.forEach(m => allModels.push(m));
+    }
+  }
   
   hideLoader();
   window.forwardingConfig = window.forwardingConfig || {};
@@ -2923,9 +2950,12 @@ async function renderDeptTasks(dept){
     const tasks=[];
     const addedStages = new Set();
     
-    orders.filter(o => !['delivered','delivering'].includes(o.status) && !isPendingCustomerOrder(o)).forEach(o=>{
+    orders.forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);
-      if(!m){console.warn('Model tapilmadi:',o.model_id,o.order_number);return;}
+      if(!m){
+        console.warn('[ŞÖBƏ] Model tapılmadı:', {dept, order: o.order_number, model_id: o.model_id, total_models: models.length});
+        return;
+      }
       const stages=m.stages||[];
       
       // Bu sifarişdə paralel mərhələdə bu şöbə tamamlanıbsa siyahıya qoyma
@@ -3272,7 +3302,7 @@ async function renderDeptTasks(dept){
     console.log('[shared tab] dept:', dept, 'altDept:', altDept);
     console.log('[shared tab] orders count:', orders.length);
     
-    orders.filter(o => !['delivered','delivering'].includes(o.status) && !isPendingCustomerOrder(o)).forEach(o=>{
+    orders.forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);
       if(!m) return;
       const stages=m.stages||[];
