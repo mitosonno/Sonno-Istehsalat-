@@ -2700,7 +2700,7 @@ async function renderDeptPick(){
       .gt('current_stage', 0),
     sb.from('task_logs').select('order_id,stage_index,dept_key').not('completed_at','is',null),
     sb.from('models').select('id,stages'),
-    sb.from('dept_pins').select('*'),
+    sb.from('dept_pins').select('dept_key,pin_code'),
   ]);
   
   const orders = ordersRes.data || [];
@@ -2877,44 +2877,38 @@ async function renderDeptTasks(dept){
   
   showLoader();
   
-  const [ordersRes, modelsRes, logsRes] = await Promise.all([
+  // Optimized sorğular — yalnız lazımi data
+  const [ordersRes, modelsRes] = await Promise.all([
     sb.from('orders').select('*')
       .in('status', ['in_progress','created','late','ready'])
       .gt('current_stage', 0)
       .order('created_at', {ascending: true}),
-    sb.from('models').select('*').limit(10000),
-    sb.from('task_logs').select('*').order('started_at', {ascending: false}).limit(10000),
+    sb.from('models').select('id,name,stages,img_url,emoji,sale_price'),
   ]);
-  
-  // Debug
-  console.log('[DEBUG] Orders:', ordersRes.data?.length, 'Models:', modelsRes.data?.length, 'Logs:', logsRes.data?.length);
-  if(modelsRes.error) console.error('[DEBUG] Models error:', modelsRes.error);
-  if(ordersRes.error) console.error('[DEBUG] Orders error:', ordersRes.error);
   
   const allOrders = ordersRes.data || [];
   const allModels = modelsRes.data || [];
-  const allLogs = logsRes.data || [];
   
-  // Yoxla: sifarişlərdə olan model_id-lər models cədvəlində varmı?
-  const modelIds = new Set(allModels.map(m=>m.id));
-  const missingModelIds = new Set();
-  allOrders.forEach(o=>{
-    if(o.model_id && !modelIds.has(o.model_id)){
-      missingModelIds.add(o.model_id);
-    }
-  });
-  
-  // Əgər bəzi modellər çatışmırsa, onları ayrıca yüklə
-  if(missingModelIds.size > 0){
-    console.warn('[DEBUG] '+missingModelIds.size+' model çatışmır, ayrıca yüklənir...');
-    const {data: extraModels, error: extraErr} = await sb.from('models')
+  // Yalnız aktiv sifarişlərə aid logları çək — çox az data
+  let allLogs = [];
+  if(allOrders.length > 0){
+    const {data: logsData} = await sb.from('task_logs')
       .select('*')
-      .in('id', Array.from(missingModelIds));
-    if(extraErr) console.error('[DEBUG] Extra models error:', extraErr);
-    if(extraModels && extraModels.length){
-      console.log('[DEBUG] Əlavə '+extraModels.length+' model tapıldı');
-      extraModels.forEach(m => allModels.push(m));
-    }
+      .in('order_id', allOrders.map(o=>o.id))
+      .order('started_at', {ascending: false});
+    allLogs = logsData || [];
+  }
+  
+  // Çatışmayan modellər varsa əlavə yüklə
+  const modelIds = new Set(allModels.map(m=>m.id));
+  const missingIds = [...new Set(allOrders
+    .filter(o=>o.model_id && !modelIds.has(o.model_id))
+    .map(o=>o.model_id))];
+  if(missingIds.length > 0){
+    const {data: extra} = await sb.from('models')
+      .select('id,name,stages,img_url,emoji,sale_price')
+      .in('id', missingIds);
+    if(extra) extra.forEach(m=>allModels.push(m));
   }
   
   hideLoader();
