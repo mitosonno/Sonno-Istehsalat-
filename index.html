@@ -2691,15 +2691,44 @@ async function createOrder(){
 
 // ═══════════ DEPT / PIN ═══════════
 async function renderDeptPick(){
-  // Bütün modelləri yüklə — passiv modellər də sifarişlərdə ola bilər
-  const [{data:orders},{data:completedLogs},{data:allModelsData}] = await Promise.all([
-    sb.from('orders').select('*').in('status',['in_progress','created','late','ready']),
-    sb.from('task_logs').select('order_id,stage_index,dept_key').not('completed_at','is',null),
-    sb.from('models').select('*'),
-  ]);
+  // OPTIMISTIC UI — dərhal şöbə kartlarını göstər (boş sayğaclarla)
+  // Data sonradan gəlir və yenilənir
+  const grid = document.getElementById('dept-grid');
   
-  // Bütün modelləri lokal istifadə et (filter etmə!)
-  const allModels = allModelsData || [];
+  // Əgər artıq kartlar mövcuddursa (əvvəl gösterilmişdirsə) — saxla, yalnız ekranı dəyiş
+  // Yoxsa boş skelet göstər
+  if(!grid.innerHTML || !grid.innerHTML.includes('deptCard')){
+    grid.innerHTML = Object.entries(DEPT_INFO).map(([key,info])=>{
+      return`<div onclick="deptCard('${key}','1234')" style="background:var(--sf);border:2px solid var(--bd);border-radius:var(--rl);padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative;opacity:0.7">
+        <div style="font-size:28px;margin-bottom:8px">${info.icon}</div>
+        <div style="font-size:12px;font-weight:600;line-height:1.4">${info.name}</div>
+        <div style="font-size:11px;margin-top:6px;color:var(--t3)">...</div>
+      </div>`;
+    }).join('');
+  }
+  
+  // Dərhal ekranı göstər
+  showDV('dept-pick');
+  
+  // Arxada data yüklə (cache istifadə et)
+  const [orders, completedLogs, allModels, pins] = await Promise.all([
+    cachedFetch('orders_active', async()=>{ 
+      const{data}=await sb.from('orders').select('*').in('status',['in_progress','created','late','ready']);
+      return data||[];
+    }),
+    cachedFetch('completed_logs', async()=>{ 
+      const{data}=await sb.from('task_logs').select('order_id,stage_index,dept_key').not('completed_at','is',null);
+      return data||[];
+    }),
+    cachedFetch('models', async()=>{ 
+      const{data}=await sb.from('models').select('*');
+      return data||[];
+    }),
+    cachedFetch('dept_pins', async()=>{
+      const{data}=await sb.from('dept_pins').select('*');
+      return data||[];
+    }),
+  ]);
   
   // Tamamlanmış (order_id + stage_index + dept_key) dəstini yarat
   const completedSet = new Set((completedLogs||[]).map(l=>l.order_id+'_'+l.stage_index+'_'+l.dept_key));
@@ -2730,9 +2759,10 @@ async function renderDeptPick(){
     }
   });
   
-  const{data:pins}=await sb.from('dept_pins').select('*');
   const pinMap={};(pins||[]).forEach(p=>pinMap[p.dept_key]=p.pin_code);
-  document.getElementById('dept-grid').innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
+  
+  // İndi gerçək data ilə kartları yenilə
+  grid.innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
     const cnt=dCnt[key]||0;
     return`<div onclick="deptCard('${key}','${pinMap[key]||'1234'}')" style="background:var(--sf);border:2px solid var(--bd);border-radius:var(--rl);padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative">
       <div style="font-size:28px;margin-bottom:8px">${info.icon}</div>
@@ -2740,7 +2770,6 @@ async function renderDeptPick(){
       <div style="font-size:11px;margin-top:6px;color:${cnt>0?'var(--or)':'var(--t3)'};font-weight:${cnt>0?'600':'400'}">${cnt>0?cnt+' tapşırıq':'Boş'}</div>
     </div>`;
   }).join('');
-  showDV('dept-pick');
 }
 
 function deptCard(dept,pin){
@@ -2757,14 +2786,15 @@ function openPin(dept,code){
   updDots();showDV('dept-pin');
 }
 
-function pp(d){if(pinBuf.length>=4)return;pinBuf+=d;updDots();if(pinBuf.length===4)setTimeout(chkPin,120);}
+function pp(d){if(pinBuf.length>=4)return;pinBuf+=d;updDots();if(pinBuf.length===4)setTimeout(chkPin,50);}
 function pd(){pinBuf=pinBuf.slice(0,-1);updDots();document.getElementById('pin-err').textContent='';}
 function updDots(){document.querySelectorAll('.pdot').forEach((dot,i)=>{dot.classList.remove('filled','err');if(i<pinBuf.length)dot.classList.add('filled');});}
 function chkPin(){
   if(pinBuf===curPinCode){
     pinUnlocked[pinDept]=true;
     document.querySelectorAll('.pdot').forEach(d=>d.classList.add('filled'));
-    setTimeout(()=>showDeptTasks(pinDept),200);
+    // Dərhal keç - gözləmə yox
+    showDeptTasks(pinDept);
   }else{
     document.querySelectorAll('.pdot').forEach(d=>d.classList.add('err'));
     document.getElementById('pin-err').textContent='PIN yanlışdır';
@@ -2869,11 +2899,7 @@ async function renderDeptTasks(dept){
   }
   
   showLoader();
-  
-  // Cache-i təmizlə hər dəfə şöbəyə girəndə — köhnəlmiş data göstərməsin
-  invalidateCache('orders', 'logs', 'models');
-  
-  // Bütün modelləri yüklə (is_active filtri YOXDUR — bütün sifarişlərin modelləri lazımdır)
+  // Cache ilə yüklə (30 saniyə keçməyibsə yenidən sorğu etmə) — sürətli olsun
   const [allOrders, allModels, allLogs, fwdConfig] = await Promise.all([
     cachedFetch('orders', async()=>{ const{data}=await sb.from('orders').select('*').order('created_at',{ascending:true}); return data||[]; }),
     cachedFetch('models', async()=>{ const{data}=await sb.from('models').select('*'); return data||[]; }),
@@ -2882,14 +2908,6 @@ async function renderDeptTasks(dept){
   ]);
   hideLoader();
   window.forwardingConfig = fwdConfig || {};
-  
-  // appWorkers boş isə yüklə
-  if(!appWorkers || !appWorkers.length){
-    try {
-      const {data:wd} = await sb.from('workers').select('*');
-      appWorkers = wd || [];
-    } catch(e){ console.warn('workers load:', e); }
-  }
   
   // Parça alış tab - yalnız Tikiş şöbəsində görünsün
   const sharedTabBtn = document.getElementById('dept-tab-shared');
