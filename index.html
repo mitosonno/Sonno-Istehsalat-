@@ -2691,30 +2691,25 @@ async function createOrder(){
 
 // ═══════════ DEPT / PIN ═══════════
 async function renderDeptPick(){
-  const [orders, completedLogs, allModels, pins] = await Promise.all([
-    cachedFetch('orders_active', async()=>{ 
-      const{data}=await sb.from('orders').select('*').in('status',['in_progress','created','late','ready']);
-      return data||[];
-    }),
-    cachedFetch('completed_logs', async()=>{ 
-      const{data}=await sb.from('task_logs').select('order_id,stage_index,dept_key').not('completed_at','is',null);
-      return data||[];
-    }),
-    cachedFetch('models', async()=>{ 
-      const{data}=await sb.from('models').select('*');
-      return data||[];
-    }),
-    cachedFetch('dept_pins', async()=>{
-      const{data}=await sb.from('dept_pins').select('*');
-      return data||[];
-    }),
+  // Birbaşa Supabase sorğuları — cache yoxdur
+  const [ordersRes, completedLogsRes, modelsRes, pinsRes] = await Promise.all([
+    sb.from('orders').select('id,model_id,status,current_stage,parallel_done_depts')
+      .in('status', ['in_progress','created','late','ready'])
+      .gt('current_stage', 0),
+    sb.from('task_logs').select('order_id,stage_index,dept_key').not('completed_at','is',null),
+    sb.from('models').select('id,stages'),
+    sb.from('dept_pins').select('*'),
   ]);
   
-  const completedSet = new Set((completedLogs||[]).map(l=>l.order_id+'_'+l.stage_index+'_'+l.dept_key));
+  const orders = ordersRes.data || [];
+  const completedLogs = completedLogsRes.data || [];
+  const allModels = modelsRes.data || [];
+  const pins = pinsRes.data || [];
+  
+  const completedSet = new Set(completedLogs.map(l=>l.order_id+'_'+l.stage_index+'_'+l.dept_key));
   
   const dCnt={};
-  (orders||[]).forEach(o=>{
-    if(isPendingCustomerOrder(o)) return;
+  orders.forEach(o=>{
     if(o.status === 'ready'){
       dCnt['logistics'] = (dCnt['logistics']||0)+1;
       return;
@@ -2737,7 +2732,7 @@ async function renderDeptPick(){
     }
   });
   
-  const pinMap={};(pins||[]).forEach(p=>pinMap[p.dept_key]=p.pin_code);
+  const pinMap={};pins.forEach(p=>pinMap[p.dept_key]=p.pin_code);
   document.getElementById('dept-grid').innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
     const cnt=dCnt[key]||0;
     return`<div onclick="deptCard('${key}','${pinMap[key]||'1234'}')" style="background:var(--sf);border:2px solid var(--bd);border-radius:var(--rl);padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative">
@@ -2844,9 +2839,11 @@ function showDV(v){
   }
 }
 
-// ═══════════ CACHE SİSTEMİ ═══════════
+// ═══════════ CACHE SİSTEMİ — SADƏLƏŞDİRİLDİ ═══════════
+// Cache deaktiv edildi — race condition problem yaradırdı
+// Hər çağırış birbaşa Supabase-ə gedir (sadə və proqnozlaşdırılan)
 const _cache = {};
-const CACHE_TTL = 30000; // 30 saniyə
+const CACHE_TTL = 0; // Disable cache
 
 // Köməkçi funksiya: Müştəri sifarişi təsdiq gözləyirmi?
 function isPendingCustomerOrder(o){
@@ -2859,21 +2856,12 @@ function isPendingCustomerOrder(o){
 }
 
 async function cachedFetch(key, fetcher){
-  const now = Date.now();
-  if(_cache[key] && (now - _cache[key].ts) < CACHE_TTL){
-    return _cache[key].data;
-  }
-  const data = await fetcher();
-  _cache[key] = {data, ts: now};
-  return data;
+  // Cache deaktiv — həmişə təzə data
+  return await fetcher();
 }
 
 function invalidateCache(...keys){
-  if(keys.length === 0){
-    Object.keys(_cache).forEach(k => delete _cache[k]);
-  } else {
-    keys.forEach(k => delete _cache[k]);
-  }
+  // No-op — cache yoxdur
 }
 
 async function renderDeptTasks(dept){
@@ -2886,13 +2874,23 @@ async function renderDeptTasks(dept){
   }
   
   showLoader();
-  // Cache ilə yüklə (30 saniyə keçməyibsə yenidən sorğu etmə) — sürətli olsun
-  const [allOrders, allModels, allLogs, fwdConfig] = await Promise.all([
-    cachedFetch('orders', async()=>{ const{data}=await sb.from('orders').select('*').order('created_at',{ascending:true}); return data||[]; }),
-    cachedFetch('models', async()=>{ const{data}=await sb.from('models').select('*'); return data||[]; }),
-    cachedFetch('logs', async()=>{ const{data}=await sb.from('task_logs').select('*').order('started_at',{ascending:false}); return data||[]; }),
-    cachedFetch('fwdConfig', ()=>getForwardingConfig()),
+  
+  // Optimized query — yalnız aktiv sifarişləri yüklə (delivered, cancelled-i atırıq)
+  // Pending müştəri sifarişləri də atılır (current_stage=0)
+  const [ordersRes, modelsRes, logsRes, fwdConfig] = await Promise.all([
+    sb.from('orders').select('*')
+      .in('status', ['in_progress','created','late','ready'])
+      .gt('current_stage', 0)
+      .order('created_at', {ascending: true}),
+    sb.from('models').select('*'),
+    sb.from('task_logs').select('*').order('started_at', {ascending: false}),
+    getForwardingConfig(),
   ]);
+  
+  const allOrders = ordersRes.data || [];
+  const allModels = modelsRes.data || [];
+  const allLogs = logsRes.data || [];
+  
   hideLoader();
   window.forwardingConfig = fwdConfig || {};
   
@@ -3965,7 +3963,7 @@ async function dDone(oid, si, key, dept, totalStages){
       invalidateCache('logs','orders');
       hideTaskCard(oid);
       toast('✅ Tamamlandı (fon iş)');
-      setTimeout(async ()=>{ invalidateCache("logs","orders","orders_active","completed_logs"); await renderDeptTasks(dept); }, 800);
+      await renderDeptTasks(dept);
       return;
     }
     
@@ -4001,7 +3999,7 @@ async function dDone(oid, si, key, dept, totalStages){
       invalidateCache('logs','orders');
       hideTaskCard(oid);
       toast('✅ '+DEPT_INFO[dept]?.name+' tamamlandı — paralel gözlənilir');
-      setTimeout(async ()=>{ invalidateCache("logs","orders","orders_active","completed_logs"); await renderDeptTasks(dept); }, 800);
+      await renderDeptTasks(dept);
       return;
     }
     
@@ -4041,7 +4039,7 @@ async function dDone(oid, si, key, dept, totalStages){
     invalidateCache('logs','orders');
     hideTaskCard(oid);
     toast('✅ Paralel bitdi — növbəti mərhələyə keçdi!');
-    setTimeout(async ()=>{ invalidateCache("logs","orders","orders_active","completed_logs"); await renderDeptTasks(dept); }, 800);
+    await renderDeptTasks(dept);
     return;
   }
   
@@ -4085,7 +4083,7 @@ async function dDone(oid, si, key, dept, totalStages){
     clearInterval(parseInt(timerEl.dataset.intervalId));
   }
   
-  setTimeout(async ()=>{ invalidateCache("logs","orders","orders_active","completed_logs"); await renderDeptTasks(dept); }, 800);
+  await renderDeptTasks(dept);
 }
 
 // Köməkçi funksiya — card-ı DOM-dan tamamilə sil
