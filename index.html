@@ -1540,6 +1540,28 @@ sb.from('app_settings').select('key').limit(1).then(()=>{
     return;
   }
 
+  // Müştəri sessiyasını yoxla — əgər varsa avtomatik müştəri ekranını aç
+  try {
+    const customerJson = localStorage.getItem('sonnoCustomerSession');
+    if(customerJson){
+      const client = JSON.parse(customerJson);
+      if(client && client.id){
+        // Müştəri datasını Supabase-dən yenidən yüklə (təzə)
+        try {
+          const {data: freshClient} = await sb.from('clients').select('*').eq('id', client.id).single();
+          if(freshClient && freshClient.access_code){
+            await showCustomerOrders(freshClient);
+            return;
+          }
+        } catch(e){
+          // Supabase əlçatmazsa, cache-dəki client istifadə et
+          await showCustomerOrders(client);
+          return;
+        }
+      }
+    }
+  } catch(e){ console.warn('Customer session restore failed:', e); }
+
   // Normal mode — session yoxla (Supabase-siz, dərhal)
   const restored = await tryRestoreSession();
   if(restored){
@@ -1928,21 +1950,9 @@ async function openKioskDept(dept){
 
 // ═══════════ INIT ═══════════
 
-// Ekran sönəndə timer-ləri dayandır — yananda render ETMƏ (ekran mirgildəməsin)
-document.addEventListener('visibilitychange', ()=>{
-  if(document.hidden){
-    // Ekran söndü - bütün timer-ləri dayandır
-    document.querySelectorAll('[id^="timer-"]').forEach(el=>{
-      if(el.dataset.intervalId){
-        clearInterval(parseInt(el.dataset.intervalId));
-        el.dataset.intervalId = '';
-      }
-    });
-  }
-  // QEYD: ekran yananda heç bir avtomatik render etmirik — istifadəçi 
-  // əl ilə yeniləsin (aşağıya çək və ya başqa bölməyə keç). Bu ekran 
-  // mirgildəməsinin qarşısını alır.
-});
+// Mirgildəmə qarşısı: visibilitychange tamamilə deaktiv
+// Ekran söndü-yandı çevrildikdə HEÇ NƏ etmə. İstifadəçi əl ilə yeniləsin.
+// (Əvvəllər timer dayandırırdı amma bu da problem yaradırdı)
 async function initApp(){
   // UI-i dərhal göstər (data gözləmədən)
   const u=currentUser;
@@ -2046,8 +2056,13 @@ async function renderDash(){
     const{data:orders}=await query;
     const all=orders||[];
     
-    // Pending sifariş bildirişi
-    const pending = all.filter(o => o.status === 'pending_approval');
+    // Pending sifariş bildirişi — müştəri sifarişləri (CUS-) current_stage=0
+    const pending = all.filter(o=>{
+      const isCustomerOrder = (o.order_number||'').startsWith('CUS-') || (o.notes||'').includes('[📱 MÜŞTƏRİ');
+      const isNotApproved = o.current_stage === 0 || o.current_stage === null || o.status === 'pending_approval';
+      const notDelivered = o.status !== 'delivered' && o.status !== 'cancelled';
+      return isCustomerOrder && isNotApproved && notDelivered;
+    });
     const banner = document.getElementById('pending-banner');
     const bannerTitle = document.getElementById('pending-banner-title');
     if(banner && pending.length && ['admin','manager'].includes(currentUser?.role)){
@@ -2057,7 +2072,11 @@ async function renderDash(){
       banner.style.display = 'none';
     }
     
-    document.getElementById('k-act').textContent=all.filter(o=>['in_progress','created','late'].includes(o.status)).length;
+    // Aktiv sifarişdə müştəri pending-ləri SAYMA (current_stage=0 olanlar təsdiq gözləyir)
+    document.getElementById('k-act').textContent=all.filter(o=>{
+      const isPending = (o.order_number||'').startsWith('CUS-') && (o.current_stage === 0 || o.current_stage === null);
+      return !isPending && ['in_progress','created','late'].includes(o.status);
+    }).length;
     document.getElementById('k-lat').textContent=all.filter(o=>o.status==='late').length;
     document.getElementById('k-rdy').textContent=all.filter(o=>o.status==='ready').length;
     document.getElementById('k-don').textContent=all.filter(o=>o.status==='delivered').length;
@@ -2672,10 +2691,15 @@ async function createOrder(){
 
 // ═══════════ DEPT / PIN ═══════════
 async function renderDeptPick(){
-  const [{data:orders},{data:completedLogs}] = await Promise.all([
+  // Bütün modelləri yüklə — passiv modellər də sifarişlərdə ola bilər
+  const [{data:orders},{data:completedLogs},{data:allModelsData}] = await Promise.all([
     sb.from('orders').select('*').in('status',['in_progress','created','late','ready']),
     sb.from('task_logs').select('order_id,stage_index,dept_key').not('completed_at','is',null),
+    sb.from('models').select('*'),
   ]);
+  
+  // Bütün modelləri lokal istifadə et (filter etmə!)
+  const allModels = allModelsData || [];
   
   // Tamamlanmış (order_id + stage_index + dept_key) dəstini yarat
   const completedSet = new Set((completedLogs||[]).map(l=>l.order_id+'_'+l.stage_index+'_'+l.dept_key));
@@ -2687,7 +2711,7 @@ async function renderDeptPick(){
       dCnt['logistics'] = (dCnt['logistics']||0)+1;
       return;
     }
-    const m=appModels.find(x=>x.id===o.model_id);if(!m)return;
+    const m=allModels.find(x=>x.id===o.model_id);if(!m)return;
     const stages=m.stages||[];
     const si=o.current_stage-1;
     if(si>=0 && si<stages.length){
@@ -2845,7 +2869,11 @@ async function renderDeptTasks(dept){
   }
   
   showLoader();
-  // Cache ilə yüklə (30 saniyə keçməyibsə yenidən sorğu etmə)
+  
+  // Cache-i təmizlə hər dəfə şöbəyə girəndə — köhnəlmiş data göstərməsin
+  invalidateCache('orders', 'logs', 'models');
+  
+  // Bütün modelləri yüklə (is_active filtri YOXDUR — bütün sifarişlərin modelləri lazımdır)
   const [allOrders, allModels, allLogs, fwdConfig] = await Promise.all([
     cachedFetch('orders', async()=>{ const{data}=await sb.from('orders').select('*').order('created_at',{ascending:true}); return data||[]; }),
     cachedFetch('models', async()=>{ const{data}=await sb.from('models').select('*'); return data||[]; }),
@@ -2854,6 +2882,14 @@ async function renderDeptTasks(dept){
   ]);
   hideLoader();
   window.forwardingConfig = fwdConfig || {};
+  
+  // appWorkers boş isə yüklə
+  if(!appWorkers || !appWorkers.length){
+    try {
+      const {data:wd} = await sb.from('workers').select('*');
+      appWorkers = wd || [];
+    } catch(e){ console.warn('workers load:', e); }
+  }
   
   // Parça alış tab - yalnız Tikiş şöbəsində görünsün
   const sharedTabBtn = document.getElementById('dept-tab-shared');
@@ -4239,6 +4275,9 @@ async function doCustomerLogin(){
 
 async function showCustomerOrders(client){
   _currentCustomer = client; // Mövcud müştərini qlobal saxla
+  // localStorage-ə saxla — səhifə yenilənərsə avtomatik geri qayıdsın
+  try { localStorage.setItem('sonnoCustomerSession', JSON.stringify(client)); } catch(e){}
+  
   document.getElementById('login-screen').style.display = 'none';
   const cs = document.getElementById('customer-screen');
   cs.style.display = 'block';
@@ -4314,6 +4353,8 @@ async function showCustomerOrders(client){
 }
 
 function doCustomerLogout(){
+  _currentCustomer = null;
+  try { localStorage.removeItem('sonnoCustomerSession'); } catch(e){}
   document.getElementById('customer-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   hideCustomerLogin();
@@ -4332,6 +4373,8 @@ async function openCustomerCatalog(){
   try {
     const {data:models} = await sb.from('models').select('*').order('name');
     const active = (models || []).filter(m => m.is_active !== false);
+    // Cache — sifariş formasına tez açmaq üçün
+    window._customerCatalogModels = active;
     renderCustomerCatalog(active);
   } catch(e) {
     body.innerHTML = '<div style="text-align:center;padding:40px;color:#E24B4A">Yüklənmə xətası</div>';
@@ -4439,10 +4482,20 @@ function ccCarousel(modelId, total, dir, e){
 
 // Müştəri sifariş forması açır
 async function openCustomerOrderForm(modelId){
-  // Modeli yüklə
-  showLoader();
-  const {data:m} = await sb.from('models').select('*').eq('id', modelId).single();
-  hideLoader();
+  // Cache-dən tap (sürətli) və ya Supabase-dən yüklə
+  let m = null;
+  if(window._customerCatalogModels){
+    m = window._customerCatalogModels.find(x => x.id === modelId);
+  }
+  
+  if(!m){
+    // Cache-də yoxdursa, Supabase-dən yüklə
+    showLoader();
+    const {data} = await sb.from('models').select('*').eq('id', modelId).single();
+    hideLoader();
+    m = data;
+  }
+  
   if(!m){ toast('⚠ Model tapılmadı'); return; }
   
   window._customerOrderModel = m;
@@ -4520,6 +4573,39 @@ async function submitCustomerOrder(){
   const err = document.getElementById('cof-err');
   err.textContent = '';
   
+  // DOUBLE-CLICK QORUMASI
+  if(window._submitCustomerOrderInProgress){
+    console.log('Submit already in progress — ignoring duplicate click');
+    return;
+  }
+  window._submitCustomerOrderInProgress = true;
+  
+  // Düyməni disable et
+  const submitBtn = document.querySelector('#customer-order-form button[onclick="submitCustomerOrder()"]');
+  if(submitBtn){
+    submitBtn.disabled = true;
+    submitBtn.style.opacity = '0.5';
+    submitBtn.style.cursor = 'not-allowed';
+    submitBtn.textContent = '⏳ Göndərilir...';
+  }
+  
+  try {
+    await _submitCustomerOrderInner();
+  } finally {
+    window._submitCustomerOrderInProgress = false;
+    if(submitBtn){
+      submitBtn.disabled = false;
+      submitBtn.style.opacity = '1';
+      submitBtn.style.cursor = 'pointer';
+      submitBtn.textContent = '📤 Sifarişi göndər';
+    }
+  }
+}
+
+async function _submitCustomerOrderInner(){
+  const err = document.getElementById('cof-err');
+  err.textContent = '';
+  
   const name = document.getElementById('cof-name').value.trim();
   const phone = document.getElementById('cof-phone').value.trim();
   const qty = parseInt(document.getElementById('cof-qty').value) || 1;
@@ -4557,6 +4643,7 @@ async function submitCustomerOrder(){
 ${notes ? '📝 Qeyd: ' + notes + '\n' : ''}⏳ TƏSDIQ GÖZLƏYİR - Admin yoxlayacaq`;
     
     // MENECER sifarişi ilə EYNİ payload strukturu (bu 100% işləyir)
+    // FƏRQ: current_stage=0 — admin təsdiqləməyənə qədər istehsala getməsin
     const payload = {
       order_number: orderNumber,
       model_id: m.id,
@@ -4572,7 +4659,7 @@ ${notes ? '📝 Qeyd: ' + notes + '\n' : ''}⏳ TƏSDIQ GÖZLƏYİR - Admin yoxl
       order_date: new Date().toISOString(),
       sale_type: 'cash',
       status: 'created',
-      current_stage: 1,  // Menecer sifarişi kimi 1-dən başlayır
+      current_stage: 0,  // 0 = admin təsdiqi gözləyir, pipeline başlamır
       sale_price: m.sale_price || 0,
       discount: 0,
       final_price: (m.sale_price || 0) * qty,
@@ -5644,11 +5731,19 @@ async function adminSec(sec){
 // ═══════════ PENDING MÜŞTƏRİ SİFARİŞLƏRİ ═══════════
 async function renderPendingOrdersSection(el){
   showLoader();
-  const {data:orders} = await sb.from('orders').select('*').eq('status','pending_approval').order('created_at',{ascending:false});
+  // Müştəri sifarişlərini tap: order_number CUS- ilə başlayır VƏ current_stage=0 (təsdiqlənməyib)
+  // Və ya notes içində [📱 MÜŞTƏRİ SİFARİŞİ] etiketi var
+  const {data:allOrders} = await sb.from('orders').select('*').order('created_at',{ascending:false});
   const {data:models} = await sb.from('models').select('*');
   hideLoader();
   
-  const pending = orders || [];
+  // Filtrlə: təsdiq gözləyən müştəri sifarişləri
+  const pending = (allOrders || []).filter(o=>{
+    const isCustomerOrder = (o.order_number||'').startsWith('CUS-') || (o.notes||'').includes('[📱 MÜŞTƏRİ');
+    const isNotApproved = o.current_stage === 0 || o.current_stage === null || o.status === 'pending_approval';
+    const notDelivered = o.status !== 'delivered' && o.status !== 'cancelled';
+    return isCustomerOrder && isNotApproved && notDelivered;
+  });
   const allModels = models || [];
   
   if(!pending.length){
@@ -5772,19 +5867,27 @@ function callCustomer(phone){
 // Bildiriş badge-i yenilə
 async function updatePendingBadge(){
   try {
-    const {count} = await sb.from('orders').select('*', {count:'exact', head:true}).eq('status','pending_approval');
+    // Müştəri sifarişlərini say — CUS- ilə başlayan və current_stage 0 olan
+    const {data} = await sb.from('orders').select('order_number,current_stage,status,notes');
+    const pendingCount = (data||[]).filter(o=>{
+      const isCustomerOrder = (o.order_number||'').startsWith('CUS-') || (o.notes||'').includes('[📱 MÜŞTƏRİ');
+      const isNotApproved = o.current_stage === 0 || o.current_stage === null || o.status === 'pending_approval';
+      const notDelivered = o.status !== 'delivered' && o.status !== 'cancelled';
+      return isCustomerOrder && isNotApproved && notDelivered;
+    }).length;
+    
     const badge = document.getElementById('ami-pending-badge');
     const sub = document.getElementById('ami-pending');
     if(badge){
-      if(count > 0){
-        badge.textContent = count;
+      if(pendingCount > 0){
+        badge.textContent = pendingCount;
         badge.style.display = 'flex';
       } else {
         badge.style.display = 'none';
       }
     }
     if(sub){
-      sub.textContent = count > 0 ? `${count} gözləyir` : 'Heç biri';
+      sub.textContent = pendingCount > 0 ? `${pendingCount} gözləyir` : 'Heç biri';
     }
   } catch(e){ console.error('updatePendingBadge:', e); }
 }
@@ -6375,7 +6478,8 @@ async function renderStatsSection(el){
     <div id="stats-content"></div>
   `;
   
-  refreshStats();
+  // DOM-un set olunması üçün gözlə, sonra refresh et
+  setTimeout(()=>refreshStats(), 50);
 }
 
 // Tarix aralığını təyin edən sürətli düymələr
@@ -6400,10 +6504,23 @@ function setStatsRange(range){
 
 // Statistikanı filtrlərə uyğun yenilə
 function refreshStats(){
+  console.log('[Stats] refreshStats çağırıldı');
   const allOrders = window._statsAllOrders || [];
   const allLogs = window._statsAllLogs || [];
   const allModels = window._statsAllModels || [];
   const allUsers = window._statsAllUsers || [];
+  console.log('[Stats] Data: orders='+allOrders.length+' logs='+allLogs.length+' models='+allModels.length);
+  
+  const target = document.getElementById('stats-content');
+  if(!target){
+    console.warn('[Stats] stats-content div tapılmadı!');
+    return;
+  }
+  
+  if(!allOrders.length){
+    target.innerHTML = '<div style="padding:40px;text-align:center;background:#fff;border-radius:12px;border:1px solid var(--bd)"><div style="font-size:48px;margin-bottom:12px">📊</div><div style="font-size:15px;font-weight:600">Sifariş yoxdur</div><div style="font-size:12px;color:var(--t3);margin-top:6px">Hələ heç bir sifariş yaradılmayıb</div></div>';
+    return;
+  }
   
   const dateFrom = document.getElementById('stats-date-from')?.value;
   const dateTo = document.getElementById('stats-date-to')?.value;
@@ -6514,8 +6631,6 @@ function refreshStats(){
   const profitMargin=totalRevenue>0?(profit/totalRevenue*100):0;
   const deliveredProfit=deliveredRevenue-deliveredCost;
   
-  const target = document.getElementById('stats-content');
-  if(!target) return;
   target.innerHTML = `
     <div class="slbl">💰 Maliyyə Analizi </div>
     <div class="sec-card card-pad" style="margin-bottom:14px">
