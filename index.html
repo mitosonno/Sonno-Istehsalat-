@@ -11,6 +11,7 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{overscroll-behavior:none;overscroll-behavior-y:contain;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
 :root{
   --dk:#111820;--or:#F78930;--tl:#007565;--dp:#004f51;
   --lt:#E1F5EE;--lo:#FFF4E8;--bg:#F4F2ED;--sf:#fff;
@@ -3201,17 +3202,19 @@ async function renderDeptTasks(dept){
         </div>`;
       }
 
-      return`<div class="task-card" id="tcard-${o.id}">
+      return`<div class="task-card" id="tcard-${o.id}" style="${isLate?'border:2px solid #E24B4A;background:#FFF5F5':''}">
         <div class="task-card-top${isLate?' late':''}">
           <div style="display:flex;align-items:center;gap:10px;flex:1">
             ${modelImg}
             <div style="flex:1">
-              <div style="font-size:15px;font-weight:700">${s.name}</div>
-              <div style="font-size:12px;color:var(--t2);margin-top:2px">${o.order_number} · ${m.name.split('—')[0].trim()}</div>
-              ${(o.order_date||o.created_at)?`<div style="font-size:10px;color:var(--t3);margin-top:2px">📅 ${new Date(o.order_date||o.created_at).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`:''}
+              <div style="font-size:16px;font-weight:800;color:#111820">${m.name.split('—')[0].trim()}</div>
+              <div style="font-size:11px;color:var(--t3);margin-top:2px">${o.order_number}</div>
+              ${(o.order_date||o.created_at)?`<div style="font-size:11px;color:var(--t3);margin-top:1px">📅 ${new Date(o.order_date||o.created_at).toLocaleDateString('az-AZ',{day:'2-digit',month:'2-digit',year:'numeric'})}</div>`:''}
             </div>
           </div>
-          <span class="badge ${isLate?'bR':'bO'}">${isLate?'GECİKMİŞ':'Aktiv'}</span>
+          <span class="badge ${isLate?'bR':'bO'}" style="${isLate?'background:#E24B4A;animation:pulse 1.5s infinite':''}">
+            ${isLate?'⚠ GECİKMİŞ':'• Aktiv'}
+          </span>
         </div>
         <div class="task-card-body">
           <div class="stage-dots">${dots}</div>
@@ -4876,13 +4879,20 @@ async function qaDecision(oid, action){
   
   // ÇATDIRILSIN
   if(action === 'deliver'){
-    if(unchecked.length > 0){
-      const missing = unchecked.map(d => DEPT_INFO[d]?.name || d).join(', ');
-      toast('⚠ Bu şöbələr yoxlanılmayıb: '+missing, 5000);
+    // 1 OK belə yetərlidir — hamısı işarələnmək məcburi deyil
+    if(checked.length === 0){
+      toast('⚠ Ən azı 1 şöbəni yoxlayın', 3000);
       return;
     }
     
-    if(!confirm('Bu sifarişi Logistikaya göndərmək istəyirsiniz?\n\n'+order.order_number+'\n'+order.client)) return;
+    // İşarələnməyən şöbələr varsa xəbərdarlıq (amma keçməyə icazə ver)
+    if(unchecked.length > 0){
+      const missing = unchecked.map(d => DEPT_INFO[d]?.name || d).join(', ');
+      const ok = confirm('⚠ Bu şöbələr yoxlanılmayıb:\n'+missing+'\n\nYenə də Logistikaya göndərmək istəyirsiniz?');
+      if(!ok) return;
+    } else {
+      if(!confirm('Bu sifarişi Logistikaya göndərmək istəyirsiniz?\n\n'+order.order_number+'\n'+order.client)) return;
+    }
     
     showLoader();
     // QA stage-ni tamamla, növbəti mərhələyə keç
@@ -6406,8 +6416,35 @@ window._fwdConfigCache = null;
 window._fwdConfigPromise = null;
 
 async function getForwardingConfig(){
-  // Sadə həll: window-da varsa qaytar, yoxsa boş
-  return window.forwardingConfig || {};
+  // Sabit konfiqurasiya — Supabase-dən asılı deyil
+  // Şkurka şöbəsi → Tikiş şöbəsinə yönəldir
+  const defaultConfig = {
+    'shkurka': ['tikis'],
+  };
+  
+  // Əgər window-da varsa (admin tərəfindən konfiqurasiya edilib) onu istifadə et
+  if(window._fwdConfigLoaded) return window.forwardingConfig || defaultConfig;
+  
+  // Supabase-dən yüklə (bir dəfə)
+  window._fwdConfigLoaded = true;
+  try {
+    const {data} = await sb.from('app_settings').select('value').eq('key','forwarding_config').maybeSingle();
+    if(data?.value){
+      const raw = JSON.parse(data.value);
+      const normalized = {};
+      Object.entries(raw).forEach(([src, targets])=>{
+        const normSrc = src === 'tikiş' ? 'tikis' : src;
+        const normTargets = (targets||[]).map(t => t === 'tikiş' ? 'tikis' : t);
+        normalized[normSrc] = normTargets;
+      });
+      window.forwardingConfig = Object.keys(normalized).length > 0 ? normalized : defaultConfig;
+    } else {
+      window.forwardingConfig = defaultConfig;
+    }
+  } catch(e) {
+    window.forwardingConfig = defaultConfig;
+  }
+  return window.forwardingConfig;
 }
 
 async function _oldGetForwardingConfig(){
