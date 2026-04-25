@@ -2875,8 +2875,13 @@ async function renderDeptTasks(dept){
   
   showLoader();
   
-  // Optimized query — yalnız aktiv sifarişləri yüklə (delivered, cancelled-i atırıq)
-  // Pending müştəri sifarişləri də atılır (current_stage=0)
+  // Render token — eyni anda 2 render olarsa, yalnız son qoşulan render edir
+  // Bu "stale render" problemini həll edir
+  if(!window._renderTokens) window._renderTokens = {};
+  const myToken = Date.now() + Math.random();
+  window._renderTokens[dept] = myToken;
+  
+  // Optimized query — yalnız aktiv sifarişləri yüklə
   const [ordersRes, modelsRes, logsRes, fwdConfig] = await Promise.all([
     sb.from('orders').select('*')
       .in('status', ['in_progress','created','late','ready'])
@@ -2886,6 +2891,12 @@ async function renderDeptTasks(dept){
     sb.from('task_logs').select('*').order('started_at', {ascending: false}),
     getForwardingConfig(),
   ]);
+  
+  // Əgər data yüklənərkən yeni render başlayıb, bu render-i ləğv et
+  if(window._renderTokens[dept] !== myToken){
+    console.log('[Render] Köhnə render ləğv edildi, yenisi gəlir');
+    return;
+  }
   
   const allOrders = ordersRes.data || [];
   const allModels = modelsRes.data || [];
@@ -6346,7 +6357,58 @@ function renderForwardingTargets(){
 }
 
 // Ötürmə konfiqurasiyasını oxu
+// Forwarding config session cache - 1 dəfə yüklə, dərhal qaytar
+window._fwdConfigCache = null;
+window._fwdConfigPromise = null;
+
 async function getForwardingConfig(){
+  // Əgər artıq yüklənibsə, dərhal qaytar
+  if(window._fwdConfigCache !== null){
+    return window._fwdConfigCache;
+  }
+  
+  // Əgər indi yüklənir, eyni promise-u gözlə (duplicate sorğu olmasın)
+  if(window._fwdConfigPromise){
+    return window._fwdConfigPromise;
+  }
+  
+  // İlk dəfə - başlat
+  window._fwdConfigPromise = (async()=>{
+    try{
+      // Timeout 3 saniyə - əgər app_settings yavaşdırsa, boş config qaytar
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 3000)
+      );
+      const fetchPromise = sb.from('app_settings').select('value').eq('key','forwarding_config').maybeSingle();
+      
+      const result = await Promise.race([fetchPromise, timeoutPromise]);
+      const data = result.data;
+      const raw = data?.value ? JSON.parse(data.value) : {};
+      
+      // Köhnə "tikiş" key-lərini "tikis"-ə çevir
+      const normalized = {};
+      Object.entries(raw).forEach(([src, targets])=>{
+        const normSrc = src === 'tikiş' ? 'tikis' : src;
+        const normTargets = (targets || []).map(t => t === 'tikiş' ? 'tikis' : t);
+        normalized[normSrc] = normTargets;
+      });
+      
+      window._fwdConfigCache = normalized;
+      return normalized;
+    }catch(e){
+      console.warn('[forwarding] yüklənə bilmədi, boş config istifadə edilir:', e.message);
+      window._fwdConfigCache = {}; // Boş config kəsfedir
+      return {};
+    } finally {
+      window._fwdConfigPromise = null;
+    }
+  })();
+  
+  return window._fwdConfigPromise;
+}
+
+// Köhnə getForwardingConfig funksiyasını əvəz etmək üçün — bu funksiya artıq lazım deyil
+async function _oldGetForwardingConfig(){
   try{
     const {data, error} = await sb.from('app_settings').select('value').eq('key','forwarding_config').maybeSingle();
     if(error) console.error('[forwarding] oxuma xətası:', error);
