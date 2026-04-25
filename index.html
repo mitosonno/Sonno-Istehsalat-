@@ -2691,26 +2691,6 @@ async function createOrder(){
 
 // ═══════════ DEPT / PIN ═══════════
 async function renderDeptPick(){
-  // OPTIMISTIC UI — dərhal şöbə kartlarını göstər (boş sayğaclarla)
-  // Data sonradan gəlir və yenilənir
-  const grid = document.getElementById('dept-grid');
-  
-  // Əgər artıq kartlar mövcuddursa (əvvəl gösterilmişdirsə) — saxla, yalnız ekranı dəyiş
-  // Yoxsa boş skelet göstər
-  if(!grid.innerHTML || !grid.innerHTML.includes('deptCard')){
-    grid.innerHTML = Object.entries(DEPT_INFO).map(([key,info])=>{
-      return`<div onclick="deptCard('${key}','1234')" style="background:var(--sf);border:2px solid var(--bd);border-radius:var(--rl);padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative;opacity:0.7">
-        <div style="font-size:28px;margin-bottom:8px">${info.icon}</div>
-        <div style="font-size:12px;font-weight:600;line-height:1.4">${info.name}</div>
-        <div style="font-size:11px;margin-top:6px;color:var(--t3)">...</div>
-      </div>`;
-    }).join('');
-  }
-  
-  // Dərhal ekranı göstər
-  showDV('dept-pick');
-  
-  // Arxada data yüklə (cache istifadə et)
   const [orders, completedLogs, allModels, pins] = await Promise.all([
     cachedFetch('orders_active', async()=>{ 
       const{data}=await sb.from('orders').select('*').in('status',['in_progress','created','late','ready']);
@@ -2730,15 +2710,11 @@ async function renderDeptPick(){
     }),
   ]);
   
-  // Tamamlanmış (order_id + stage_index + dept_key) dəstini yarat
   const completedSet = new Set((completedLogs||[]).map(l=>l.order_id+'_'+l.stage_index+'_'+l.dept_key));
   
   const dCnt={};
   (orders||[]).forEach(o=>{
-    // Müştəri pending sifarişi — şöbədə sayma
     if(isPendingCustomerOrder(o)) return;
-    
-    // Logistika: status=ready
     if(o.status === 'ready'){
       dCnt['logistics'] = (dCnt['logistics']||0)+1;
       return;
@@ -2750,7 +2726,6 @@ async function renderDeptPick(){
       const d=stages[si].dept;
       if(d.includes('||')){
         d.split('||').forEach(part=>{
-          // Bu şöbə artıq tamamlayıbsa — sayma
           const k = o.id+'_'+si+'_'+part;
           if(!completedSet.has(k)){
             dCnt[part]=(dCnt[part]||0)+1;
@@ -2763,9 +2738,7 @@ async function renderDeptPick(){
   });
   
   const pinMap={};(pins||[]).forEach(p=>pinMap[p.dept_key]=p.pin_code);
-  
-  // İndi gerçək data ilə kartları yenilə
-  grid.innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
+  document.getElementById('dept-grid').innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
     const cnt=dCnt[key]||0;
     return`<div onclick="deptCard('${key}','${pinMap[key]||'1234'}')" style="background:var(--sf);border:2px solid var(--bd);border-radius:var(--rl);padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative">
       <div style="font-size:28px;margin-bottom:8px">${info.icon}</div>
@@ -2773,6 +2746,7 @@ async function renderDeptPick(){
       <div style="font-size:11px;margin-top:6px;color:${cnt>0?'var(--or)':'var(--t3)'};font-weight:${cnt>0?'600':'400'}">${cnt>0?cnt+' tapşırıq':'Boş'}</div>
     </div>`;
   }).join('');
+  showDV('dept-pick');
 }
 
 function deptCard(dept,pin){
@@ -3886,6 +3860,17 @@ async function sharedReceive(oid, dept){
 }
 
 async function dDone(oid, si, key, dept, totalStages){
+  // Çoxlu klik qarşısı — eyni vaxtda 2 dDone işləməsin
+  if(window._dDoneInProgress && window._dDoneInProgress[oid]){
+    console.log('dDone artıq işləyir:', oid);
+    return;
+  }
+  if(!window._dDoneInProgress) window._dDoneInProgress = {};
+  window._dDoneInProgress[oid] = true;
+  
+  // 5 saniyəden sonra avtomatik açıl (xətaa qarşısı)
+  setTimeout(()=>{ if(window._dDoneInProgress) delete window._dDoneInProgress[oid]; }, 5000);
+  
   const doneBtn = document.getElementById('td-'+oid);
   if(doneBtn) doneBtn.disabled = true;
   
@@ -3977,10 +3962,10 @@ async function dDone(oid, si, key, dept, totalStages){
       localStorage.removeItem(key+'_'+dept+'_t');
       localStorage.removeItem(key+'_'+dept+'_d');
       localStorage.removeItem(key+'_'+dept+'_dt');
-      invalidateCache('logs','orders','orders_active','completed_logs');
+      invalidateCache('logs','orders');
       hideTaskCard(oid);
       toast('✅ Tamamlandı (fon iş)');
-      setTimeout(()=>renderDeptTasks(dept), 800);
+      setTimeout(async ()=>{ invalidateCache("logs","orders","orders_active","completed_logs"); await renderDeptTasks(dept); }, 800);
       return;
     }
     
@@ -4013,10 +3998,10 @@ async function dDone(oid, si, key, dept, totalStages){
       localStorage.removeItem(key+'_'+dept+'_t');
       localStorage.removeItem(key+'_'+dept+'_d');
       localStorage.removeItem(key+'_'+dept+'_dt');
-      invalidateCache('logs','orders','orders_active','completed_logs');
+      invalidateCache('logs','orders');
       hideTaskCard(oid);
       toast('✅ '+DEPT_INFO[dept]?.name+' tamamlandı — paralel gözlənilir');
-      setTimeout(()=>renderDeptTasks(dept), 800);
+      setTimeout(async ()=>{ invalidateCache("logs","orders","orders_active","completed_logs"); await renderDeptTasks(dept); }, 800);
       return;
     }
     
@@ -4053,10 +4038,10 @@ async function dDone(oid, si, key, dept, totalStages){
     localStorage.removeItem(key+'_'+dept+'_d');
     localStorage.removeItem(key+'_'+dept+'_dt');
     
-    invalidateCache('logs','orders','orders_active','completed_logs');
+    invalidateCache('logs','orders');
     hideTaskCard(oid);
     toast('✅ Paralel bitdi — növbəti mərhələyə keçdi!');
-    setTimeout(()=>renderDeptTasks(dept), 800);
+    setTimeout(async ()=>{ invalidateCache("logs","orders","orders_active","completed_logs"); await renderDeptTasks(dept); }, 800);
     return;
   }
   
@@ -4091,7 +4076,7 @@ async function dDone(oid, si, key, dept, totalStages){
   localStorage.removeItem(key+'_'+dept+'_d');
   localStorage.removeItem(key+'_'+dept+'_dt');
   
-  invalidateCache('logs','orders','orders_active','completed_logs');
+  invalidateCache('logs','orders');
   hideTaskCard(oid);
   toast('✅ Tamamlandı!');
   
@@ -4100,7 +4085,7 @@ async function dDone(oid, si, key, dept, totalStages){
     clearInterval(parseInt(timerEl.dataset.intervalId));
   }
   
-  setTimeout(()=>renderDeptTasks(dept), 800);
+  setTimeout(async ()=>{ invalidateCache("logs","orders","orders_active","completed_logs"); await renderDeptTasks(dept); }, 800);
 }
 
 // Köməkçi funksiya — card-ı DOM-dan tamamilə sil
