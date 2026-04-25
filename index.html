@@ -10,6 +10,7 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{overscroll-behavior:none;overscroll-behavior-y:contain;}
 :root{
   --dk:#111820;--or:#F78930;--tl:#007565;--dp:#004f51;
   --lt:#E1F5EE;--lo:#FFF4E8;--bg:#F4F2ED;--sf:#fff;
@@ -3231,7 +3232,26 @@ async function renderDeptTasks(dept){
           </div>` : ''}
           ${wHtml}
           <div class="ts-box ${stCls}" id="ts-${o.id}">${stTxt}</div>
-          ${started&&!done?`<div style="font-size:14px;font-weight:600;color:var(--or);text-align:center;margin:8px 0" id="timer-${o.id}">⏱ 0 dəq</div>`:''}
+          ${started&&!done?`
+          <div style="font-size:14px;font-weight:600;color:var(--or);text-align:center;margin:8px 0" id="timer-${o.id}" data-start="${startTime}">⏱ hesablanır...</div>
+          <script>
+          (function(){
+            const el = document.getElementById('timer-${o.id}');
+            if(!el) return;
+            const t0 = new Date('${startTime}');
+            if(el.dataset.intervalId) clearInterval(parseInt(el.dataset.intervalId));
+            const upd = ()=>{
+              const diff = Date.now() - t0;
+              if(diff < 0) return;
+              const m = Math.floor(diff/60000);
+              const s = Math.floor((diff%60000)/1000);
+              if(el && el.isConnected) el.textContent = '⏱ '+m+' dəq '+s+' san';
+            };
+            upd();
+            const intv = setInterval(upd, 1000);
+            el.dataset.intervalId = intv;
+          })();
+          <\/script>`:''}
           <div class="task-btns">
             <button class="btn btn-o btn-lg" ${started||done?'disabled':''} onclick="dStart('${o.id}','${si}','${key}','${dept}')">▶ Başla</button>
             <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${total}')">✓ Tamamla</button>
@@ -3504,19 +3524,38 @@ async function renderDeptTasks(dept){
   }
 }
 
-function dStart(oid,si,key,dept){
+async function dStart(oid,si,key,dept){
   const now=new Date().toISOString();
-  invalidateCache('logs','orders'); // Cache-i yenilə
-  const dKey = key+'_'+dept;
-  localStorage.setItem(dKey+'_s','1');
-  localStorage.setItem(dKey+'_t',now);
   
   const el=document.getElementById('ts-'+oid);
-  if(el){el.className='ts-box ts-go';el.textContent='⏱ İcra olunur...';}
+  if(el){el.className='ts-box ts-go';el.textContent='⏱ Başladılır...';}
   document.querySelectorAll(`[onclick*="dStart('${oid}"]`).forEach(b=>b.disabled=true);
+  
+  // ƏVVƏL Supabase-ə yaz — sonra timer başlat
+  // Bu admin paneldən baxanda da timerin düzgün işləməsini təmin edir
+  try{
+    await sb.from('task_logs')
+      .delete()
+      .eq('order_id', oid)
+      .eq('stage_index', parseInt(si)-1)
+      .eq('dept_key', dept);
+    await sb.from('task_logs').insert({
+      order_id:oid, stage_index:parseInt(si)-1,
+      worker_id:currentUser?.id, worker_name:currentUser?.name,
+      dept_key:dept, action:'started', started_at:now
+    });
+  }catch(e){
+    console.error('[dStart] Supabase xətası:', e);
+    if(el){el.className='ts-box ts-idle';el.textContent='❌ Xəta, yenidən cəhd edin';}
+    document.querySelectorAll(`[onclick*="dStart('${oid}"]`).forEach(b=>b.disabled=false);
+    return;
+  }
+  
+  // Supabase-ə yazıldı — indi UI yenilə
+  if(el){el.className='ts-box ts-go';el.textContent='⏱ İcra olunur...';}
   const db=document.getElementById('td-'+oid);if(db)db.disabled=false;
   
-  // Timer HTML-ini əlavə et (əgər yoxdursa)
+  // Timer HTML əlavə et
   if(!document.getElementById('timer-'+oid)){
     const taskCard = document.getElementById('tcard-'+oid);
     if(taskCard){
@@ -3524,6 +3563,7 @@ function dStart(oid,si,key,dept){
       if(btns){
         const timerDiv = document.createElement('div');
         timerDiv.id = 'timer-'+oid;
+        timerDiv.setAttribute('data-start', now);
         timerDiv.style.cssText = 'font-size:14px;font-weight:600;color:var(--or);text-align:center;margin:8px 0';
         timerDiv.textContent = '⏱ 0 dəq 0 san';
         btns.parentNode.insertBefore(timerDiv, btns);
@@ -3535,31 +3575,19 @@ function dStart(oid,si,key,dept){
   const timerEl = document.getElementById('timer-'+oid);
   if(timerEl){
     if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
+    const t0 = new Date(now);
     const update = ()=>{
-      const elapsed = Math.floor((Date.now()-new Date(now))/60000);
-      const sec = Math.floor(((Date.now()-new Date(now))%60000)/1000);
-      if(timerEl && timerEl.isConnected) timerEl.textContent = `⏱ ${elapsed} dəq ${sec} san`;
+      const diff = Date.now() - t0;
+      const m = Math.floor(diff/60000);
+      const s = Math.floor((diff%60000)/1000);
+      if(timerEl && timerEl.isConnected) timerEl.textContent = `⏱ ${m} dəq ${s} san`;
     };
     update();
     const int = setInterval(update, 1000);
     timerEl.dataset.intervalId = int;
   }
   
-  // Köhnəni sil, təzəni yaz
-  (async()=>{
-    try{
-      await sb.from('task_logs')
-        .delete()
-        .eq('order_id', oid)
-        .eq('stage_index', parseInt(si)-1)
-        .eq('dept_key', dept);
-      await sb.from('task_logs').insert({
-        order_id:oid, stage_index:parseInt(si)-1,
-        worker_id:currentUser.id, worker_name:currentUser.name,
-        dept_key:dept, action:'started', started_at:now
-      });
-    }catch(e){console.error('[dStart] log error:',e);}
-  })();
+  invalidateCache('logs','orders');
   toast('▶ Başladı — vaxt sayılır');
 }
 
