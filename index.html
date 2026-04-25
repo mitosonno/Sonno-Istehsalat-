@@ -353,6 +353,10 @@ textarea{resize:vertical;min-height:80px}
     <button onclick="openCustomerCatalog()" style="flex:1;min-width:140px;padding:14px;background:linear-gradient(135deg,#F78930,#E2742C);color:#fff;border:none;border-radius:12px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(247,137,48,.25)">
       📖 Kataloga bax & sifariş et
     </button>
+    <button onclick="shareCatalogLink()" style="padding:14px 18px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border:none;border-radius:12px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(37,211,102,.25)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      Paylaş
+    </button>
   </div>
   <div id="customer-orders-list" style="max-width:600px;margin:0 auto;padding:16px">
     <div style="text-align:center;padding:40px;color:#888">Yüklənir...</div>
@@ -471,25 +475,27 @@ textarea{resize:vertical;min-height:80px}
           <div class="kpi kO" onclick="showOrderSheet('ready')" style="cursor:pointer"><div class="kl">HAZIR</div><div class="kv" id="k-rdy" style="color:var(--or)">—</div><div class="ks">çatdırılma</div></div>
           <div class="kpi kD" onclick="showOrderSheet('delivered')" style="cursor:pointer"><div class="kl">TƏSLİM</div><div class="kv" id="k-don">—</div><div class="ks">bu həftə</div></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">
-          <div style="background:var(--lt);padding:12px 16px;border-radius:10px;display:flex;justify-content:space-between;align-items:center">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div style="background:var(--lt);padding:10px 14px;border-radius:10px;display:flex;justify-content:space-between;align-items:center">
             <div>
-              <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Bu gün — sifariş</div>
-              <div style="font-size:24px;font-weight:800;color:var(--tl)" id="k-today-count">—</div>
+              <div style="font-size:10px;color:var(--t2);font-weight:600;text-transform:uppercase">Bu gün</div>
+              <div style="font-size:20px;font-weight:800;color:var(--tl)" id="k-today-count">—</div>
+              <div style="font-size:10px;color:var(--t3)" id="k-today-qty">sifariş</div>
             </div>
             <div style="text-align:right">
-              <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Məbləğ</div>
-              <div style="font-size:18px;font-weight:700;color:var(--tl)" id="k-today-rev">—</div>
+              <div style="font-size:10px;color:var(--t2);font-weight:600">məbləğ</div>
+              <div style="font-size:15px;font-weight:700;color:var(--tl)" id="k-today-rev">—</div>
             </div>
           </div>
-          <div style="background:#FFF4E8;padding:12px 16px;border-radius:10px;display:flex;justify-content:space-between;align-items:center">
+          <div style="background:#FFF4E8;padding:10px 14px;border-radius:10px;display:flex;justify-content:space-between;align-items:center">
             <div>
-              <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Bu ay — sifariş</div>
-              <div style="font-size:24px;font-weight:800;color:var(--or)" id="k-month-count">—</div>
+              <div style="font-size:10px;color:var(--t2);font-weight:600;text-transform:uppercase">Bu ay</div>
+              <div style="font-size:20px;font-weight:800;color:var(--or)" id="k-month-count">—</div>
+              <div style="font-size:10px;color:var(--t3)" id="k-month-qty">sifariş</div>
             </div>
             <div style="text-align:right">
-              <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Məbləğ</div>
-              <div style="font-size:18px;font-weight:700;color:var(--or)" id="k-month-rev">—</div>
+              <div style="font-size:10px;color:var(--t2);font-weight:600">məbləğ</div>
+              <div style="font-size:15px;font-weight:700;color:var(--or)" id="k-month-rev">—</div>
             </div>
           </div>
         </div>
@@ -520,9 +526,6 @@ textarea{resize:vertical;min-height:80px}
           <div>
             <div class="slbl" style="margin-top:0">Məhsul seçin</div>
             <input type="text" id="product-search" placeholder="🔍 Model axtar..." style="width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;margin-bottom:10px" oninput="filterProducts(this.value)">
-            <button type="button" onclick="copyCatalogLinkQuick()" style="width:100%;padding:12px;background:linear-gradient(135deg,#007565,#004F51);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 8px rgba(0,117,101,.2)">
-              📎 Müştəri kataloqu linkini kopyala
-            </button>
             <div class="pgrid" id="product-grid"></div>
             <div id="qty-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:12px 14px;align-items:center;gap:12px;margin-bottom:14px">
               <span id="qty-name" style="flex:1;font-size:13px;font-weight:600;color:var(--dp)">—</span>
@@ -674,9 +677,6 @@ textarea{resize:vertical;min-height:80px}
       <div id="sc-ai" class="sc">
         <div class="pg-hd">AI Analiz <small>GPT-4o ilə</small></div>
 
-        <!-- Stats -->
-        <div class="stat-grid" id="stat-grid"></div>
-
         <!-- Şöbə statistikası tarix filtri ilə -->
         <div class="slbl">📊 Şöbə statistikası</div>
         <div class="card card-pad" style="margin-bottom:16px">
@@ -737,13 +737,6 @@ textarea{resize:vertical;min-height:80px}
         <button class="btn btn-o btn-full" onclick="runAutoAnalysis()" style="margin-bottom:14px">🤖 Tam analiz çalışdır — problemlər, riskler, tövsiyələr</button>
         <div id="ai-insights"></div>
 
-        <!-- Order stats -->
-        <div class="slbl">Sifariş statistikası</div>
-        <div class="card" id="order-stats"></div>
-
-        <!-- Dept performance -->
-        <div class="slbl">Şöbə performansı</div>
-        <div class="card card-pad" id="dept-perf"></div>
       </div>
 
       <!-- ADMİN -->
@@ -1319,10 +1312,15 @@ async function validateDeadline(input){
   d.setHours(0,0,0,0);
   const minDate = getMinDeadlineDate();
   
-  // Bazar günü yoxla — ən yaxın Bazar ertəsinə keç
+  // Bazar günü yoxla — ekranda xəbərdarlıq göstər
   if(d.getDay() === 0){
-    d.setDate(d.getDate()+1);
-    toast('⚠ Bazar günü — Bazar ertəsinə köçürüldü');
+    const nextDay = new Date(d);
+    nextDay.setDate(d.getDate()+1);
+    const nextDayStr = nextDay.toLocaleDateString('az-AZ', {weekday:'long', day:'numeric', month:'long'});
+    
+    // Ekranda xəbərdarlıq modalı göstər
+    showSundayWarning(input, nextDay);
+    return;
   }
   
   // Admin deyilsə minimum 7 iş günü yoxla
@@ -1330,16 +1328,63 @@ async function validateDeadline(input){
   if(!isAdmin && d < minDate){
     d = new Date(minDate);
     const minStr = minDate.toLocaleDateString('az-AZ');
-    toast('⚠ Minimum 7 iş günü tələb olunur. Ən tez: '+minStr+'. Tez deadline üçün admin icazəsi lazımdır.', 5000);
+    toast('⚠ Minimum 7 iş günü tələb olunur. Ən tez: '+minStr, 5000);
   } else if(isAdmin && d < minDate){
-    const minStr = minDate.toLocaleDateString('az-AZ');
-    toast('⚠ Admin kimi 7 gündən az deadline qəbul etdiniz ('+minStr+' tövsiyə olunur)', 5000);
+    toast('⚠ Admin kimi 7 gündən az deadline (tövsiyə: '+minDate.toLocaleDateString('az-AZ')+')', 4000);
   }
   
   input.value = d.toISOString().split('T')[0];
-  
-  // Günlük limit yoxla
   await checkDailyLimit(input.value, input);
+}
+
+function showSundayWarning(input, suggestedDate){
+  // Köhnə modalı sil
+  const old = document.getElementById('sunday-warning-modal');
+  if(old) old.remove();
+  
+  const dayName = suggestedDate.toLocaleDateString('az-AZ', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  
+  const modal = document.createElement('div');
+  modal.id = 'sunday-warning-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:28px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="font-size:48px;margin-bottom:12px">📅</div>
+      <div style="font-size:18px;font-weight:700;color:#111820;margin-bottom:8px">Bazar günü!</div>
+      <div style="font-size:14px;color:#666;margin-bottom:20px;line-height:1.5">
+        Seçdiyiniz tarix <b>Bazar günüdür</b> — bu gün sifariş qəbul edilmir.<br><br>
+        Ən yaxın iş günü: <b style="color:var(--tl)">${dayName}</b>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('sunday-warning-modal').remove();document.getElementById('o-dead').value=''" 
+          style="flex:1;padding:12px;border:1px solid #ddd;background:#fff;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600">
+          ← Geri
+        </button>
+        <button onclick="acceptSundayFix('${suggestedDate.toISOString().split('T')[0]}')"
+          style="flex:2;padding:12px;background:var(--tl);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700">
+          ✓ OK — ${dayName.split(',')[0]}
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+async function acceptSundayFix(dateStr){
+  const modal = document.getElementById('sunday-warning-modal');
+  if(modal) modal.remove();
+  
+  const input = document.getElementById('o-dead');
+  if(input){
+    input.value = dateStr;
+    await checkDailyLimit(dateStr, input);
+  }
+  
+  // Müştəri forması üçün də
+  const cofInput = document.getElementById('cof-deadline');
+  if(cofInput && !document.getElementById('o-dead')){
+    cofInput.value = dateStr;
+  }
 }
 
 async function getDailyLimit(){
@@ -2115,14 +2160,21 @@ async function renderDash(){
     // Bu gün sayğacları
     const todayRev = todayOrders.reduce((s,o)=>s+(o.final_price||0),0);
     const monthRev = monthOrders.reduce((s,o)=>s+(o.final_price||0),0);
+    const todayQty = todayOrders.reduce((s,o)=>s+(o.qty||0),0);
+    const monthQty = monthOrders.reduce((s,o)=>s+(o.qty||0),0);
+    
     const kTodayCount = document.getElementById('k-today-count');
     const kTodayRev = document.getElementById('k-today-rev');
+    const kTodayQty = document.getElementById('k-today-qty');
     const kMonthCount = document.getElementById('k-month-count');
     const kMonthRev = document.getElementById('k-month-rev');
+    const kMonthQty = document.getElementById('k-month-qty');
     if(kTodayCount) kTodayCount.textContent = todayOrders.length;
     if(kTodayRev) kTodayRev.textContent = todayRev.toFixed(0)+' ₼';
+    if(kTodayQty) kTodayQty.textContent = todayQty+' məhsul';
     if(kMonthCount) kMonthCount.textContent = monthOrders.length;
     if(kMonthRev) kMonthRev.textContent = monthRev.toFixed(0)+' ₼';
+    if(kMonthQty) kMonthQty.textContent = monthQty+' məhsul';
     
     document.getElementById('today-card').innerHTML = todayOrders.length
       ? todayOrders.map(o=>orderListItem(o)).join('')
@@ -2362,15 +2414,6 @@ async function showOD(id){
       }).join('')}
     </div>
     ${totalMin>0?`<div style="margin-top:14px;padding:12px;background:var(--lt);border-radius:var(--r);font-size:13px"><b style="color:var(--tl)">Ümumi istehsal vaxtı: ${fmtTime(totalMin)}</b></div>`:''}
-    
-    <div style="margin-top:16px;padding:14px;background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:10px;border:1px solid var(--tl)">
-      <div style="font-size:12px;font-weight:600;margin-bottom:8px">📎 Müştəri üçün kataloq linki</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input type="text" id="od-link" readonly value="${location.origin}${location.pathname}?order=${o.id}" style="flex:1;padding:8px 10px;border:1px solid var(--bd);border-radius:6px;font-size:11px;font-family:'DM Mono',monospace;background:#fff">
-        <button onclick="copyOrderLink('${o.id}')" style="padding:8px 14px;background:var(--tl);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;white-space:nowrap">📋 Kopyala</button>
-      </div>
-      <div style="font-size:11px;color:var(--t3);margin-top:6px">Bu linki müştəriyə göndərsəniz — sifarişin detallarını və şəkillərini görə bilər</div>
-    </div>
     
     ${currentUser && currentUser.role === 'admin' ? `
     <div style="margin-top:16px;padding:14px;background:#FFF5F5;border:1px solid #E24B4A;border-radius:10px">
@@ -4458,6 +4501,13 @@ async function showCustomerOrders(client){
   }).join('');
 }
 
+function shareCatalogLink(){
+  const catalogUrl = window.location.origin + window.location.pathname + '?catalog=1';
+  const text = `🛋️ SONNO Mebel Kataloqu\n\nMəhsullarımıza baxmaq və sifariş vermək üçün:\n${catalogUrl}`;
+  const waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
+  window.open(waUrl, '_blank');
+}
+
 function doCustomerLogout(){
   _currentCustomer = null;
   try { localStorage.removeItem('sonnoCustomerSession'); } catch(e){}
@@ -5458,11 +5508,9 @@ async function renderAI(){
   const all=orders||[];
   const allLogs=logs||[];
   
-  // Yaddaşa yaz — tarix filtri üçün
   window._aiOrders = all;
   window._aiLogs = allLogs;
   
-  // Stat filter init
   populateStatDeptFilter();
   const today = new Date().toISOString().split('T')[0];
   const dfEl = document.getElementById('stat-date-from');
@@ -5470,77 +5518,8 @@ async function renderAI(){
   if(dfEl && !dfEl.value) dfEl.value = today;
   if(dtEl && !dtEl.value) dtEl.value = today;
   
-  // Şöbə statistikası render
   renderDeptStats();
-  
-  // İmtina edilmiş sifarişlər
   renderCancelledOrders();
-
-  // Stats
-  const delivered=all.filter(o=>o.status==='delivered');
-  const avgHours=delivered.length?
-    (allLogs.filter(l=>l.duration_minutes).reduce((s,l)=>s+l.duration_minutes,0)/60/Math.max(delivered.length,1)).toFixed(1):0;
-  const late=all.filter(o=>o.status==='late').length;
-  document.getElementById('stat-grid').innerHTML=`
-    <div class="stat-card"><div class="stat-label">ÜMUMI SİFARİŞ</div><div class="stat-value">${all.length}</div><div class="stat-sub">bütün vaxt</div></div>
-    <div class="stat-card"><div class="stat-label">ORT. İSTEHSAL</div><div class="stat-value">${avgHours}s</div><div class="stat-sub">hər sifariş üçün</div></div>
-    <div class="stat-card"><div class="stat-label">GECİKMƏ FAIZI</div><div class="stat-value" style="color:${late>0?'#E24B4A':'var(--tl)'}">${all.length?Math.round(late/all.length*100):0}%</div><div class="stat-sub">${late} sifariş gecikir</div></div>`;
-
-  // Dept performance from logs
-  const deptStats={};
-  allLogs.filter(l=>l.duration_minutes).forEach(l=>{
-    // find dept from order
-    const o=all.find(x=>x.id===l.order_id);
-    if(!o)return;
-    const m=appModels.find(x=>x.id===o.model_id);
-    if(!m||!m.stages)return;
-    const stage=m.stages[l.stage_index-1];
-    if(!stage)return;
-    const d=stage.dept;
-    if(!deptStats[d])deptStats[d]={total:0,count:0,planned:0};
-    deptStats[d].total+=l.duration_minutes;
-    deptStats[d].count++;
-    deptStats[d].planned+=stage.hours*60;
-  });
-  const perfHtml=Object.entries(deptStats).map(([dept,stats])=>{
-    const info=DEPT_INFO[dept]||{name:dept,icon:'🔧'};
-    const avg=stats.count?stats.total/stats.count:0;
-    const planned=stats.count?stats.planned/stats.count:0;
-    const eff=planned?Math.round(planned/Math.max(avg,1)*100):100;
-    const color=eff>=90?'var(--tl)':eff>=70?'var(--or)':'#E24B4A';
-    return`<div class="perf-bar-wrap">
-      <div class="perf-bar-label">
-        <span>${info.icon} ${info.name} <span style="color:var(--t3);font-size:11px">(${stats.count} tapşırıq)</span></span>
-        <span style="font-weight:600;color:${color}">${eff}% effektiv · ort. ${fmtTime(avg)}</span>
-      </div>
-      <div class="perf-bar-track"><div class="perf-bar-fill" style="width:${Math.min(eff,100)}%;background:${color}"></div></div>
-    </div>`;
-  }).join('');
-  document.getElementById('dept-perf').innerHTML=perfHtml||'<div style="padding:16px;color:var(--t3);font-size:13px">Məlumat yoxdur — tapşırıqlar tamamlandıqca statistika görünəcək</div>';
-
-  // Order stats table
-  const sortedOrders=all.filter(o=>o.status==='delivered').slice(0,10);
-  const orderLogsMap={};
-  allLogs.forEach(l=>{
-    if(!orderLogsMap[l.order_id])orderLogsMap[l.order_id]=0;
-    if(l.duration_minutes)orderLogsMap[l.order_id]+=l.duration_minutes;
-  });
-  document.getElementById('order-stats').innerHTML=sortedOrders.length?`
-    <table><thead><tr><th>Sifariş</th><th>Müştəri</th><th>Model</th><th>Ümumi vaxt</th><th>Status</th></tr></thead>
-    <tbody>${sortedOrders.map(o=>{
-      const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
-      const dur=orderLogsMap[o.id];
-      return`<tr><td><span class="mono">${o.order_number}</span></td><td>${o.client}</td><td>${m.emoji} ${m.name.split('—')[0].trim()}</td><td style="font-weight:600;color:var(--tl)">${dur?fmtTime(dur):'—'}</td><td><span class="badge bGN">Təslim</span></td></tr>`;
-    }).join('')}</tbody></table>`
-    :'<div style="padding:16px;color:var(--t3);font-size:13px">Hələ tamamlanmış sifariş yoxdur</div>';
-
-  // Auto insights
-  generateInsights(all,allLogs,deptStats);
-
-  // Init chat
-  if(!aiHistory.length){
-    document.getElementById('ai-chat-history').innerHTML='<div style="font-size:13px;color:var(--t3);text-align:center;padding:20px">Sual verin — AI analiz edəcək</div>';
-  }
 }
 
 function generateInsights(orders,logs,deptStats){
@@ -6632,6 +6611,11 @@ async function renderStatsSection(el){
 }
 
 // Tarix aralığını təyin edən sürətli düymələr
+function toggleCancelled(){
+  const el = document.getElementById('cancelled-list');
+  if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
 function setStatsRange(range){
   const today = new Date();
   const from = new Date();
@@ -6681,12 +6665,16 @@ function refreshStats(){
   });
   
   // Maliyyə
-  let totalRevenue=0, totalQty=0, deliveredRevenue=0;
+  let totalRevenue=0, totalQty=0, totalCost=0, deliveredCount=0;
   filteredOrders.forEach(o=>{
     totalRevenue += o.final_price||0;
     totalQty += o.qty||0;
-    if(o.status==='delivered') deliveredRevenue += o.final_price||0;
+    const m = allModels.find(x=>x.id===o.model_id);
+    totalCost += (m?.cost_price||0) * (o.qty||1);
+    if(o.status==='delivered') deliveredCount++;
   });
+  const profit = totalRevenue - totalCost;
+  const signedCount = filteredOrders.filter(o=>o.status==='delivered').length;
   
   // Ən çox satılan modellər
   const modelSales={};
@@ -6755,24 +6743,24 @@ function refreshStats(){
     <div class="slbl">💰 Maliyyə xülasəsi</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px">
       <div style="background:var(--lt);padding:14px;border-radius:10px">
-        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Cəmi satış</div>
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Sifariş</div>
         <div style="font-size:22px;font-weight:700;color:var(--tl);margin-top:4px">${totalRevenue.toFixed(0)} ₼</div>
         <div style="font-size:11px;color:var(--t3)">${filteredOrders.length} sifariş · ${totalQty} ədəd</div>
       </div>
       <div style="background:#E8F5E9;padding:14px;border-radius:10px">
-        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Təslim edilən</div>
-        <div style="font-size:22px;font-weight:700;color:var(--tl);margin-top:4px">${deliveredRevenue.toFixed(0)} ₼</div>
-        <div style="font-size:11px;color:var(--t3)">${statusCount['delivered']||0} sifariş</div>
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">İmzalanmış təslim</div>
+        <div style="font-size:22px;font-weight:700;color:var(--tl);margin-top:4px">${signedCount}</div>
+        <div style="font-size:11px;color:var(--t3)">sifariş</div>
       </div>
       <div style="background:#FFF4E8;padding:14px;border-radius:10px">
-        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">İstehsalda</div>
-        <div style="font-size:22px;font-weight:700;color:var(--or);margin-top:4px">${statusCount['in_progress']||0}</div>
-        <div style="font-size:11px;color:var(--t3)">aktiv sifariş</div>
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Maya dəyəri</div>
+        <div style="font-size:22px;font-weight:700;color:var(--or);margin-top:4px">${totalCost.toFixed(0)} ₼</div>
+        <div style="font-size:11px;color:var(--t3)">istehsal xərci</div>
       </div>
-      <div style="background:#FEEEED;padding:14px;border-radius:10px">
-        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Gecikmiş</div>
-        <div style="font-size:22px;font-weight:700;color:#E24B4A;margin-top:4px">${statusCount['late']||0}</div>
-        <div style="font-size:11px;color:var(--t3)">sifariş</div>
+      <div style="background:${profit>=0?'#E8F5E9':'#FEEEED'};padding:14px;border-radius:10px">
+        <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase">Mənfəət</div>
+        <div style="font-size:22px;font-weight:700;color:${profit>=0?'var(--tl)':'#E24B4A'};margin-top:4px">${profit.toFixed(0)} ₼</div>
+        <div style="font-size:11px;color:var(--t3)">${totalRevenue>0?(profit/totalRevenue*100).toFixed(1):0}% marj</div>
       </div>
     </div>
     
@@ -6817,7 +6805,7 @@ function refreshStats(){
     
     <!-- Şöbə statistikası -->
     <div class="slbl">⚡ Şöbə tapşırıqları</div>
-    <div class="sec-card">
+    <div class="sec-card" style="margin-bottom:14px">
       ${topDepts.length ? topDepts.map(d=>`
         <div style="padding:12px 16px;border-bottom:1px solid rgba(17,24,32,.05);display:flex;justify-content:space-between;align-items:center">
           <div style="font-size:14px;font-weight:600">${d.icon} ${d.name}</div>
@@ -6826,6 +6814,32 @@ function refreshStats(){
             <div style="font-size:11px;color:var(--t2)">ort. ${fmtTime(d.avg)}</div>
           </div>
         </div>`).join('') : '<div style="padding:24px;text-align:center;color:var(--t3)">Məlumat yoxdur</div>'}
+    </div>
+    
+    <!-- İmtina edilmiş — açılıb-bağlanan -->
+    <div class="slbl" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleCancelled()">
+      <span>❌ İmtina edilmiş sifarişlər</span>
+      <span style="font-size:13px;background:#FEEEED;color:#E24B4A;padding:3px 10px;border-radius:12px;font-weight:700" id="cancelled-count-badge">
+        ${filteredOrders.filter(o=>o.status==='cancelled').length}
+      </span>
+    </div>
+    <div id="cancelled-list" style="display:none;margin-bottom:14px">
+      <div class="sec-card">
+        ${filteredOrders.filter(o=>o.status==='cancelled').length ? 
+          filteredOrders.filter(o=>o.status==='cancelled').map(o=>{
+            const m = allModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
+            const d = o.order_date||o.created_at;
+            return `<div style="padding:12px 16px;border-bottom:1px solid rgba(17,24,32,.05);display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-size:13px;font-weight:600">${m.emoji||'📦'} ${m.name}</div>
+                <div style="font-size:11px;color:var(--t2);margin-top:2px">${o.order_number} · ${o.client} · ${d?new Date(d).toLocaleDateString('az-AZ'):''}</div>
+              </div>
+              <div style="font-size:13px;font-weight:700;color:#E24B4A">${o.final_price?o.final_price+' ₼':''}</div>
+            </div>`;
+          }).join('')
+          : '<div style="padding:24px;text-align:center;color:var(--t3)">İmtina yoxdur</div>'
+        }
+      </div>
     </div>
   `;
 }
