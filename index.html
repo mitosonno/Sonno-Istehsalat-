@@ -2074,17 +2074,17 @@ async function renderDash(){
     
     // Aktiv sifarişdə müştəri pending-ləri SAYMA (current_stage=0 olanlar təsdiq gözləyir)
     document.getElementById('k-act').textContent=all.filter(o=>{
-      const isPending = (o.order_number||'').startsWith('CUS-') && (o.current_stage === 0 || o.current_stage === null);
-      return !isPending && ['in_progress','created','late'].includes(o.status);
+      if(isPendingCustomerOrder(o)) return false;
+      return ['in_progress','created','late'].includes(o.status);
     }).length;
-    document.getElementById('k-lat').textContent=all.filter(o=>o.status==='late').length;
-    document.getElementById('k-rdy').textContent=all.filter(o=>o.status==='ready').length;
+    document.getElementById('k-lat').textContent=all.filter(o=>o.status==='late' && !isPendingCustomerOrder(o)).length;
+    document.getElementById('k-rdy').textContent=all.filter(o=>o.status==='ready' && !isPendingCustomerOrder(o)).length;
     document.getElementById('k-don').textContent=all.filter(o=>o.status==='delivered').length;
 
-    const late=all.filter(o=>o.status==='late');
-    // Today card
+    const late=all.filter(o=>o.status==='late' && !isPendingCustomerOrder(o));
+    // Today card — pending müştəri sifarişləri çıxarılsın (banner-də göstərilir)
     const today = new Date().toISOString().split('T')[0];
-    const todayOrders = all.filter(o=>o.created_at && o.created_at.startsWith(today));
+    const todayOrders = all.filter(o=>o.created_at && o.created_at.startsWith(today) && !isPendingCustomerOrder(o));
     document.getElementById('today-card').innerHTML = todayOrders.length
       ? todayOrders.map(o=>orderListItem(o)).join('')
       : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Bu gün sifariş yoxdur</div>';
@@ -2735,6 +2735,9 @@ async function renderDeptPick(){
   
   const dCnt={};
   (orders||[]).forEach(o=>{
+    // Müştəri pending sifarişi — şöbədə sayma
+    if(isPendingCustomerOrder(o)) return;
+    
     // Logistika: status=ready
     if(o.status === 'ready'){
       dCnt['logistics'] = (dCnt['logistics']||0)+1;
@@ -2871,6 +2874,16 @@ function showDV(v){
 const _cache = {};
 const CACHE_TTL = 30000; // 30 saniyə
 
+// Köməkçi funksiya: Müştəri sifarişi təsdiq gözləyirmi?
+function isPendingCustomerOrder(o){
+  if(!o) return false;
+  const isCustomerOrder = (o.order_number||'').startsWith('CUS-') || (o.notes||'').includes('[📱 MÜŞTƏRİ');
+  if(!isCustomerOrder) return false;
+  const isNotApproved = o.current_stage === 0 || o.current_stage === null || o.status === 'pending_approval';
+  const notDelivered = o.status !== 'delivered' && o.status !== 'cancelled';
+  return isNotApproved && notDelivered;
+}
+
 async function cachedFetch(key, fetcher){
   const now = Date.now();
   if(_cache[key] && (now - _cache[key].ts) < CACHE_TTL){
@@ -2941,7 +2954,7 @@ async function renderDeptTasks(dept){
     const tasks=[];
     const addedStages = new Set();
     
-    orders.filter(o=>!['delivered','delivering'].includes(o.status)).forEach(o=>{
+    orders.filter(o => !['delivered','delivering'].includes(o.status) && !isPendingCustomerOrder(o)).forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);
       if(!m){console.warn('Model tapilmadi:',o.model_id,o.order_number);return;}
       const stages=m.stages||[];
@@ -3290,7 +3303,7 @@ async function renderDeptTasks(dept){
     console.log('[shared tab] dept:', dept, 'altDept:', altDept);
     console.log('[shared tab] orders count:', orders.length);
     
-    orders.filter(o=>!['delivered','delivering'].includes(o.status)).forEach(o=>{
+    orders.filter(o => !['delivered','delivering'].includes(o.status) && !isPendingCustomerOrder(o)).forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);
       if(!m) return;
       const stages=m.stages||[];
@@ -3873,7 +3886,6 @@ async function sharedReceive(oid, dept){
 }
 
 async function dDone(oid, si, key, dept, totalStages){
-  invalidateCache('logs','orders'); // Cache-i yenilə
   const doneBtn = document.getElementById('td-'+oid);
   if(doneBtn) doneBtn.disabled = true;
   
@@ -3965,9 +3977,10 @@ async function dDone(oid, si, key, dept, totalStages){
       localStorage.removeItem(key+'_'+dept+'_t');
       localStorage.removeItem(key+'_'+dept+'_d');
       localStorage.removeItem(key+'_'+dept+'_dt');
+      invalidateCache('logs','orders','orders_active','completed_logs');
       hideTaskCard(oid);
       toast('✅ Tamamlandı (fon iş)');
-      setTimeout(()=>renderDeptTasks(dept), 500);
+      setTimeout(()=>renderDeptTasks(dept), 800);
       return;
     }
     
@@ -4000,9 +4013,10 @@ async function dDone(oid, si, key, dept, totalStages){
       localStorage.removeItem(key+'_'+dept+'_t');
       localStorage.removeItem(key+'_'+dept+'_d');
       localStorage.removeItem(key+'_'+dept+'_dt');
+      invalidateCache('logs','orders','orders_active','completed_logs');
       hideTaskCard(oid);
       toast('✅ '+DEPT_INFO[dept]?.name+' tamamlandı — paralel gözlənilir');
-      setTimeout(()=>renderDeptTasks(dept), 500);
+      setTimeout(()=>renderDeptTasks(dept), 800);
       return;
     }
     
@@ -4039,9 +4053,10 @@ async function dDone(oid, si, key, dept, totalStages){
     localStorage.removeItem(key+'_'+dept+'_d');
     localStorage.removeItem(key+'_'+dept+'_dt');
     
+    invalidateCache('logs','orders','orders_active','completed_logs');
     hideTaskCard(oid);
     toast('✅ Paralel bitdi — növbəti mərhələyə keçdi!');
-    setTimeout(()=>renderDeptTasks(dept), 500);
+    setTimeout(()=>renderDeptTasks(dept), 800);
     return;
   }
   
@@ -4076,6 +4091,7 @@ async function dDone(oid, si, key, dept, totalStages){
   localStorage.removeItem(key+'_'+dept+'_d');
   localStorage.removeItem(key+'_'+dept+'_dt');
   
+  invalidateCache('logs','orders','orders_active','completed_logs');
   hideTaskCard(oid);
   toast('✅ Tamamlandı!');
   
@@ -4084,7 +4100,7 @@ async function dDone(oid, si, key, dept, totalStages){
     clearInterval(parseInt(timerEl.dataset.intervalId));
   }
   
-  setTimeout(()=>renderDeptTasks(dept), 500);
+  setTimeout(()=>renderDeptTasks(dept), 800);
 }
 
 // Köməkçi funksiya — card-ı DOM-dan tamamilə sil
