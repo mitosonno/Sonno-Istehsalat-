@@ -2799,7 +2799,9 @@ async function renderDeptPick(){
     const stages=m.stages||[];
     const si=o.current_stage-1;
     if(si>=0 && si<stages.length){
-      const d=stages[si].dept;
+      // tikis/tikiş normalizasiyası
+      const rawDept = stages[si].dept;
+      const d = rawDept.split('||').map(p=>p==='tikiş'?'tikis':p).join('||');
       if(d.includes('||')){
         d.split('||').forEach(part=>{
           const k = o.id+'_'+si+'_'+part;
@@ -3046,11 +3048,17 @@ async function renderDeptTasks(dept){
         const stageKey = o.id+'_'+si+'_'+dept;
         
         const isParallel = stage.dept.includes('||');
-        const matches = stage.dept===dept || (isParallel && stage.dept.split('||').includes(dept));
+        // Şöbə adı uyğunluğu — tikis/tikiş kimi variantları da tanı
+        const normDept = dept === 'tikiş' ? 'tikis' : dept;
+        const normStageDept = stage.dept === 'tikiş' ? 'tikis' : stage.dept;
+        const stageParts = normStageDept.split('||').map(p => p === 'tikiş' ? 'tikis' : p);
+        const matches = normStageDept === normDept || (isParallel && stageParts.includes(normDept));
         
         // Bu şöbənin bu stage üçün tamamlanmış log-u varmı?
+        // Hər iki dept variantını yoxla
         const logKey = o.id + '_' + si + '_' + dept;
-        const existingLog = logMap[logKey];
+        const logKeyAlt = o.id + '_' + si + '_' + (dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : dept));
+        const existingLog = logMap[logKey] || logMap[logKeyAlt];
         const hasCompletedLog = existingLog && existingLog.completed_at;
         
         if(matches && !hasCompletedLog){
