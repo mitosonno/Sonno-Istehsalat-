@@ -2779,8 +2779,7 @@ async function renderDeptPick(){
       .in('status', ['in_progress','created','late','ready'])
       .gt('current_stage', 0),
     sb.from('task_logs').select('order_id,stage_index,dept_key').not('completed_at','is',null),
-    sb.from('models').select('id,stages'),
-    sb.from('dept_pins').select('dept_key,pin_code'),
+    sb.from('models').select('id,stages'),    sb.from('dept_pins').select('dept_key,pin_code'),
   ]);
   
   const orders = ordersRes.data || [];
@@ -2963,7 +2962,7 @@ async function renderDeptTasks(dept){
       .in('status', ['in_progress','created','late','ready'])
       .gt('current_stage', 0)
       .order('created_at', {ascending: true}),
-    sb.from('models').select('id,name,stages,img_url,emoji,sale_price'),
+    sb.from('models').select('*'),
   ]);
   
   const allOrders = ordersRes.data || [];
@@ -6616,6 +6615,11 @@ function toggleCancelled(){
   if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
+function toggleProdTime(){
+  const el = document.getElementById('prod-time-report');
+  if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
 function setStatsRange(range){
   const today = new Date();
   const from = new Date();
@@ -6814,6 +6818,71 @@ function refreshStats(){
             <div style="font-size:11px;color:var(--t2)">ort. ${fmtTime(d.avg)}</div>
           </div>
         </div>`).join('') : '<div style="padding:24px;text-align:center;color:var(--t3)">Məlumat yoxdur</div>'}
+    </div>
+    
+    <!-- İstehsal vaxtı hesabatı -->
+    <div class="slbl" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleProdTime()">
+      <span>⏱ İstehsal vaxtı hesabatı</span>
+      <span style="font-size:12px;color:var(--t2)">▼ Aç</span>
+    </div>
+    <div id="prod-time-report" style="display:none;margin-bottom:14px">
+      <div class="sec-card">
+        ${(()=>{
+          // Tamamlanmış sifarişlər üçün istehsal vaxtını hesabla
+          const completedOrders = filteredOrders.filter(o=>o.status==='delivered'||o.status==='ready');
+          if(!completedOrders.length) return '<div style="padding:24px;text-align:center;color:var(--t3)">Tamamlanmış sifariş yoxdur</div>';
+          
+          const orderIdsSet2 = new Set(completedOrders.map(o=>o.id));
+          const relevantLogs = allLogs.filter(l=>orderIdsSet2.has(l.order_id));
+          
+          // Hər sifariş üçün ilk log başlanğıcından son tamamlanmaya qədər
+          const prodTimes = completedOrders.map(o=>{
+            const oLogs = relevantLogs.filter(l=>l.order_id===o.id);
+            if(!oLogs.length) return null;
+            
+            const starts = oLogs.filter(l=>l.started_at).map(l=>new Date(l.started_at));
+            const ends = oLogs.filter(l=>l.completed_at).map(l=>new Date(l.completed_at));
+            if(!starts.length || !ends.length) return null;
+            
+            const firstStart = new Date(Math.min(...starts));
+            const lastEnd = new Date(Math.max(...ends));
+            const totalMins = Math.round((lastEnd - firstStart) / 60000);
+            if(totalMins <= 0) return null;
+            
+            const m = allModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
+            return {o, m, totalMins, firstStart, lastEnd};
+          }).filter(Boolean).sort((a,b)=>b.totalMins-a.totalMins);
+          
+          if(!prodTimes.length) return '<div style="padding:24px;text-align:center;color:var(--t3)">Vaxt məlumatı yoxdur</div>';
+          
+          const avgMins = Math.round(prodTimes.reduce((s,x)=>s+x.totalMins,0)/prodTimes.length);
+          
+          return `
+            <div style="padding:12px 16px;background:var(--lt);border-bottom:2px solid var(--tl)">
+              <div style="font-size:13px;font-weight:700;color:var(--tl)">Ortalama istehsal vaxtı: ${fmtTime(avgMins)}</div>
+              <div style="font-size:11px;color:var(--t2);margin-top:2px">${prodTimes.length} sifariş üzrə</div>
+            </div>
+            ${prodTimes.slice(0,20).map(x=>`
+              <div style="padding:10px 16px;border-bottom:1px solid rgba(17,24,32,.05)">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div style="flex:1">
+                    <div style="font-size:13px;font-weight:600">${x.m.emoji||'📦'} ${x.m.name.split('—')[0].trim()}</div>
+                    <div style="font-size:11px;color:var(--t2);margin-top:2px">
+                      ${x.o.order_number} · ${x.o.client}
+                    </div>
+                    <div style="font-size:10px;color:var(--t3);margin-top:1px">
+                      ${x.firstStart.toLocaleDateString('az-AZ')} → ${x.lastEnd.toLocaleDateString('az-AZ')}
+                    </div>
+                  </div>
+                  <div style="text-align:right;margin-left:12px">
+                    <div style="font-size:15px;font-weight:700;color:${x.totalMins>avgMins*1.5?'#E24B4A':'var(--tl)'}">${fmtTime(x.totalMins)}</div>
+                    ${x.totalMins>avgMins*1.5?'<div style="font-size:10px;color:#E24B4A">Uzun</div>':''}
+                  </div>
+                </div>
+              </div>`).join('')}
+          `;
+        })()}
+      </div>
     </div>
     
     <!-- İmtina edilmiş — açılıb-bağlanan -->
