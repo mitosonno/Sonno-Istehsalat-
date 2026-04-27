@@ -888,20 +888,32 @@ textarea{resize:vertical;min-height:80px}
     <!-- Görünürlük -->
     <div style="background:#f8f9fa;border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;margin-bottom:4px">
       <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Katalog görünürlüyü</div>
-      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--bd)">
-        <input type="checkbox" id="am-show-catalog" checked style="width:18px;height:18px;accent-color:var(--tl);cursor:pointer;flex-shrink:0">
+      
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)">
         <div>
           <div style="font-size:14px;font-weight:600">Kataloqda göstərilsin</div>
-          <div style="font-size:11px;color:var(--t3)">Müştəri kataloqunda və sifariş formada görünsün</div>
+          <div style="font-size:11px;color:var(--t3)">Müştəri kataloqunda görünsün</div>
         </div>
-      </label>
-      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer">
-        <input type="checkbox" id="am-show-price" checked style="width:18px;height:18px;accent-color:var(--tl);cursor:pointer;flex-shrink:0">
+        <label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer;flex-shrink:0">
+          <input type="checkbox" id="am-show-catalog" checked style="opacity:0;width:0;height:0;position:absolute">
+          <span onclick="this.previousElementSibling.click()" style="position:absolute;inset:0;background:#ccc;border-radius:26px;transition:.3s;cursor:pointer" id="am-show-catalog-track">
+            <span style="position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span>
+          </span>
+        </label>
+      </div>
+      
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
         <div>
           <div style="font-size:14px;font-weight:600">Qiymət göstərilsin</div>
           <div style="font-size:11px;color:var(--t3)">Kataloqda qiyməti göstər</div>
         </div>
-      </label>
+        <label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer;flex-shrink:0">
+          <input type="checkbox" id="am-show-price" checked style="opacity:0;width:0;height:0;position:absolute">
+          <span onclick="this.previousElementSibling.click()" style="position:absolute;inset:0;background:#ccc;border-radius:26px;transition:.3s;cursor:pointer" id="am-show-price-track">
+            <span style="position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span>
+          </span>
+        </label>
+      </div>
     </div>
     <div class="fg">
       <label>Şəkil / Emoji <span style="font-size:11px;color:var(--t3);font-weight:400">(1-3 şəkil yüklə bilərsiniz)</span></label>
@@ -1029,20 +1041,22 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
 
 // ═══════════ CONSTANTS ═══════════
 const DEPT_INFO = {
-  hazirlik:    {name:'Hazırlıq — Kəsmə',      icon:'✂️', hours:2},
-  bez_kesim:   {name:'Bel kəsim şöbəsi',       icon:'🧶', hours:2},
-  oturacaq_dik:{name:'Oturacaq dik kəsmə şöbəsi', icon:'🪑', hours:2},
-  ayaq_bagla:  {name:'Ayaq bağlama şöbəsi',    icon:'🔗', hours:2},
-  bel_eyme:    {name:'Bel əymə şöbəsi',        icon:'🌀', hours:2},
-  karkaz:      {name:'Karkaz yığım şöbəsi',    icon:'🪵', hours:4},
-  shkurka:     {name:'Şkurka şöbəsi',          icon:'🔩', hours:1.5},
-  masa_karkaz: {name:'Masa karkaz şöbəsi',     icon:'🪚', hours:3},
-  masa_rengle: {name:'Masa rəngləmə şöbəsi',   icon:'🎨', hours:2},
-  rengleme:    {name:'Rənglənmə şöbəsi',       icon:'🖌️', hours:3},
-  yastiqlama:  {name:'Yastıqlama / Döşəmə',    icon:'🛋️', hours:4},
-  tikis:       {name:'Tikiş şöbəsi',           icon:'🧵', hours:3},
-  qa:          {name:'Keyfiyyət yoxlama',       icon:'✅', hours:1},
-  logistics:   {name:'Logistika / Çatdırılma', icon:'🚛', hours:1},
+  hazirlik:         {name:'Hazırlıq — Kəsmə',        icon:'✂️',  hours:2},
+  bez_kesim:        {name:'Bel kəsim şöbəsi',         icon:'🧶',  hours:2},
+  oturacaq_dik:     {name:'Oturacaq dik kəsmə şöbəsi',icon:'🪑',  hours:2},
+  ayaq_bagla:       {name:'Ayaq bağlama şöbəsi',      icon:'🔗',  hours:2},
+  bel_eyme:         {name:'Bel əymə şöbəsi',          icon:'🌀',  hours:2},
+  karkaz:           {name:'Karkaz yığım şöbəsi',      icon:'🪵',  hours:4},
+  divan_karkaz:     {name:'Divan Karkaz şöbəsi',      icon:'🛋️',  hours:4},
+  divan_yastiqlama: {name:'Divan Yastıqlama şöbəsi',  icon:'🪡',  hours:4},
+  shkurka:          {name:'Şkurka şöbəsi',            icon:'🔩',  hours:1.5},
+  masa_karkaz:      {name:'Masa karkaz şöbəsi',       icon:'🪚',  hours:3},
+  masa_rengle:      {name:'Masa rəngləmə şöbəsi',     icon:'🎨',  hours:2},
+  rengleme:         {name:'Rənglənmə şöbəsi',         icon:'🖌️',  hours:3},
+  yastiqlama:       {name:'Yastıqlama / Döşəmə',      icon:'🛋️',  hours:4},
+  tikis:            {name:'Tikiş şöbəsi',             icon:'🧵',  hours:3},
+  qa:               {name:'Keyfiyyət yoxlama',         icon:'✅',  hours:1},
+  logistics:        {name:'Logistika / Çatdırılma',   icon:'🚛',  hours:1},
 };
 
 const ALL_PERMS = [
@@ -3402,7 +3416,7 @@ async function renderDeptTasks(dept){
             <div style="flex:1">
               <div style="font-size:16px;font-weight:800;color:#111820">${m.name.split('—')[0].trim()}</div>
               <div style="font-size:11px;color:var(--t3);margin-top:2px">${o.order_number}</div>
-              ${(o.order_date||o.created_at)?`<div style="font-size:11px;color:var(--t3);margin-top:1px">📅 ${new Date(o.order_date||o.created_at).toLocaleDateString('az-AZ',{day:'2-digit',month:'2-digit',year:'numeric'})}</div>`:''}
+              ${(o.order_date||o.created_at)?`<div style="font-size:11px;color:var(--t3);margin-top:1px">📅 ${new Date(o.order_date||o.created_at).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`:''}
             </div>
           </div>
           <span class="badge ${isLate?'bR':'bO'}" style="${isLate?'background:#E24B4A;animation:pulse 1.5s infinite':''}">
@@ -3448,8 +3462,18 @@ async function renderDeptTasks(dept){
             el.dataset.intervalId = intv;
           })();
           <\/script>`:''}
-          <div class="task-btns">
-            <button class="btn btn-o btn-lg" ${started||done?'disabled':''} onclick="dStart('${o.id}','${si}','${key}','${dept}')">▶ Başla</button>
+          <div class="task-btns" style="grid-template-columns:${!started&&!done&&!isWorkTime()&&new Date().getHours()>=WORK_END_H?'1fr 1fr 1fr':'1fr 1fr'}">
+            <button class="btn btn-o btn-lg" 
+              ${started||done?'disabled':(!isWorkTime()?'disabled':'')} 
+              onclick="dStart('${o.id}','${si}','${key}','${dept}')"
+              style="${!started&&!done&&!isWorkTime()?'opacity:0.45':''}">
+              ${!started&&!done&&!isWorkTime()
+                ? (new Date().getHours()<WORK_START_H||(new Date().getHours()===WORK_START_H&&new Date().getMinutes()<WORK_START_M)?'⏰ 08:30-da':'🔴 Bitib')
+                : '▶ Başla'}
+            </button>
+            ${!started&&!done&&!isWorkTime()&&new Date().getHours()>=WORK_END_H
+              ? `<button class="btn btn-lg" onclick="dStartExtra('${o.id}','${si}','${key}','${dept}')" style="background:#7C3AED;color:#fff;border:none">⚡ Extra</button>`
+              : ''}
             <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${total}')">✓ Tamamla</button>
           </div>
           ${(() => {
@@ -3720,21 +3744,52 @@ async function renderDeptTasks(dept){
   }
 }
 
+// ═══════════ İŞ SAATI SİSTEMİ ═══════════
+const WORK_START_H = 8,  WORK_START_M = 30;
+const WORK_END_H   = 18, WORK_END_M   = 30;
+
+function isWorkTime(){
+  const now = new Date();
+  const mins = now.getHours()*60 + now.getMinutes();
+  return mins >= WORK_START_H*60+WORK_START_M && mins < WORK_END_H*60+WORK_END_M;
+}
+
+// Hər dəqiqə yoxla — 18:30-da pause et
+setInterval(()=>{
+  const now = new Date();
+  if(now.getHours()===WORK_END_H && now.getMinutes()===WORK_END_M){
+    document.querySelectorAll('[id^="timer-"]').forEach(el=>{
+      if(el.dataset.intervalId){
+        clearInterval(parseInt(el.dataset.intervalId));
+        el.dataset.intervalId='';
+        el.style.color='#E24B4A';
+        el.textContent='🔴 Pause — 18:30 iş vaxtı bitdi';
+      }
+    });
+    toast('🔴 İş vaxtı bitdi — 18:30. Sabah 08:30-da davam edin.', 8000);
+  }
+}, 60000);
+
 async function dStart(oid,si,key,dept){
+  // İş vaxtı yoxla
+  if(!isWorkTime()){
+    const now2 = new Date();
+    const h = now2.getHours(), m2 = now2.getMinutes();
+    if(h < WORK_START_H || (h===WORK_START_H && m2 < WORK_START_M)){
+      toast('⏰ İş vaxtı hələ başlamayıb. Başlanğıc: 08:30', 5000);
+    } else {
+      toast('🔴 İş vaxtı bitib (18:30). Sabah 08:30-da davam edin.', 5000);
+    }
+    return;
+  }
+
   const now=new Date().toISOString();
-  
   const el=document.getElementById('ts-'+oid);
   if(el){el.className='ts-box ts-go';el.textContent='⏱ Başladılır...';}
   document.querySelectorAll(`[onclick*="dStart('${oid}"]`).forEach(b=>b.disabled=true);
   
-  // ƏVVƏL Supabase-ə yaz — sonra timer başlat
-  // Bu admin paneldən baxanda da timerin düzgün işləməsini təmin edir
   try{
-    await sb.from('task_logs')
-      .delete()
-      .eq('order_id', oid)
-      .eq('stage_index', parseInt(si)-1)
-      .eq('dept_key', dept);
+    await sb.from('task_logs').delete().eq('order_id',oid).eq('stage_index',parseInt(si)-1).eq('dept_key',dept);
     await sb.from('task_logs').insert({
       order_id:oid, stage_index:parseInt(si)-1,
       worker_id:currentUser?.id, worker_name:currentUser?.name,
@@ -3747,7 +3802,6 @@ async function dStart(oid,si,key,dept){
     return;
   }
   
-  // Supabase-ə yazıldı — indi UI yenilə
   if(el){el.className='ts-box ts-go';el.textContent='⏱ İcra olunur...';}
   const db=document.getElementById('td-'+oid);if(db)db.disabled=false;
   
@@ -3767,12 +3821,25 @@ async function dStart(oid,si,key,dept){
     }
   }
   
-  // Timer başlat
+  // Timer başlat — 18:30-da avtomatik pause
   const timerEl = document.getElementById('timer-'+oid);
   if(timerEl){
     if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
     const t0 = new Date(now);
+    const WEND = WORK_END_H*60 + WORK_END_M;
     const update = ()=>{
+      const nowMins = new Date().getHours()*60 + new Date().getMinutes();
+      if(nowMins >= WEND){
+        const workEndToday = new Date();
+        workEndToday.setHours(WORK_END_H, WORK_END_M, 0, 0);
+        const mins = t0 < workEndToday ? Math.floor((workEndToday-t0)/60000) : 0;
+        if(timerEl && timerEl.isConnected){
+          timerEl.textContent = `🔴 Pause — ${mins} dəq (18:30)`;
+          timerEl.style.color = '#E24B4A';
+        }
+        if(timerEl.dataset.intervalId){ clearInterval(parseInt(timerEl.dataset.intervalId)); timerEl.dataset.intervalId=''; }
+        return;
+      }
       const diff = Date.now() - t0;
       const m = Math.floor(diff/60000);
       const s = Math.floor((diff%60000)/1000);
@@ -3785,6 +3852,60 @@ async function dStart(oid,si,key,dept){
   
   invalidateCache('logs','orders');
   toast('▶ Başladı — vaxt sayılır');
+}
+
+async function dStartExtra(oid,si,key,dept){
+  // Extra — iş vaxtından sonra işləmək üçün (18:30+ )
+  const now = new Date().toISOString();
+  const el = document.getElementById('ts-'+oid);
+  if(el){ el.className='ts-box ts-go'; el.textContent='⚡ Extra vaxt...'; }
+  document.querySelectorAll(`[onclick*="dStartExtra('${oid}"]`).forEach(b=>b.disabled=true);
+  
+  try{
+    await sb.from('task_logs').delete().eq('order_id',oid).eq('stage_index',parseInt(si)-1).eq('dept_key',dept);
+    await sb.from('task_logs').insert({
+      order_id:oid, stage_index:parseInt(si)-1,
+      worker_id:currentUser?.id, worker_name:currentUser?.name,
+      dept_key:dept, action:'started_extra', started_at:now
+    });
+  }catch(e){
+    if(el){ el.className='ts-box ts-idle'; el.textContent='❌ Xəta'; }
+    document.querySelectorAll(`[onclick*="dStartExtra('${oid}"]`).forEach(b=>b.disabled=false);
+    return;
+  }
+  
+  if(el){ el.className='ts-box ts-go'; el.textContent='⚡ Extra — İcra olunur...'; }
+  const db = document.getElementById('td-'+oid); if(db) db.disabled=false;
+  
+  if(!document.getElementById('timer-'+oid)){
+    const taskCard = document.getElementById('tcard-'+oid);
+    if(taskCard){
+      const btns = taskCard.querySelector('.task-btns');
+      if(btns){
+        const td = document.createElement('div');
+        td.id='timer-'+oid; td.setAttribute('data-start',now);
+        td.style.cssText='font-size:14px;font-weight:600;color:#7C3AED;text-align:center;margin:8px 0';
+        td.textContent='⚡ 0 dəq 0 san (Extra)';
+        btns.parentNode.insertBefore(td, btns);
+      }
+    }
+  }
+  
+  const timerEl = document.getElementById('timer-'+oid);
+  if(timerEl){
+    if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
+    const t0 = new Date(now);
+    const upd = ()=>{
+      const diff = Date.now()-t0;
+      const m=Math.floor(diff/60000), s=Math.floor((diff%60000)/1000);
+      if(timerEl && timerEl.isConnected){ timerEl.textContent=`⚡ ${m} dəq ${s} san (Extra)`; timerEl.style.color='#7C3AED'; }
+    };
+    upd();
+    const int=setInterval(upd,1000);
+    timerEl.dataset.intervalId=int;
+  }
+  invalidateCache('logs','orders');
+  toast('⚡ Extra vaxt başladı!');
 }
 
 async function renderLogisticsDone(){
@@ -7427,7 +7548,7 @@ async function delWorker(id){
 // ═══════════ MODEL MANAGEMENT ═══════════
 function openAddModel(){
   editingModelId=null; modelEmoji='🛋️'; modelImgData=null;
-  modelImagesArr = []; // Array sıfırla
+  modelImagesArr = [];
   document.getElementById('am-title').textContent='Yeni model';
   document.getElementById('am-name').value='';
   document.getElementById('am-desc').value='';
@@ -7436,11 +7557,40 @@ function openAddModel(){
   const catEl = document.getElementById('am-category');
   if(catEl) catEl.value = '';
   document.getElementById('am-prev').innerHTML='🛋️';
-  renderImagesPreview(); // Thumbnail-ları sıfırla
+  renderImagesPreview();
   window._currentStageOrder = [];
   window._parallelModes = {};
   renderDeptChecklist([]);
+  // Toggle-ları sıfırla
+  syncToggle('am-show-catalog', true);
+  syncToggle('am-show-price', true);
   openSheet('add-model');
+  setTimeout(()=>initToggleListeners(), 100);
+}
+
+// Toggle switch sinxronizasiyası
+function syncToggle(id, val){
+  const cb = document.getElementById(id);
+  const track = document.getElementById(id+'-track');
+  if(!cb || !track) return;
+  cb.checked = val;
+  const knob = track.querySelector('span');
+  if(val){
+    track.style.background = 'var(--tl)';
+    if(knob) knob.style.left = '25px';
+  } else {
+    track.style.background = '#ccc';
+    if(knob) knob.style.left = '3px';
+  }
+}
+
+// Checkbox dəyişəndə toggle görünüşünü yenilə
+function initToggleListeners(){
+  ['am-show-catalog','am-show-price'].forEach(id=>{
+    const cb = document.getElementById(id);
+    if(!cb) return;
+    cb.addEventListener('change', ()=>syncToggle(id, cb.checked));
+  });
 }
 
 async function editModel(id){
@@ -7473,12 +7623,12 @@ async function editModel(id){
   });
   
   renderDeptChecklist(selectedKeys);
-  // Görünürlük checkbox-larını doldur
-  const sc = document.getElementById('am-show-catalog');
-  const sp = document.getElementById('am-show-price');
-  if(sc) sc.checked = m.show_in_catalog !== false;
-  if(sp) sp.checked = m.show_price !== false;
+  // Görünürlük toggle-larını doldur
+  syncToggle('am-show-catalog', m.show_in_catalog !== false);
+  syncToggle('am-show-price', m.show_price !== false);
   openSheet('add-model');
+  // Listener-ları aktivləşdir
+  setTimeout(()=>initToggleListeners(), 100);
 }
 
 function setEmoji(e){
@@ -7613,29 +7763,26 @@ function updateStageOrder(keys){
   if(!wrap||!list)return;
   if(!keys.length){wrap.style.display='none';return;}
   wrap.style.display='block';
+  const letters=['A','B','C','D','E'];
   list.innerHTML=keys.map((k,i)=>{
     if(k.includes('||')){
-      // Paralel mərhələ
+      // Paralel mərhələ — 2, 3 və ya daha çox şöbə
       const parts=k.split('||');
-      const d1=DEPT_INFO[parts[0]]||{name:parts[0],icon:'🔧',hours:0};
-      const d2=DEPT_INFO[parts[1]]||{name:parts[1],icon:'🔧',hours:0};
       return`<div style="border:2px solid var(--or);border-radius:var(--r);padding:8px;background:var(--lo);margin-bottom:4px">
-        <div style="font-size:10px;font-weight:700;color:var(--or);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">⚡ Paralel mərhələ</div>
-        <div style="display:flex;gap:6px">
-          <div class="stage-order-item" style="flex:1;margin:0;border:1px solid rgba(247,137,48,.3)">
-            <span class="so-num">${i+1}A</span>
-            <span style="font-size:13px">${d1.icon}</span>
-            <span style="flex:1;font-size:12px;font-weight:500">${d1.name}</span>
-            <span style="font-size:10px;color:var(--t3)">${d1.hours}s</span>
-          </div>
-          <div class="stage-order-item" style="flex:1;margin:0;border:1px solid rgba(247,137,48,.3)">
-            <span class="so-num">${i+1}B</span>
-            <span style="font-size:13px">${d2.icon}</span>
-            <span style="flex:1;font-size:12px;font-weight:500">${d2.name}</span>
-            <span style="font-size:10px;color:var(--t3)">${d2.hours}s</span>
-          </div>
+        <div style="font-size:10px;font-weight:700;color:var(--or);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">⚡ Paralel mərhələ (${parts.length} şöbə)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+          ${parts.map((p,pi)=>{
+            const d=DEPT_INFO[p]||{name:p,icon:'🔧',hours:0};
+            return`<div class="stage-order-item" style="flex:1;min-width:120px;margin:0;border:1px solid rgba(247,137,48,.3)">
+              <span class="so-num">${i+1}${letters[pi]||pi}</span>
+              <span style="font-size:13px">${d.icon}</span>
+              <span style="flex:1;font-size:12px;font-weight:500">${d.name}</span>
+              <span style="font-size:10px;color:var(--t3)">${d.hours}s</span>
+            </div>`;
+          }).join('')}
         </div>
-        <div style="display:flex;gap:4px;margin-top:6px;justify-content:flex-end">
+        <div style="display:flex;gap:4px;justify-content:flex-end">
+          <button class="so-move" onclick="mergeStages(${i})" style="font-size:11px;padding:3px 10px;background:var(--lo);color:var(--or);font-weight:600">+ Paralel əlavə et</button>
           <button class="so-move" onclick="unmergeStages(${i})" style="font-size:11px;padding:3px 8px">↕ Ayır</button>
           <button class="so-move" onclick="moveStage('${k}',-1)" ${i===0?'disabled':''}>↑</button>
           <button class="so-move" onclick="moveStage('${k}',1)" ${i===keys.length-1?'disabled':''}>↓</button>
@@ -7720,28 +7867,29 @@ function confirmParallel(idx, selectedKey){
   const currentKey = keys[idx];
   if(!currentKey) return;
   
-  const currentDept = currentKey.split('||')[0];
-  const merged = currentDept + '||' + selectedKey;
+  // Mövcud paralel şöbələri al — yenisini əlavə et
+  const currentParts = currentKey.split('||');
   
-  // Əgər seçilən şöbə artıq siyahıda varsa, onu sil
-  const existingIdx = keys.findIndex(k=>k===selectedKey || (k.includes('||') && k.split('||').includes(selectedKey)));
-  if(existingIdx > -1 && existingIdx !== idx){
-    if(keys[existingIdx].includes('||')){
-      const parts = keys[existingIdx].split('||').filter(p=>p!==selectedKey);
-      if(parts.length===1) keys[existingIdx] = parts[0];
-      else keys[existingIdx] = parts.join('||');
-    } else {
-      keys.splice(existingIdx, 1);
-    }
+  // Əgər seçilən şöbə başqa yerdə varsa, onu oradan sil
+  const existingIdx = keys.findIndex((k,i)=>i!==idx && (k===selectedKey || (k.includes('||') && k.split('||').includes(selectedKey))));
+  if(existingIdx > -1){
+    const parts = keys[existingIdx].split('||').filter(p=>p!==selectedKey);
+    if(parts.length===1) keys[existingIdx] = parts[0];
+    else if(parts.length===0) keys.splice(existingIdx,1);
+    else keys[existingIdx] = parts.join('||');
   }
+  
+  // 3-cünü əlavə et (artıq varsa əlavə etmə)
+  if(!currentParts.includes(selectedKey)){
+    currentParts.push(selectedKey);
+  }
+  const merged = currentParts.join('||');
   
   const newIdx = keys.indexOf(currentKey);
   if(newIdx > -1) keys[newIdx] = merged;
   
   window._currentStageOrder = keys;
   closeParallelModal();
-  
-  // İndi mode soruş: hər ikisi bitsin yoxsa biri?
   askParallelMode(merged, keys);
 }
 
