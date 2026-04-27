@@ -920,14 +920,6 @@ textarea{resize:vertical;min-height:80px}
           <div style="font-size:11px;color:var(--t3)">Kataloqda qiyməti göstər</div>
         </div>
       </label>
-      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer">
-        <input type="checkbox" id="am-is-active" checked style="width:18px;height:18px;accent-color:var(--tl);cursor:pointer">
-        <div>
-          <div style="font-size:14px;font-weight:600">Aktiv</div>
-          <div style="font-size:11px;color:var(--t3)">Qeyd açılmasa model silinmədən gizlənir</div>
-        </div>
-      </label>
-    </div>
     <div class="slbl">İstehsal mərhələləri — şöbələri seçin</div>
     <div class="dept-check-list" id="dept-check-list"></div>
     <div id="stage-order-wrap" style="display:none;margin-top:14px">
@@ -2160,7 +2152,7 @@ async function initApp(){
     getForwardingConfig(),
   ]).then(([mr,wr,cr,fwd])=>{
     // Yalnız is_active === false olanları çıxart (null/undefined/true qalsın)
-    appModels=(mr.data||[]).filter(m => m.is_active !== false);
+    appModels=(mr.data||[]).filter(m => m.show_in_catalog !== false);
     appWorkers=wr.data||[];
     appClients=cr.data||[];
     window.forwardingConfig = fwd || {};
@@ -2678,7 +2670,7 @@ function renderOrderForm(){
   if(!appModels.length){
     // Modelləri yenidən çəkməyə cəhd et
     sb.from('models').select('*').then(({data})=>{
-      appModels = (data||[]).filter(m => m.is_active !== false);
+      appModels = (data||[]).filter(m => m.show_in_catalog !== false);
       renderProductGrid(appModels);
     });
   }
@@ -4845,7 +4837,7 @@ async function openCustomerCatalog(){
   
   try {
     const {data:models} = await sb.from('models').select('*').order('name');
-    const active = (models || []).filter(m => m.is_active !== false);
+    const active = (models || []).filter(m => m.show_in_catalog !== false);
     // Cache — sifariş formasına tez açmaq üçün
     window._customerCatalogModels = active;
     renderCustomerCatalog(active);
@@ -7361,6 +7353,27 @@ async function savePinChg(key){
   toast('✓ PIN dəyişdirildi');
 }
 
+async function toggleModelField(id, field, newValue){
+  try{
+    await sb.from('models').update({[field]: newValue}).eq('id', id);
+    // Cache yenilə
+    if(window._allModelsCache){
+      const m = window._allModelsCache.find(x=>x.id===id);
+      if(m) m[field] = newValue;
+      document.getElementById('models-list').innerHTML = renderModelsList(window._allModelsCache);
+    }
+    const labels = {
+      show_in_catalog: newValue ? '✓ Kataloqda göstərildi' : '✗ Kataloqdan gizlədildi',
+      show_price: newValue ? '✓ Qiymət göstərildi' : '✗ Qiymət gizlədildi',
+      is_active: newValue ? '✓ Aktiv edildi' : '✗ Passiv edildi',
+    };
+    toast(labels[field] || '✓ Yeniləndi');
+  }catch(e){
+    toast('❌ Xəta baş verdi');
+    console.error(e);
+  }
+}
+
 async function renderModelsSection(el){
   const{data:models}=await sb.from('models').select('*');
   const allModels = models||[];
@@ -7406,29 +7419,38 @@ function renderModelsList(models){
     const _u = getFirstImage(m);
     const _imgs = getModelImages(m);
     const thumb = _u
-      ? `<img src="${_u}" style="width:40px;height:40px;object-fit:cover;border-radius:10px;cursor:zoom-in" onclick="event.stopPropagation();showLightbox(${JSON.stringify(_imgs).replace(/"/g,'&quot;')},0)" title="Böyük gör">`
-      : m.emoji;
+      ? `<img src="${_u}" style="width:44px;height:44px;object-fit:cover;border-radius:10px;cursor:zoom-in" onclick="event.stopPropagation();showLightbox(${JSON.stringify(_imgs).replace(/"/g,'&quot;')},0)">`
+      : `<span style="font-size:24px">${m.emoji||'📦'}</span>`;
     
-    // Status badge-ləri
-    const badges = [];
-    if(m.is_active === false) badges.push(`<span style="font-size:10px;background:#FEEEED;color:#E24B4A;padding:2px 7px;border-radius:10px;font-weight:600">● Passiv</span>`);
-    if(m.show_in_catalog === false) badges.push(`<span style="font-size:10px;background:#f0f0f0;color:#888;padding:2px 7px;border-radius:10px;font-weight:600">🚫 Kataloqda yox</span>`);
-    if(m.show_price === false) badges.push(`<span style="font-size:10px;background:#FFF4E8;color:var(--or);padding:2px 7px;border-radius:10px;font-weight:600">💰 Qiymət gizli</span>`);
+    const inCatalog = m.show_in_catalog !== false;
+    const priceVisible = m.show_price !== false;
+    const isActive = m.is_active !== false;
     
     return `
-      <div class="list-item" style="${m.is_active === false ? 'opacity:0.6' : ''}">
-        <div class="li-icon" style="background:var(--lt);font-size:22px">${thumb}</div>
+      <div class="list-item">
+        <div class="li-icon" style="background:var(--lt)">${thumb}</div>
         <div class="li-body">
           <div class="li-title">
-            ${m.name} 
-            ${m.category?`<span style="font-size:10px;background:var(--lt);color:var(--tl);padding:2px 8px;border-radius:10px;margin-left:4px;font-weight:600">${catNames[m.category]||m.category}</span>`:''}
-            ${badges.join(' ')}
+            ${m.name}
+            ${m.category?`<span style="font-size:10px;background:var(--lt);color:var(--tl);padding:2px 7px;border-radius:10px;margin-left:4px;font-weight:600">${catNames[m.category]||m.category}</span>`:''}
           </div>
-          <div class="li-sub">${(m.stages||[]).length} mərhələ · ${m.total_hours}s · ${m.sale_price?m.sale_price+' ₼':''} ${m.description?' · '+m.description:''}</div>
+          <div class="li-sub">${(m.stages||[]).length} mərhələ · ${m.sale_price?m.sale_price+' ₼':''} ${m.description?' · '+m.description:''}</div>
+          <!-- Toggle düymələri -->
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">
+            <button onclick="toggleModelField('${m.id}','show_in_catalog',${!inCatalog})" 
+              style="font-size:11px;padding:3px 9px;border-radius:16px;border:none;cursor:pointer;font-family:inherit;font-weight:600;background:${inCatalog?'#E8F5E9':'#f0f0f0'};color:${inCatalog?'#2E7D32':'#888'}">
+              ${inCatalog?'✓ Kataloqda göstərilir':'✗ Kataloqda göstərilmir'}
+            </button>
+            <button onclick="toggleModelField('${m.id}','show_price',${!priceVisible})" 
+              style="font-size:11px;padding:3px 9px;border-radius:16px;border:none;cursor:pointer;font-family:inherit;font-weight:600;background:${priceVisible?'#E8F5E9':'#FFF4E8'};color:${priceVisible?'#2E7D32':'var(--or)'}">
+              ${priceVisible?'✓ Qiymət görünür':'✗ Qiymət gizli'}
+            </button>
+
+          </div>
         </div>
-        <div style="display:flex;gap:6px">
-          <button onclick="editModel('${m.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:var(--tl);font-family:inherit;padding:3px 8px;border-radius:6px">Düzəlt</button>
-          <button onclick="deleteModel('${m.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:#E24B4A;font-family:inherit;padding:3px 8px;border-radius:6px">Sil</button>
+        <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+          <button onclick="editModel('${m.id}')" style="border:none;background:var(--lt);color:var(--tl);cursor:pointer;font-size:12px;font-family:inherit;padding:5px 10px;border-radius:6px;font-weight:600">Düzəlt</button>
+          <button onclick="deleteModel('${m.id}')" style="border:none;background:#FEEEED;color:#E24B4A;cursor:pointer;font-size:12px;font-family:inherit;padding:5px 10px;border-radius:6px;font-weight:600">Sil</button>
         </div>
       </div>`;
   }).join('');
@@ -8032,7 +8054,7 @@ async function saveModel(){
   const category = document.getElementById('am-category')?.value || null;
   const showInCatalog = document.getElementById('am-show-catalog')?.checked ?? true;
   const showPrice = document.getElementById('am-show-price')?.checked ?? true;
-  const isActive = document.getElementById('am-is-active')?.checked ?? true;
+  const isActive = true; // Aktiv/passiv yoxdur — kataloq seçimi ilə idarə olunur
   
   // Şəkilləri hazırla — yeni format: JSON array (1-3 şəkil)
   // Köhnə format: single string (köhnə modellər üçün)
@@ -8050,12 +8072,12 @@ async function saveModel(){
   
   showLoader();
   if(editingModelId){
-    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:isActive,show_in_catalog:showInCatalog,show_price:showPrice};
+    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,show_in_catalog:showInCatalog,show_price:showPrice};
     if(imgUrlValue) upd.img_url = imgUrlValue;
     await sb.from('models').update(upd).eq('id',editingModelId);
     toast('✓ Model yeniləndi: '+name);
   }else{
-    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:imgUrlValue,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:isActive,show_in_catalog:showInCatalog,show_price:showPrice});
+    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:imgUrlValue,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,show_in_catalog:showInCatalog,show_price:showPrice});
     toast('✓ Model əlavə edildi: '+name);
   }
   hideLoader();
