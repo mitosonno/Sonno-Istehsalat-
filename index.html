@@ -3714,25 +3714,31 @@ function startTimerFromElapsed(oid, elapsedMs){
   if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
   
   const t0 = Date.now() - elapsedMs;
+  timerEl.dataset.elapsedMs = elapsedMs; // başlanğıc dəyəri saxla
   const WEND = WORK_END_H*60 + WORK_END_M;
   
   const update = ()=>{
     if(!timerEl.isConnected){ clearInterval(parseInt(timerEl.dataset.intervalId||0)); return; }
+    const elapsed = Date.now() - t0;
+    const m = Math.floor(elapsed/60000);
+    const s = Math.floor((elapsed%60000)/1000);
+    timerEl.dataset.elapsedMs = elapsed; // hər saniyə yenilə
+    
     const nowMins = new Date().getHours()*60 + new Date().getMinutes();
     if(nowMins >= WEND){
-      const elapsed = Date.now() - t0;
-      const m=Math.floor(elapsed/60000), s=Math.floor((elapsed%60000)/1000);
-      timerEl.dataset.elapsedMs = elapsed;
       timerEl.textContent = `⏸ Pauza — ${m} dəq ${s} san`;
       timerEl.style.color = 'var(--or)';
       clearInterval(parseInt(timerEl.dataset.intervalId||0));
       timerEl.dataset.intervalId = '';
       const startBtn = document.getElementById('start-btn-'+oid);
-      if(startBtn){ startBtn.textContent='⏸ Pauza — davam et'; startBtn.disabled=false; startBtn.style.opacity='1'; startBtn.onclick=()=>resumeTimer(oid); }
+      if(startBtn){ 
+        startBtn.textContent='⏸ Pauza — davam et'; 
+        startBtn.disabled=false; 
+        startBtn.style.opacity='1'; 
+        startBtn.onclick=()=>resumeTimer(oid); 
+      }
       return;
     }
-    const elapsed = Date.now() - t0;
-    const m=Math.floor(elapsed/60000), s=Math.floor((elapsed%60000)/1000);
     timerEl.textContent = `⏱ ${m} dəq ${s} san`;
     timerEl.style.color = 'var(--or)';
   };
@@ -3758,16 +3764,29 @@ function resumeTimer(oid){
   if(!timerEl) return;
   
   const elapsedMs = parseInt(timerEl.dataset.elapsedMs || '0');
-  startTimerFromElapsed(oid, elapsedMs);
   
-  // Düyməni geri qaytar
+  // Başla düyməsini gizlət
   const startBtn = document.getElementById('start-btn-'+oid);
-  if(startBtn){
-    startBtn.textContent = '⏱ Davam edir...';
-    startBtn.disabled = true;
-  }
+  if(startBtn){ startBtn.textContent='⏱ Davam edir...'; startBtn.disabled=true; }
   
-  toast('▶ Timer davam edir — iş saatı xaricindədir');
+  const t0 = Date.now() - elapsedMs;
+  
+  if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
+  
+  const update = ()=>{
+    if(!timerEl.isConnected){ clearInterval(parseInt(timerEl.dataset.intervalId||0)); return; }
+    const elapsed = Date.now() - t0;
+    const m = Math.floor(elapsed/60000);
+    const s = Math.floor((elapsed%60000)/1000);
+    timerEl.textContent = `⏱ ${m} dəq ${s} san`;
+    timerEl.style.color = 'var(--or)';
+    timerEl.dataset.elapsedMs = elapsed;
+  };
+  update();
+  const intv = setInterval(update, 1000);
+  timerEl.dataset.intervalId = intv;
+  
+  toast('▶ Timer davam edir');
 }
 
 // Hər dəqiqə yoxla — 18:30-da pause, 08:30-da avtomatik davam
