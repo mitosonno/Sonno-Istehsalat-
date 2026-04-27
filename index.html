@@ -894,12 +894,9 @@ textarea{resize:vertical;min-height:80px}
           <div style="font-size:14px;font-weight:600">Kataloqda göstərilsin</div>
           <div style="font-size:11px;color:var(--t3)">Müştəri kataloqunda görünsün</div>
         </div>
-        <label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer;flex-shrink:0">
-          <input type="checkbox" id="am-show-catalog" checked style="opacity:0;width:0;height:0;position:absolute">
-          <span onclick="this.previousElementSibling.click()" style="position:absolute;inset:0;background:#ccc;border-radius:26px;transition:.3s;cursor:pointer" id="am-show-catalog-track">
-            <span style="position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span>
-          </span>
-        </label>
+        <div id="toggle-catalog" onclick="toggleSwitch('catalog')" style="width:48px;height:26px;border-radius:26px;background:var(--tl);cursor:pointer;position:relative;transition:.3s;flex-shrink:0">
+          <div id="toggle-catalog-knob" style="position:absolute;width:20px;height:20px;background:#fff;border-radius:50%;top:3px;left:25px;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div>
+        </div>
       </div>
       
       <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
@@ -907,12 +904,9 @@ textarea{resize:vertical;min-height:80px}
           <div style="font-size:14px;font-weight:600">Qiymət göstərilsin</div>
           <div style="font-size:11px;color:var(--t3)">Kataloqda qiyməti göstər</div>
         </div>
-        <label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer;flex-shrink:0">
-          <input type="checkbox" id="am-show-price" checked style="opacity:0;width:0;height:0;position:absolute">
-          <span onclick="this.previousElementSibling.click()" style="position:absolute;inset:0;background:#ccc;border-radius:26px;transition:.3s;cursor:pointer" id="am-show-price-track">
-            <span style="position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span>
-          </span>
-        </label>
+        <div id="toggle-price" onclick="toggleSwitch('price')" style="width:48px;height:26px;border-radius:26px;background:var(--tl);cursor:pointer;position:relative;transition:.3s;flex-shrink:0">
+          <div id="toggle-price-knob" style="position:absolute;width:20px;height:20px;background:#fff;border-radius:50%;top:3px;left:25px;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div>
+        </div>
       </div>
     </div>
     <div class="fg">
@@ -7568,30 +7562,30 @@ function openAddModel(){
   setTimeout(()=>initToggleListeners(), 100);
 }
 
-// Toggle switch sinxronizasiyası
-function syncToggle(id, val){
-  const cb = document.getElementById(id);
-  const track = document.getElementById(id+'-track');
-  if(!cb || !track) return;
-  cb.checked = val;
-  const knob = track.querySelector('span');
-  if(val){
-    track.style.background = 'var(--tl)';
-    if(knob) knob.style.left = '25px';
-  } else {
-    track.style.background = '#ccc';
-    if(knob) knob.style.left = '3px';
-  }
+// Toggle switch sistemi
+window._toggleState = {catalog: true, price: true};
+
+function toggleSwitch(key){
+  window._toggleState[key] = !window._toggleState[key];
+  setToggleUI(key, window._toggleState[key]);
 }
 
-// Checkbox dəyişəndə toggle görünüşünü yenilə
-function initToggleListeners(){
-  ['am-show-catalog','am-show-price'].forEach(id=>{
-    const cb = document.getElementById(id);
-    if(!cb) return;
-    cb.addEventListener('change', ()=>syncToggle(id, cb.checked));
-  });
+function setToggleUI(key, val){
+  window._toggleState[key] = val;
+  const track = document.getElementById('toggle-'+key);
+  const knob = document.getElementById('toggle-'+key+'-knob');
+  if(!track || !knob) return;
+  track.style.background = val ? 'var(--tl)' : '#ccc';
+  knob.style.left = val ? '25px' : '3px';
 }
+
+function syncToggle(id, val){
+  // Köhnə funksiya — yeni sistemə yönləndir
+  if(id === 'am-show-catalog') setToggleUI('catalog', val);
+  if(id === 'am-show-price') setToggleUI('price', val);
+}
+
+function initToggleListeners(){ /* artıq lazım deyil */ }
 
 async function editModel(id){
   showLoader();
@@ -8005,8 +7999,8 @@ async function saveModel(){
   
   const totalHours=stages.reduce((s,x)=>s+x.hours,0);
   const category = document.getElementById('am-category')?.value || null;
-  const showInCatalog = document.getElementById('am-show-catalog')?.checked !== false;
-  const showPrice = document.getElementById('am-show-price')?.checked !== false;
+  const showInCatalog = window._toggleState?.catalog !== false;
+  const showPrice = window._toggleState?.price !== false;
   
   // Şəkilləri hazırla — yeni format: JSON array (1-3 şəkil)
   // Köhnə format: single string (köhnə modellər üçün)
