@@ -4134,6 +4134,10 @@ async function renderLogisticsDept(){
           <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-size:20px;font-weight:700">${o.qty}</div></div>
           <div class="tm-i"><div class="tm-k">Məbləğ</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.final_price||0} ₼</div></div>
           <div class="tm-i"><div class="tm-k">Satış</div><div class="tm-v">${o.sale_type==='showroom'?'🏪 Vitrin':'💵 Nağd'}</div></div>
+          <div class="tm-i"><div class="tm-k">📅 Qəbul vaxtı</div><div class="tm-v" style="font-weight:600">${(()=>{
+            const d = new Date(o.order_date||o.created_at);
+            return d.toLocaleString('az-AZ',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+          })()}</div></div>
         </div>
         ${(o.fabric||o.color||o.fabric_company||o.legs||o.notes) ? `
         <div style="background:var(--lt);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:12px;line-height:1.7">
@@ -7193,6 +7197,48 @@ async function refreshStats(){
             <div style="font-size:11px;color:var(--t2)">ort. ${fmtTime(d.avg)}</div>
           </div>
         </div>`).join('') : '<div style="padding:24px;text-align:center;color:var(--t3)">Məlumat yoxdur</div>'}
+    </div>
+    
+    <!-- Vitrin / Nəqd satış hesabatı -->
+    <div class="slbl">🏪 Vitrin vs 💵 Nəqd satış</div>
+    <div style="margin-bottom:14px">
+      ${(()=>{
+        const showroom = filteredOrders.filter(o=>o.sale_type==='showroom');
+        const cash = filteredOrders.filter(o=>o.sale_type!=='showroom');
+        const showroomRev = showroom.reduce((s,o)=>s+(o.final_price||0),0);
+        const cashRev = cash.reduce((s,o)=>s+(o.final_price||0),0);
+        const showroomQty = showroom.reduce((s,o)=>s+(o.qty||0),0);
+        const cashQty = cash.reduce((s,o)=>s+(o.qty||0),0);
+        const total = filteredOrders.length || 1;
+        const showroomPct = Math.round(showroom.length/total*100);
+        const cashPct = 100 - showroomPct;
+        return `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div style="background:#FFF4E8;padding:14px;border-radius:10px;border-left:4px solid var(--or)">
+              <div style="font-size:12px;font-weight:700;color:var(--or);margin-bottom:6px">🏪 VİTRİN</div>
+              <div style="font-size:22px;font-weight:800;color:#111820">${showroom.length}</div>
+              <div style="font-size:11px;color:var(--t2)">sifariş · ${showroomQty} məhsul</div>
+              <div style="font-size:16px;font-weight:700;color:var(--or);margin-top:4px">${showroomRev.toFixed(0)} ₼</div>
+              <div style="font-size:11px;color:var(--t3)">%${showroomPct} payı</div>
+            </div>
+            <div style="background:#E8F5E9;padding:14px;border-radius:10px;border-left:4px solid #2E7D32">
+              <div style="font-size:12px;font-weight:700;color:#2E7D32;margin-bottom:6px">💵 NƏQD</div>
+              <div style="font-size:22px;font-weight:800;color:#111820">${cash.length}</div>
+              <div style="font-size:11px;color:var(--t2)">sifariş · ${cashQty} məhsul</div>
+              <div style="font-size:16px;font-weight:700;color:#2E7D32;margin-top:4px">${cashRev.toFixed(0)} ₼</div>
+              <div style="font-size:11px;color:var(--t3)">%${cashPct} payı</div>
+            </div>
+          </div>
+          <!-- Progress bar -->
+          <div style="background:#f0f0f0;border-radius:20px;height:8px;overflow:hidden">
+            <div style="height:100%;background:linear-gradient(90deg,var(--or) ${showroomPct}%,#2E7D32 ${showroomPct}%);border-radius:20px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:4px">
+            <span>🏪 Vitrin %${showroomPct}</span>
+            <span>💵 Nəqd %${cashPct}</span>
+          </div>
+        `;
+      })()}
     </div>
     
     <!-- İstehsal vaxtı hesabatı -->
