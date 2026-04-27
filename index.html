@@ -377,38 +377,42 @@ textarea{resize:vertical;min-height:80px}
   
   <!-- Header -->
   <div style="background:#111820;color:#fff;padding:0;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.2)">
-    <div style="max-width:1200px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:12px">
-      <button onclick="closeCustomerCatalog()" style="background:none;border:none;color:#fff;cursor:pointer;padding:6px;display:flex;align-items:center;gap:4px;font-family:inherit;font-size:14px;opacity:.8">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    <div style="max-width:1200px;margin:0 auto;padding:14px 16px;display:flex;align-items:center;gap:10px">
+      <button onclick="closeCustomerCatalog()" style="background:none;border:none;color:#fff;cursor:pointer;padding:4px;display:flex;align-items:center;flex-shrink:0">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
       </button>
-      <div style="flex:1">
-        <div style="font-size:18px;font-weight:700;letter-spacing:-.02em">🛋️ SONNO Kataloq</div>
-        <div style="font-size:11px;opacity:.6;margin-top:1px">Premium Mebel Kolleksiyası</div>
+      
+      <!-- Axtarış -->
+      <div style="flex:1;position:relative">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2" style="position:absolute;left:10px;top:50%;transform:translateY(-50%)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="cc-search" type="text" placeholder="Model axtar..." oninput="ccFilter()" 
+          style="width:100%;padding:9px 10px 9px 32px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);border-radius:10px;color:#fff;font-family:inherit;font-size:13px;outline:none;box-sizing:border-box">
       </div>
-      <div style="background:rgba(247,137,48,.15);border:1px solid rgba(247,137,48,.3);color:#F79130;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700" id="cc-count">— model</div>
+      
+      <!-- 3 nöqtə filter düyməsi -->
+      <button onclick="toggleCatalogFilter(event)" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;width:38px;height:38px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;letter-spacing:-1px" id="cc-filter-btn">
+        ⋯
+      </button>
+      
+      <div style="background:rgba(247,137,48,.2);border:1px solid rgba(247,137,48,.4);color:#F79130;padding:5px 10px;border-radius:16px;font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0" id="cc-count">—</div>
     </div>
     
-    <!-- Axtarış + filter -->
-    <div style="background:#1a2332;padding:12px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-      <div style="flex:1;min-width:200px;position:relative">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2" style="position:absolute;left:12px;top:50%;transform:translateY(-50%)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input id="cc-search" type="text" placeholder="Model axtar..." oninput="ccFilter()" style="width:100%;padding:10px 12px 10px 36px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#fff;font-family:inherit;font-size:14px;outline:none;box-sizing:border-box">
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button onclick="ccSetCategory('')" id="cc-cat-all" style="padding:8px 16px;background:#F79130;color:#fff;border:none;border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700">Hamısı</button>
-        <button onclick="ccSetCategory('divan')" id="cc-cat-divan" style="padding:8px 16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px">🛋️ Divan</button>
-        <button onclick="ccSetCategory('kunc_divan')" id="cc-cat-kunc_divan" style="padding:8px 16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px">↩️ Künc</button>
-        <button onclick="ccSetCategory('oturacaq')" id="cc-cat-oturacaq" style="padding:8px 16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px">🪑 Oturacaq</button>
-        <button onclick="ccSetCategory('kreslo')" id="cc-cat-kreslo" style="padding:8px 16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px">💺 Kreslo</button>
-        <button onclick="ccSetCategory('masa')" id="cc-cat-masa" style="padding:8px 16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px">🪞 Masa</button>
-        <button onclick="ccSetCategory('diger')" id="cc-cat-diger" style="padding:8px 16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px">📦 Digər</button>
-      </div>
+    <!-- Filter dropdown -->
+    <div id="cc-filter-dropdown" style="display:none;position:absolute;top:100%;right:12px;background:#1e2d3d;border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:8px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:200">
+      <div style="font-size:10px;color:rgba(255,255,255,.4);font-weight:600;text-transform:uppercase;padding:4px 8px 6px">Kateqoriya</div>
+      <button onclick="ccSetCategory('')" id="cc-cat-all" style="display:block;width:100%;text-align:left;padding:9px 12px;background:rgba(247,137,48,.2);color:#F79130;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;margin-bottom:2px">✓ Hamısı</button>
+      <button onclick="ccSetCategory('divan')" id="cc-cat-divan" style="display:block;width:100%;text-align:left;padding:9px 12px;background:none;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;margin-bottom:2px">🛋️ Divan</button>
+      <button onclick="ccSetCategory('kunc_divan')" id="cc-cat-kunc_divan" style="display:block;width:100%;text-align:left;padding:9px 12px;background:none;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;margin-bottom:2px">↩️ Künc Divan</button>
+      <button onclick="ccSetCategory('oturacaq')" id="cc-cat-oturacaq" style="display:block;width:100%;text-align:left;padding:9px 12px;background:none;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;margin-bottom:2px">🪑 Oturacaq</button>
+      <button onclick="ccSetCategory('kreslo')" id="cc-cat-kreslo" style="display:block;width:100%;text-align:left;padding:9px 12px;background:none;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;margin-bottom:2px">💺 Kreslo</button>
+      <button onclick="ccSetCategory('masa')" id="cc-cat-masa" style="display:block;width:100%;text-align:left;padding:9px 12px;background:none;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;margin-bottom:2px">🪞 Masa</button>
+      <button onclick="ccSetCategory('diger')" id="cc-cat-diger" style="display:block;width:100%;text-align:left;padding:9px 12px;background:none;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px">📦 Digər</button>
     </div>
   </div>
   
   <!-- Məhsul grid -->
-  <div style="max-width:1200px;margin:0 auto;padding:20px">
-    <div id="customer-catalog-body" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+  <div style="max-width:1200px;margin:0 auto;padding:14px">
+    <div id="customer-catalog-body" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
       <div style="text-align:center;padding:60px;color:#888;grid-column:1/-1">⏳ Yüklənir...</div>
     </div>
   </div>
@@ -4596,16 +4600,43 @@ function closeCustomerCatalog(){
 // Katalog state
 let _ccCurrentCategory = '';
 
+function toggleCatalogFilter(e){
+  if(e) e.stopPropagation();
+  const dd = document.getElementById('cc-filter-dropdown');
+  if(!dd) return;
+  const isOpen = dd.style.display !== 'none';
+  dd.style.display = isOpen ? 'none' : 'block';
+  // Xaricdə basılanda bağla
+  if(!isOpen){
+    setTimeout(()=>{
+      document.addEventListener('click', function closeDd(){
+        dd.style.display = 'none';
+        document.removeEventListener('click', closeDd);
+      });
+    }, 10);
+  }
+}
+
 function ccSetCategory(cat){
   _ccCurrentCategory = cat;
-  // Aktiv düyməni rəngdir
+  // Dropdown-da aktiv düyməni rəngdir
   document.querySelectorAll('[id^="cc-cat-"]').forEach(b=>{
-    b.style.background = 'rgba(255,255,255,.1)';
-    b.style.border = '1px solid rgba(255,255,255,.2)';
+    b.style.background = 'none';
+    b.style.color = '#fff';
     b.style.fontWeight = '400';
   });
   const active = document.getElementById('cc-cat-'+(cat||'all'));
-  if(active){ active.style.background='#F79130'; active.style.border='1px solid #F79130'; active.style.fontWeight='700'; }
+  if(active){
+    active.style.background = 'rgba(247,137,48,.2)';
+    active.style.color = '#F79130';
+    active.style.fontWeight = '700';
+  }
+  // Filter badge yenilə
+  const btn = document.getElementById('cc-filter-btn');
+  if(btn) btn.style.background = cat ? 'rgba(247,137,48,.3)' : 'rgba(255,255,255,.12)';
+  // Dropdown-u bağla
+  const dd = document.getElementById('cc-filter-dropdown');
+  if(dd) dd.style.display = 'none';
   ccFilter();
 }
 
