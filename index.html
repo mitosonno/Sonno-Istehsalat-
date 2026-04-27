@@ -3446,9 +3446,14 @@ async function renderDeptTasks(dept){
           <div class="task-btns">
             <button class="btn btn-o btn-lg" 
               id="start-btn-${o.id}"
-              ${started||done?'disabled':''} 
-              onclick="dStart('${o.id}','${si}','${key}','${dept}')">
-              ${started||done ? '▶ Başla' : !isWorkTime() && new Date().getHours() < WORK_START_H ? '⏰ 08:30-da' : '▶ Başla'}
+              ${started||done ? 'disabled' : 
+                (!isWorkTime() && (new Date().getHours() < WORK_START_H || (new Date().getHours() === WORK_START_H && new Date().getMinutes() < WORK_START_M))) ? 'disabled' :
+                (!isWorkTime() && !window._overtimeAllowed) ? 'disabled' : ''}
+              onclick="dStart('${o.id}','${si}','${key}','${dept}')"
+              style="${!started&&!done&&!isWorkTime()&&!window._overtimeAllowed ? 'opacity:0.4' : ''}">
+              ${started||done ? '▶ Başla' :
+                (!isWorkTime() && (new Date().getHours() < WORK_START_H || (new Date().getHours()===WORK_START_H && new Date().getMinutes()<WORK_START_M))) ? '⏰ 08:30-da' :
+                (!isWorkTime() && !window._overtimeAllowed) ? '🔴 Blok' : '▶ Başla'}
             </button>
             <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${total}')">✓ Tamamla</button>
           </div>
@@ -7688,8 +7693,9 @@ async function toggleOvertimePermission(){
   if(track) track.style.background = window._overtimeAllowed ? 'var(--tl)' : '#ccc';
   if(knob) knob.style.left = window._overtimeAllowed ? '25px' : '3px';
   toast(window._overtimeAllowed ? '✓ Əlavə işə icazə verildi' : '✓ Əlavə iş bloklandı');
-  // Status yazısını yenilə
   setTimeout(()=>adminSec('settings'), 300);
+  // Şöbə ekranı açıqdırsa yenilə
+  if(pinDept) renderDeptTasks(pinDept);
 }
 
 function toggleSwitch(key){
