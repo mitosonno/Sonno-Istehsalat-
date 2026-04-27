@@ -12,6 +12,15 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{overscroll-behavior:none;overscroll-behavior-y:contain;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+
+/* Düymə klik effekti */
+button:active, .btn:active, [onclick]:active {
+  transform: scale(0.96) !important;
+  opacity: 0.85 !important;
+  transition: transform 0.08s, opacity 0.08s !important;
+}
+button { transition: transform 0.1s, opacity 0.1s; }
+.btn { transition: transform 0.1s, opacity 0.1s; }
 :root{
   --dk:#111820;--or:#F78930;--tl:#007565;--dp:#004f51;
   --lt:#E1F5EE;--lo:#FFF4E8;--bg:#F4F2ED;--sf:#fff;
@@ -363,15 +372,45 @@ textarea{resize:vertical;min-height:80px}
   </div>
 </div>
 
-<!-- MÜŞTƏRİ KATALOQ EKRANI (daxili — login sonra) -->
-<div id="customer-catalog-screen" style="display:none;position:fixed;inset:0;background:#fafaf9;z-index:9999;overflow-y:auto;font-family:'DM Sans',sans-serif">
-  <div style="background:linear-gradient(135deg,#007565,#004F51);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.1)">
-    <button onclick="closeCustomerCatalog()" style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;display:flex;align-items:center;gap:6px">← Geri</button>
-    <div style="font-size:16px;font-weight:700">📖 Katalog</div>
-    <div style="width:60px"></div>
+<!-- MÜŞTƏRİ KATALOQ EKRANI - Premium dizayn -->
+<div id="customer-catalog-screen" style="display:none;position:fixed;inset:0;background:#f5f5f0;z-index:9999;overflow-y:auto;font-family:'DM Sans',sans-serif">
+  
+  <!-- Header -->
+  <div style="background:#111820;color:#fff;padding:0;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.2)">
+    <div style="max-width:1200px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:12px">
+      <button onclick="closeCustomerCatalog()" style="background:none;border:none;color:#fff;cursor:pointer;padding:6px;display:flex;align-items:center;gap:4px;font-family:inherit;font-size:14px;opacity:.8">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
+      <div style="flex:1">
+        <div style="font-size:18px;font-weight:700;letter-spacing:-.02em">🛋️ SONNO Kataloq</div>
+        <div style="font-size:11px;opacity:.6;margin-top:1px">Premium Mebel Kolleksiyası</div>
+      </div>
+      <div style="background:rgba(247,137,48,.15);border:1px solid rgba(247,137,48,.3);color:#F79130;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700" id="cc-count">— model</div>
+    </div>
+    
+    <!-- Axtarış + filter -->
+    <div style="background:#1a2332;padding:12px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <div style="flex:1;min-width:200px;position:relative">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2" style="position:absolute;left:12px;top:50%;transform:translateY(-50%)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="cc-search" type="text" placeholder="Model axtar..." oninput="ccFilter()" style="width:100%;padding:10px 12px 10px 36px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#fff;font-family:inherit;font-size:14px;outline:none;box-sizing:border-box">
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button onclick="ccSetCategory('')" id="cc-cat-all" style="padding:8px 16px;background:#F79130;color:#fff;border:none;border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700">Hamısı</button>
+        <button onclick="ccSetCategory('divan')" id="cc-cat-divan" style="padding:8px 16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px">🛋️ Divan</button>
+        <button onclick="ccSetCategory('kunc_divan')" id="cc-cat-kunc_divan" style="padding:8px 16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px">↩️ Künc</button>
+        <button onclick="ccSetCategory('oturacaq')" id="cc-cat-oturacaq" style="padding:8px 16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px">🪑 Oturacaq</button>
+        <button onclick="ccSetCategory('kreslo')" id="cc-cat-kreslo" style="padding:8px 16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px">💺 Kreslo</button>
+        <button onclick="ccSetCategory('masa')" id="cc-cat-masa" style="padding:8px 16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px">🪞 Masa</button>
+        <button onclick="ccSetCategory('diger')" id="cc-cat-diger" style="padding:8px 16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-family:inherit;font-size:12px">📦 Digər</button>
+      </div>
+    </div>
   </div>
-  <div id="customer-catalog-body" style="max-width:800px;margin:0 auto;padding:16px">
-    <div style="text-align:center;padding:40px;color:#888">Yüklənir...</div>
+  
+  <!-- Məhsul grid -->
+  <div style="max-width:1200px;margin:0 auto;padding:20px">
+    <div id="customer-catalog-body" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+      <div style="text-align:center;padding:60px;color:#888;grid-column:1/-1">⏳ Yüklənir...</div>
+    </div>
   </div>
 </div>
 
@@ -476,27 +515,27 @@ textarea{resize:vertical;min-height:80px}
           <div class="kpi kD" onclick="showOrderSheet('delivered')" style="cursor:pointer"><div class="kl">TƏSLİM</div><div class="kv" id="k-don">—</div><div class="ks">bu həftə</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-          <div style="background:var(--lt);padding:10px 14px;border-radius:10px;display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-size:10px;color:var(--t2);font-weight:600;text-transform:uppercase">Bu gün</div>
-              <div style="font-size:20px;font-weight:800;color:var(--tl)" id="k-today-count">—</div>
-              <div style="font-size:10px;color:var(--t3)" id="k-today-qty">sifariş</div>
+          <div style="background:var(--lt);padding:10px 14px;border-radius:10px">
+            <div style="font-size:10px;color:var(--t2);font-weight:600;text-transform:uppercase;margin-bottom:4px">Bu gün</div>
+            <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+              <span style="font-size:22px;font-weight:800;color:var(--tl)" id="k-today-count">—</span>
+              <span style="font-size:11px;color:var(--t2)">sifariş</span>
+              <span style="font-size:16px;font-weight:700;color:var(--t2)">·</span>
+              <span style="font-size:16px;font-weight:700;color:var(--tl)" id="k-today-qty">—</span>
+              <span style="font-size:11px;color:var(--t2)">məhsul</span>
             </div>
-            <div style="text-align:right">
-              <div style="font-size:10px;color:var(--t2);font-weight:600">məbləğ</div>
-              <div style="font-size:15px;font-weight:700;color:var(--tl)" id="k-today-rev">—</div>
-            </div>
+            <div style="font-size:14px;font-weight:700;color:var(--tl);margin-top:2px" id="k-today-rev">—</div>
           </div>
-          <div style="background:#FFF4E8;padding:10px 14px;border-radius:10px;display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-size:10px;color:var(--t2);font-weight:600;text-transform:uppercase">Bu ay</div>
-              <div style="font-size:20px;font-weight:800;color:var(--or)" id="k-month-count">—</div>
-              <div style="font-size:10px;color:var(--t3)" id="k-month-qty">sifariş</div>
+          <div style="background:#FFF4E8;padding:10px 14px;border-radius:10px">
+            <div style="font-size:10px;color:var(--t2);font-weight:600;text-transform:uppercase;margin-bottom:4px">Bu ay</div>
+            <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+              <span style="font-size:22px;font-weight:800;color:var(--or)" id="k-month-count">—</span>
+              <span style="font-size:11px;color:var(--t2)">sifariş</span>
+              <span style="font-size:16px;font-weight:700;color:var(--t2)">·</span>
+              <span style="font-size:16px;font-weight:700;color:var(--or)" id="k-month-qty">—</span>
+              <span style="font-size:11px;color:var(--t2)">məhsul</span>
             </div>
-            <div style="text-align:right">
-              <div style="font-size:10px;color:var(--t2);font-weight:600">məbləğ</div>
-              <div style="font-size:15px;font-weight:700;color:var(--or)" id="k-month-rev">—</div>
-            </div>
+            <div style="font-size:14px;font-weight:700;color:var(--or);margin-top:2px" id="k-month-rev">—</div>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
@@ -525,7 +564,13 @@ textarea{resize:vertical;min-height:80px}
         <div style="display:grid;grid-template-columns:1fr 340px;gap:20px" id="order-layout">
           <div>
             <div class="slbl" style="margin-top:0">Məhsul seçin</div>
-            <input type="text" id="product-search" placeholder="🔍 Model axtar..." style="width:100%;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;margin-bottom:10px" oninput="filterProducts(this.value)">
+            <div style="display:flex;gap:8px;margin-bottom:10px">
+              <input type="text" id="product-search" placeholder="🔍 Model axtar..." style="flex:1;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px" oninput="filterProducts(this.value)">
+              <button onclick="shareCatalogLink()" title="Kataloqu WhatsApp-da paylaş" style="padding:10px 14px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border:none;border-radius:var(--r);cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;font-size:13px;font-weight:700;white-space:nowrap;flex-shrink:0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Paylaş
+              </button>
+            </div>
             <div class="pgrid" id="product-grid"></div>
             <div id="qty-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:12px 14px;align-items:center;gap:12px;margin-bottom:14px">
               <span id="qty-name" style="flex:1;font-size:13px;font-weight:600;color:var(--dp)">—</span>
@@ -2171,10 +2216,10 @@ async function renderDash(){
     const kMonthQty = document.getElementById('k-month-qty');
     if(kTodayCount) kTodayCount.textContent = todayOrders.length;
     if(kTodayRev) kTodayRev.textContent = todayRev.toFixed(0)+' ₼';
-    if(kTodayQty) kTodayQty.textContent = todayQty+' məhsul';
+    if(kTodayQty) kTodayQty.textContent = todayQty;
     if(kMonthCount) kMonthCount.textContent = monthOrders.length;
     if(kMonthRev) kMonthRev.textContent = monthRev.toFixed(0)+' ₼';
-    if(kMonthQty) kMonthQty.textContent = monthQty+' məhsul';
+    if(kMonthQty) kMonthQty.textContent = monthQty;
     
     document.getElementById('today-card').innerHTML = todayOrders.length
       ? todayOrders.map(o=>orderListItem(o)).join('')
@@ -4548,82 +4593,101 @@ function closeCustomerCatalog(){
   document.getElementById('customer-catalog-screen').style.display = 'none';
 }
 
+// Katalog state
+let _ccCurrentCategory = '';
+
+function ccSetCategory(cat){
+  _ccCurrentCategory = cat;
+  // Aktiv düyməni rəngdir
+  document.querySelectorAll('[id^="cc-cat-"]').forEach(b=>{
+    b.style.background = 'rgba(255,255,255,.1)';
+    b.style.border = '1px solid rgba(255,255,255,.2)';
+    b.style.fontWeight = '400';
+  });
+  const active = document.getElementById('cc-cat-'+(cat||'all'));
+  if(active){ active.style.background='#F79130'; active.style.border='1px solid #F79130'; active.style.fontWeight='700'; }
+  ccFilter();
+}
+
+function ccFilter(){
+  const q = (document.getElementById('cc-search')?.value||'').toLowerCase().trim();
+  const models = window._customerCatalogModels || [];
+  
+  const filtered = models.filter(m=>{
+    if(_ccCurrentCategory && m.category !== _ccCurrentCategory) return false;
+    if(q && !(m.name||'').toLowerCase().includes(q) && !(m.description||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  
+  const countEl = document.getElementById('cc-count');
+  if(countEl) countEl.textContent = filtered.length + ' model';
+  
+  renderCustomerCatalogItems(filtered);
+}
+
 function renderCustomerCatalog(models){
+  window._customerCatalogModels = models;
+  const countEl = document.getElementById('cc-count');
+  if(countEl) countEl.textContent = models.length + ' model';
+  renderCustomerCatalogItems(models);
+}
+
+function renderCustomerCatalogItems(models){
   const body = document.getElementById('customer-catalog-body');
   if(!models.length){
-    body.innerHTML = '<div style="text-align:center;padding:40px;color:#888">Kataloqda məhsul yoxdur</div>';
+    body.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:#888"><div style="font-size:48px;margin-bottom:12px">🔍</div><div style="font-size:16px;font-weight:600">Nəticə tapılmadı</div></div>';
     return;
   }
   
-  const categories = {
-    divan:       {icon:'🛋️', name:'Divanlar'},
-    kunc_divan:  {icon:'🛋️', name:'Künc Divanlar'},
-    oturacaq:    {icon:'🪑', name:'Oturacaqlar'},
-    kreslo:      {icon:'💺', name:'Kreslolar'},
-    masa:        {icon:'🪑', name:'Masalar'},
-    dest:        {icon:'🎁', name:'Dəstlər'},
-    diger:       {icon:'📦', name:'Digər'},
-  };
-  
-  const grouped = {};
-  models.forEach(m=>{
-    const cat = m.category || 'diger';
-    if(!grouped[cat]) grouped[cat] = [];
-    grouped[cat].push(m);
-  });
-  
-  const order = ['divan','kunc_divan','oturacaq','kreslo','masa','dest','diger'];
-  
-  let html = '';
-  order.forEach(catKey => {
-    if(!grouped[catKey] || !grouped[catKey].length) return;
-    const info = categories[catKey];
-    const items = grouped[catKey];
+  body.innerHTML = models.map(m => {
+    const imgs = getModelImages(m);
+    const hasMulti = imgs.length > 1;
+    const ccId = 'cc-img-'+m.id;
+    const price = m.sale_price || 0;
     
-    html += `
-      <div style="margin-bottom:28px">
-        <h2 style="font-size:18px;font-weight:700;margin:0 0 12px 0;color:#111820;padding-bottom:8px;border-bottom:2px solid #007565">
-          ${info.icon} ${info.name}
-          <span style="font-size:12px;color:#888;font-weight:500;margin-left:8px">${items.length}</span>
-        </h2>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
-          ${items.map(m => {
-            const imgs = getModelImages(m);
-            const hasMulti = imgs.length > 1;
-            const ccId = 'cc-img-'+m.id;
-            const imageDisplay = imgs.length
-              ? `<div style="position:relative;width:100%;height:200px;background:#f8f8f6;overflow:hidden">
-                  <img id="${ccId}-0" src="${imgs[0]}" style="width:100%;height:100%;object-fit:contain;cursor:zoom-in;display:block" onclick="showLightbox(${JSON.stringify(imgs).replace(/"/g,'&quot;')}, 0)">
-                  ${imgs.slice(1).map((u,i)=>`<img id="${ccId}-${i+1}" src="${u}" style="width:100%;height:100%;object-fit:contain;cursor:zoom-in;display:none;position:absolute;top:0;left:0" onclick="showLightbox(${JSON.stringify(imgs).replace(/"/g,'&quot;')}, ${i+1})">`).join('')}
-                  ${hasMulti ? `
-                    <button onclick="ccCarousel('${m.id}',${imgs.length},-1,event)" style="position:absolute;left:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px">‹</button>
-                    <button onclick="ccCarousel('${m.id}',${imgs.length},1,event)" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);color:#fff;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px">›</button>
-                    <div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);display:flex;gap:3px">
-                      ${imgs.map((_,i)=>`<div id="${ccId}-dot-${i}" style="width:5px;height:5px;border-radius:50%;background:${i===0?'#fff':'rgba(255,255,255,.5)'}"></div>`).join('')}
-                    </div>
-                  ` : ''}
-                </div>`
-              : `<div style="width:100%;height:200px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center"><div style="font-size:54px">${m.emoji || '🛋️'}</div></div>`;
-            
-            return `
-            <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #eee">
-              ${imageDisplay}
-              <div style="padding:12px">
-                <div style="font-size:14px;font-weight:700;color:#111820;line-height:1.3">${m.name}</div>
-                ${m.description ? `<div style="font-size:11px;color:#888;margin-top:3px">${m.description}</div>` : ''}
-                <div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
-                  <div style="font-size:18px;font-weight:800;color:#F78930">${(m.sale_price||0).toFixed(0)} ₼</div>
-                </div>
-                <button onclick="openCustomerOrderForm('${m.id}')" style="width:100%;padding:10px;background:#007565;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px">🛒 Sifariş et</button>
-              </div>
+    const imageHtml = imgs.length
+      ? `<div style="position:relative;width:100%;padding-top:100%;background:#f8f8f6;overflow:hidden">
+          <img id="${ccId}-0" src="${imgs[0]}" 
+            style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;cursor:zoom-in;transition:transform .3s" 
+            onclick="showLightbox(${JSON.stringify(imgs).replace(/"/g,'&quot;')}, 0)"
+            onmouseover="this.style.transform='scale(1.05)'" 
+            onmouseout="this.style.transform='scale(1)'">
+          ${imgs.slice(1).map((u,i)=>`<img id="${ccId}-${i+1}" src="${u}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;cursor:zoom-in;display:none;transition:transform .3s" onclick="showLightbox(${JSON.stringify(imgs).replace(/"/g,'&quot;')}, ${i+1})" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">`).join('')}
+          ${hasMulti ? `
+            <button onclick="ccCarousel('${m.id}',${imgs.length},-1,event)" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.9);color:#111;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,.15)">‹</button>
+            <button onclick="ccCarousel('${m.id}',${imgs.length},1,event)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.9);color:#111;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,.15)">›</button>
+            <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:4px">
+              ${imgs.map((_,i)=>`<div id="${ccId}-dot-${i}" style="width:6px;height:6px;border-radius:50%;background:${i===0?'#fff':'rgba(255,255,255,.5)'};transition:background .2s"></div>`).join('')}
             </div>
-          `;}).join('')}
+          ` : ''}
+          ${hasMulti ? `<div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.5);color:#fff;font-size:10px;padding:3px 7px;border-radius:10px">${imgs.length} şəkil</div>` : ''}
+        </div>`
+      : `<div style="width:100%;padding-top:100%;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);position:relative">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px">${m.emoji||'🛋️'}</div>
+        </div>`;
+    
+    return `
+      <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);border:1px solid #eee;transition:box-shadow .2s;cursor:pointer" 
+        onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)'" 
+        onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,.08)'">
+        ${imageHtml}
+        <div style="padding:12px">
+          <div style="font-size:13px;font-weight:700;color:#111820;line-height:1.3;margin-bottom:4px">${m.name}</div>
+          ${m.description ? `<div style="font-size:11px;color:#888;margin-bottom:6px;line-height:1.4">${m.description}</div>` : ''}
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="font-size:20px;font-weight:800;color:#111820">${price>0?price.toFixed(0)+' ₼':'—'}</div>
+            ${price>0?`<div style="font-size:10px;color:#888">qiymətdən</div>`:''}
+          </div>
+          <button onclick="openCustomerOrderForm('${m.id}')" 
+            style="width:100%;padding:11px;background:#111820;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s"
+            onmouseover="this.style.background='#F79130'" 
+            onmouseout="this.style.background='#111820'">
+            🛒 Sifariş et
+          </button>
         </div>
       </div>
     `;
-  });
-  
-  body.innerHTML = html;
+  }).join('');
 }
 
 // Katalog karusel (müştəri)
@@ -6648,14 +6712,28 @@ function setStatsRange(range){
 }
 
 // Statistikanı filtrlərə uyğun yenilə
-function refreshStats(){
+async function refreshStats(){
+  const target = document.getElementById('stats-content');
+  if(!target) return;
+  
+  // Data yoxdursa yenidən yüklə
+  if(!window._statsAllOrders || !window._statsAllOrders.length){
+    target.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3)">⏳ Yüklənir...</div>';
+    let orders=[], logs=[], users=[], models=[];
+    try { const r=await sb.from('orders').select('*'); orders=r.data||[]; } catch(e){}
+    try { const r=await sb.from('task_logs').select('*'); logs=r.data||[]; } catch(e){}
+    try { const r=await sb.from('users').select('*'); users=r.data||[]; } catch(e){}
+    try { const r=await sb.from('models').select('*'); models=r.data||[]; } catch(e){}
+    window._statsAllOrders = orders;
+    window._statsAllLogs = logs;
+    window._statsAllUsers = users;
+    window._statsAllModels = models;
+  }
+  
   const allOrders = window._statsAllOrders || [];
   const allLogs = window._statsAllLogs || [];
   const allModels = window._statsAllModels || [];
   const allUsers = window._statsAllUsers || [];
-  
-  const target = document.getElementById('stats-content');
-  if(!target) return;
   
   if(!allOrders.length){
     target.innerHTML = '<div style="padding:40px;text-align:center;background:#fff;border-radius:12px;border:1px solid var(--bd)"><div style="font-size:48px;margin-bottom:12px">📊</div><div style="font-size:15px;font-weight:600">Sifariş yoxdur</div></div>';
