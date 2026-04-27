@@ -3239,8 +3239,7 @@ async function renderDeptTasks(dept){
       return;
     }
 
-    tl.innerHTML=vis.map(({o,m,s,si,isBackground,isShared})=>{
-      const key=`ts_${o.id}_${si}`;
+    tl.innerHTML=vis.map(({o,m,s,si,isBackground,isShared})=>{      const key=`ts_${o.id}_${si}`;
       const logKey = o.id + '_' + (si-1) + '_' + dept;
       const log = logMap[logKey];
       
@@ -3440,44 +3439,10 @@ async function renderDeptTasks(dept){
           ${wHtml}
           <div class="ts-box ${stCls}" id="ts-${o.id}">${stTxt}</div>
           ${started&&!done?`
-          <div style="font-size:14px;font-weight:600;color:var(--or);text-align:center;margin:8px 0" id="timer-${o.id}">⏱ hesablanır...</div>
-          <script>
-          (function(){
-            const el = document.getElementById('timer-${o.id}');
-            if(!el) return;
-            const t0 = new Date('${startTime}');
-            const elapsedMs = Date.now() - t0;
-            const WEND = ${WORK_END_H}*60+${WORK_END_M};
-            const nowMins = new Date().getHours()*60+new Date().getMinutes();
-            
-            if(nowMins >= WEND){
-              // İş vaxtı bitib — pause göstər
-              const workEnd = new Date(); workEnd.setHours(${WORK_END_H},${WORK_END_M},0,0);
-              const pausedMs = t0 < workEnd ? workEnd-t0 : 0;
-              el.dataset.elapsedMs = pausedMs;
-              const m=Math.floor(pausedMs/60000), s=Math.floor((pausedMs%60000)/1000);
-              el.textContent = '⏸ Pauza — '+m+' dəq '+s+' san';
-              el.style.color = 'var(--or)';
-              // Başla düyməsini pauza et
-              const sb2 = document.getElementById('start-btn-${o.id}');
-              if(sb2){ sb2.textContent='⏸ Pauza — davam et'; sb2.disabled=false; sb2.style.opacity='1'; sb2.onclick=()=>resumeTimer('${o.id}'); }
-            } else {
-              // Normal iş vaxtı — timer işlət
-              el.dataset.startMs = Date.now() - elapsedMs;
-              if(el.dataset.intervalId) clearInterval(parseInt(el.dataset.intervalId));
-              const upd = ()=>{
-                const nowM2 = new Date().getHours()*60+new Date().getMinutes();
-                if(nowM2>=WEND){ clearInterval(parseInt(el.dataset.intervalId||0)); return; }
-                const diff = Date.now() - parseInt(el.dataset.startMs||Date.now());
-                const m=Math.floor(diff/60000), s=Math.floor((diff%60000)/1000);
-                if(el && el.isConnected) el.textContent='⏱ '+m+' dəq '+s+' san';
-              };
-              upd();
-              const intv=setInterval(upd,1000);
-              el.dataset.intervalId=intv;
-            }
-          })();
-          <\/script>`:''}
+          <div style="font-size:14px;font-weight:600;color:var(--or);text-align:center;margin:8px 0" 
+            id="timer-${o.id}" 
+            data-start-time="${startTime}"
+            data-oid="${o.id}">⏱ hesablanır...</div>`:''}
           <div class="task-btns">
             <button class="btn btn-o btn-lg" 
               id="start-btn-${o.id}"
@@ -3519,36 +3484,8 @@ async function renderDeptTasks(dept){
       </div>`;
     }).join('')+(hidden>0?`<div style="text-align:center;padding:18px;background:var(--lo);border-radius:var(--rl);border:2px dashed rgba(247,137,48,.3);margin-top:8px"><div style="font-size:28px;font-weight:700;color:var(--or)">${hidden}</div><div style="font-size:13px;color:#854F0B;margin-top:2px">sifariş növbədə gözləyir</div></div>`:'');
 
-    // Real-time timer
-    document.querySelectorAll('[id^="timer-"]').forEach(el=>{
-      if(el.dataset.intervalId){clearInterval(parseInt(el.dataset.intervalId));}
-    });
-    
-    vis.forEach(({o,si})=>{
-      const key=`ts_${o.id}_${si}`;
-      const dKey = key+'_'+dept;
-      const logKey = o.id + '_' + (si-1) + '_' + dept;
-      const log = logMap[logKey];
-      
-      // YALNIZ Supabase log-dan oxu
-      const s2 = log && log.started_at ? log.started_at : null;
-      const d2 = log && log.completed_at ? log.completed_at : null;
-      const t2 = s2;
-      
-      if(s2&&!d2&&t2){
-        const timerEl=document.getElementById('timer-'+o.id);
-        if(timerEl){
-          const update=()=>{
-            const elapsed=Math.floor((Date.now()-new Date(t2))/60000);
-            const sec=Math.floor(((Date.now()-new Date(t2))%60000)/1000);
-            if(timerEl&&timerEl.isConnected)timerEl.textContent=`⏱ ${elapsed} dəq ${sec} san`;
-          };
-          update();
-          const int=setInterval(update,1000);
-          timerEl.dataset.intervalId=int;
-        }
-      }
-    });
+    // Timer-ları başlat
+    setTimeout(()=>initTimers(), 50);
 
   } else if(curDeptTab==='shared'){
     // PARÇA ALIŞ TAB — ötürülmüş sifarişlər
@@ -3821,8 +3758,55 @@ function startTimerFromElapsed(oid, elapsedMs){
   timerEl.dataset.intervalId = int;
 }
 
-// Pause-dan davam et
-function resumeTimer(oid){
+// Render sonrası bütün timerları başlat
+function initTimers(){
+  document.querySelectorAll('[data-start-time]').forEach(el=>{
+    const oid = el.dataset.oid;
+    const startTime = el.dataset.startTime;
+    if(!startTime || !oid) return;
+    if(el.dataset.intervalId) clearInterval(parseInt(el.dataset.intervalId));
+    
+    const t0 = new Date(startTime);
+    const WEND = WORK_END_H*60 + WORK_END_M;
+    const nowMins = new Date().getHours()*60 + new Date().getMinutes();
+    
+    if(nowMins >= WEND){
+      // İş vaxtı bitib — pause göstər
+      const workEnd = new Date();
+      workEnd.setHours(WORK_END_H, WORK_END_M, 0, 0);
+      const pausedMs = t0 < workEnd ? workEnd - t0 : 0;
+      el.dataset.elapsedMs = pausedMs;
+      const m=Math.floor(pausedMs/60000), s=Math.floor((pausedMs%60000)/1000);
+      el.textContent = `⏸ Pauza — ${m} dəq ${s} san`;
+      el.style.color = 'var(--or)';
+      const startBtn = document.getElementById('start-btn-'+oid);
+      if(startBtn){
+        startBtn.textContent = '⏸ Pauza — davam et';
+        startBtn.disabled = false;
+        startBtn.style.opacity = '1';
+        startBtn.onclick = ()=>resumeTimer(oid);
+      }
+    } else {
+      // Normal iş vaxtı — timer işlət
+      const elapsedMs = Date.now() - t0;
+      el.dataset.startMs = Date.now() - elapsedMs;
+      const upd = ()=>{
+        const nowM = new Date().getHours()*60 + new Date().getMinutes();
+        if(nowM >= WEND){
+          clearInterval(parseInt(el.dataset.intervalId||0));
+          el.dataset.intervalId = '';
+          return;
+        }
+        const diff = Date.now() - parseInt(el.dataset.startMs || Date.now());
+        const m=Math.floor(diff/60000), s=Math.floor((diff%60000)/1000);
+        if(el && el.isConnected) el.textContent = `⏱ ${m} dəq ${s} san`;
+      };
+      upd();
+      const intv = setInterval(upd, 1000);
+      el.dataset.intervalId = intv;
+    }
+  });
+}
   const timerEl = document.getElementById('timer-'+oid);
   if(!timerEl) return;
   
@@ -7476,23 +7460,59 @@ function renderModelsList(models){
   const catNames = {divan:'Divan',kunc_divan:'Künc Divan',oturacaq:'Oturacaq',kreslo:'Kreslo',masa:'Masa',dest:'Dəst',diger:'Digər'};
   return models.map(m=>{
     const _u = getFirstImage(m);
-    const _imgs = getModelImages(m);
     const thumb = _u
-      ? `<img src="${_u}" style="width:40px;height:40px;object-fit:cover;border-radius:10px;cursor:zoom-in" onclick="event.stopPropagation();showLightbox(${JSON.stringify(_imgs).replace(/"/g,'&quot;')},0)" title="Böyük gör">`
-      : m.emoji;
+      ? `<img src="${_u}" style="width:40px;height:40px;object-fit:cover;border-radius:10px">`
+      : `<span style="font-size:22px">${m.emoji||'📦'}</span>`;
+    
+    const inCatalog = m.show_in_catalog === true;
+    const priceOn   = m.show_price !== false;
+    
     return `
-      <div class="list-item">
+      <div class="list-item" id="model-row-${m.id}">
         <div class="li-icon" style="background:var(--lt);font-size:22px">${thumb}</div>
         <div class="li-body">
-          <div class="li-title">${m.name} ${m.category?`<span style="font-size:10px;background:var(--lt);color:var(--tl);padding:2px 8px;border-radius:10px;margin-left:6px;font-weight:600">${catNames[m.category]||m.category}</span>`:''}</div>
-          <div class="li-sub">${(m.stages||[]).length} mərhələ · ${m.total_hours}s · ${m.sale_price?m.sale_price+' ₼':''} ${m.description?' · '+m.description:''}</div>
+          <div class="li-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span>${m.name}</span>
+            ${m.category?`<span style="font-size:10px;background:var(--lt);color:var(--tl);padding:2px 8px;border-radius:10px;font-weight:600">${catNames[m.category]||m.category}</span>`:''}
+            <!-- Kataloq toggle -->
+            <span onclick="quickToggleModel('${m.id}','show_in_catalog',${!inCatalog})" 
+              style="font-size:11px;padding:2px 10px;border-radius:12px;cursor:pointer;font-weight:600;transition:.2s;user-select:none;background:${inCatalog?'#E8F5E9':'#f0f0f0'};color:${inCatalog?'#2E7D32':'#999'}">
+              ${inCatalog?'✓ Kataloqda':'✗ Kataloqda yox'}
+            </span>
+            <!-- Qiymət toggle -->
+            <span onclick="quickToggleModel('${m.id}','show_price',${!priceOn})"
+              style="font-size:11px;padding:2px 10px;border-radius:12px;cursor:pointer;font-weight:600;transition:.2s;user-select:none;background:${priceOn?'#E8F5E9':'#FFF4E8'};color:${priceOn?'#2E7D32':'var(--or)'}">
+              ${priceOn?'✓ Qiymət':'✗ Qiymət gizli'}
+            </span>
+          </div>
+          <div class="li-sub">${(m.stages||[]).length} mərhələ · ${m.sale_price?m.sale_price+' ₼':''} ${m.description?' · '+m.description:''}</div>
         </div>
-        <div style="display:flex;gap:6px">
-          <button onclick="editModel('${m.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:var(--tl);font-family:inherit;padding:3px 8px;border-radius:6px">Düzəlt</button>
-          <button onclick="deleteModel('${m.id}')" style="border:none;background:none;cursor:pointer;font-size:12px;color:#E24B4A;font-family:inherit;padding:3px 8px;border-radius:6px">Sil</button>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button onclick="editModel('${m.id}')" style="border:none;background:var(--lt);color:var(--tl);cursor:pointer;font-size:12px;font-family:inherit;padding:5px 10px;border-radius:6px;font-weight:600">Düzəlt</button>
+          <button onclick="deleteModel('${m.id}')" style="border:none;background:#FEEEED;color:#E24B4A;cursor:pointer;font-size:12px;font-family:inherit;padding:5px 10px;border-radius:6px;font-weight:600">Sil</button>
         </div>
       </div>`;
   }).join('');
+}
+
+async function quickToggleModel(id, field, newVal){
+  // Dərhal Supabase-ə yaz
+  const {error} = await sb.from('models').update({[field]: newVal}).eq('id', id);
+  if(error){
+    toast('❌ Xəta: '+error.message, 5000);
+    return;
+  }
+  // Cache-i yenilə
+  if(window._allModelsCache){
+    const m = window._allModelsCache.find(x=>x.id===id);
+    if(m) m[field] = newVal;
+    document.getElementById('models-list').innerHTML = renderModelsList(window._allModelsCache);
+  }
+  const msgs = {
+    show_in_catalog: newVal ? '✓ Kataloqda göstərildi' : '✓ Kataloqdan gizlədildi',
+    show_price:      newVal ? '✓ Qiymət göstərildi'   : '✓ Qiymət gizlədildi',
+  };
+  toast(msgs[field]||'✓ Yeniləndi');
 }
 
 function filterModelsList(query){
