@@ -1011,20 +1011,22 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
 
 // ═══════════ CONSTANTS ═══════════
 const DEPT_INFO = {
-  hazirlik:    {name:'Hazırlıq — Kəsmə',      icon:'✂️', hours:2},
-  bez_kesim:   {name:'Bel kəsim şöbəsi',       icon:'🧶', hours:2},
-  oturacaq_dik:{name:'Oturacaq dik kəsmə şöbəsi', icon:'🪑', hours:2},
-  ayaq_bagla:  {name:'Ayaq bağlama şöbəsi',    icon:'🔗', hours:2},
-  bel_eyme:    {name:'Bel əymə şöbəsi',        icon:'🌀', hours:2},
-  karkaz:      {name:'Karkaz yığım şöbəsi',    icon:'🪵', hours:4},
-  shkurka:     {name:'Şkurka şöbəsi',          icon:'🔩', hours:1.5},
-  masa_karkaz: {name:'Masa karkaz şöbəsi',     icon:'🪚', hours:3},
-  masa_rengle: {name:'Masa rəngləmə şöbəsi',   icon:'🎨', hours:2},
-  rengleme:    {name:'Rənglənmə şöbəsi',       icon:'🖌️', hours:3},
-  yastiqlama:  {name:'Yastıqlama / Döşəmə',    icon:'🛋️', hours:4},
-  tikis:       {name:'Tikiş şöbəsi',           icon:'🧵', hours:3},
-  qa:          {name:'Keyfiyyət yoxlama',       icon:'✅', hours:1},
-  logistics:   {name:'Logistika / Çatdırılma', icon:'🚛', hours:1},
+  hazirlik:       {name:'Hazırlıq — Kəsmə',        icon:'✂️',  hours:2},
+  bez_kesim:      {name:'Bel kəsim şöbəsi',         icon:'🧶',  hours:2},
+  oturacaq_dik:   {name:'Oturacaq dik kəsmə şöbəsi',icon:'🪑',  hours:2},
+  ayaq_bagla:     {name:'Ayaq bağlama şöbəsi',      icon:'🔗',  hours:2},
+  bel_eyme:       {name:'Bel əymə şöbəsi',          icon:'🌀',  hours:2},
+  karkaz:         {name:'Karkaz yığım şöbəsi',      icon:'🪵',  hours:4},
+  divan_karkaz:   {name:'Divan Karkaz şöbəsi',      icon:'🛋️',  hours:4},
+  divan_yastiqlama:{name:'Divan Yastıqlama şöbəsi', icon:'🪡',  hours:4},
+  shkurka:        {name:'Şkurka şöbəsi',            icon:'🔩',  hours:1.5},
+  masa_karkaz:    {name:'Masa karkaz şöbəsi',       icon:'🪚',  hours:3},
+  masa_rengle:    {name:'Masa rəngləmə şöbəsi',     icon:'🎨',  hours:2},
+  rengleme:       {name:'Rənglənmə şöbəsi',         icon:'🖌️',  hours:3},
+  yastiqlama:     {name:'Yastıqlama / Döşəmə',      icon:'🛋️',  hours:4},
+  tikis:          {name:'Tikiş şöbəsi',             icon:'🧵',  hours:3},
+  qa:             {name:'Keyfiyyət yoxlama',         icon:'✅',  hours:1},
+  logistics:      {name:'Logistika / Çatdırılma',   icon:'🚛',  hours:1},
 };
 
 const ALL_PERMS = [
@@ -3016,7 +3018,64 @@ function showDV(v){
   }
 }
 
-// ═══════════ CACHE SİSTEMİ — SADƏLƏŞDİRİLDİ ═══════════
+// ═══════════ İŞ SAATI SİSTEMİ ═══════════
+const WORK_START_H = 8,  WORK_START_M = 30;  // 08:30
+const WORK_END_H   = 18, WORK_END_M   = 30;  // 18:30
+
+function isWorkTime(){
+  const now = new Date();
+  const totalMins = now.getHours() * 60 + now.getMinutes();
+  const startMins = WORK_START_H * 60 + WORK_START_M;
+  const endMins   = WORK_END_H   * 60 + WORK_END_M;
+  return totalMins >= startMins && totalMins < endMins;
+}
+
+function minsUntilWorkEnd(){
+  const now = new Date();
+  const endMins = WORK_END_H * 60 + WORK_END_M;
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  return Math.max(0, endMins - nowMins);
+}
+
+// Hər dəqiqə iş vaxtını yoxla — 18:30-da bütün timerları durdur
+setInterval(()=>{
+  const now = new Date();
+  if(now.getHours() === WORK_END_H && now.getMinutes() === WORK_END_M){
+    pauseAllTimersAtWorkEnd();
+  }
+}, 60000);
+
+function pauseAllTimersAtWorkEnd(){
+  // Bütün aktiv timerları durdur
+  document.querySelectorAll('[id^="timer-"]').forEach(el=>{
+    if(el.dataset.intervalId){
+      clearInterval(parseInt(el.dataset.intervalId));
+      el.dataset.intervalId = '';
+      el.textContent = '🔴 İş vaxtı bitdi — sabah davam et';
+      el.style.color = '#E24B4A';
+    }
+  });
+  
+  // Bütün "Başla" düymələrini disable et
+  document.querySelectorAll('[onclick*="dStart"]').forEach(btn=>{
+    btn.disabled = true;
+    btn.title = 'İş vaxtı bitib (18:30)';
+  });
+  
+  toast('🔴 İş vaxtı bitdi — 18:30. Sabah 08:30-da davam edin.', 8000);
+}
+
+// İş vaxtı başlayanda "Başla" düymələrini aktiv et
+setInterval(()=>{
+  const now = new Date();
+  if(now.getHours() === WORK_START_H && now.getMinutes() === WORK_START_M){
+    document.querySelectorAll('[onclick*="dStart"]').forEach(btn=>{
+      btn.removeAttribute('disabled');
+      btn.title = '';
+    });
+    toast('🟢 İş vaxtı başladı — 08:30', 5000);
+  }
+}, 60000);
 // Cache deaktiv edildi — race condition problem yaradırdı
 // Hər çağırış birbaşa Supabase-ə gedir (sadə və proqnozlaşdırılan)
 const _cache = {};
@@ -3417,13 +3476,42 @@ async function renderDeptTasks(dept){
             const el = document.getElementById('timer-${o.id}');
             if(!el) return;
             const t0 = new Date('${startTime}');
+            const prevMins = ${prevDuration || 0}; // əvvəlki sessiyalardan qalan dəqiqələr
             if(el.dataset.intervalId) clearInterval(parseInt(el.dataset.intervalId));
+            
+            const WORK_END = ${WORK_END_H * 60 + WORK_END_M}; // 18*60+30 = 1110
+            
             const upd = ()=>{
-              const diff = Date.now() - t0;
-              if(diff < 0) return;
-              const m = Math.floor(diff/60000);
-              const s = Math.floor((diff%60000)/1000);
-              if(el && el.isConnected) el.textContent = '⏱ '+m+' dəq '+s+' san';
+              const nowMins = new Date().getHours()*60 + new Date().getMinutes();
+              // İş vaxtı bitibsə — timer dursun
+              if(nowMins >= WORK_END){
+                // 18:30-a qədər neçə dəqiqə işlənib hesabla
+                const workEndToday = new Date();
+                workEndToday.setHours(${WORK_END_H}, ${WORK_END_M}, 0, 0);
+                const sessionMins = t0 < workEndToday 
+                  ? Math.floor((workEndToday - t0) / 60000)
+                  : 0;
+                const total = prevMins + sessionMins;
+                const m = Math.floor(total/60), s = Math.floor(total%60);
+                if(el && el.isConnected){
+                  el.textContent = '🔴 Pause — ' + m + ' dəq ' + s + ' san (18:30)';
+                  el.style.color = '#E24B4A';
+                }
+                if(el.dataset.intervalId){
+                  clearInterval(parseInt(el.dataset.intervalId));
+                  el.dataset.intervalId = '';
+                }
+                return;
+              }
+              // Normal iş vaxtı — timer işlə
+              const sessionMins = Math.floor((Date.now() - t0) / 60000);
+              const sessionSecs = Math.floor(((Date.now() - t0) % 60000) / 1000);
+              const totalMins = prevMins + sessionMins;
+              const m = Math.floor(totalMins/60)*60 + totalMins%60;
+              if(el && el.isConnected){
+                el.textContent = '⏱ ' + totalMins + ' dəq ' + sessionSecs + ' san';
+                el.style.color = 'var(--or)';
+              }
             };
             upd();
             const intv = setInterval(upd, 1000);
@@ -3431,7 +3519,12 @@ async function renderDeptTasks(dept){
           })();
           <\/script>`:''}
           <div class="task-btns">
-            <button class="btn btn-o btn-lg" ${started||done?'disabled':''} onclick="dStart('${o.id}','${si}','${key}','${dept}')">▶ Başla</button>
+            <button class="btn btn-o btn-lg" ${started||done?'disabled':(!isWorkTime()?'disabled title="İş vaxtı deyil"':'')} onclick="dStart('${o.id}','${si}','${key}','${dept}')" style="${!started&&!done&&!isWorkTime()?'opacity:0.4;cursor:not-allowed':''}">
+              ${!started&&!done&&!isWorkTime()? (new Date().getHours()<WORK_START_H || (new Date().getHours()===WORK_START_H&&new Date().getMinutes()<WORK_START_M) ? '⏰ 08:30-da başlar' : '🔴 İş vaxtı bitib') : '▶ Başla'}
+            </button>
+            ${!started&&!done&&!isWorkTime()&&new Date().getHours()>=WORK_END_H?
+              `<button class="btn btn-lg" onclick="dStartExtra('${o.id}','${si}','${key}','${dept}')" style="background:#7C3AED;color:#fff;border:none">⚡ Extra Başla</button>`
+              :''}
             <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${total}')">✓ Tamamla</button>
           </div>
           ${(() => {
@@ -3702,7 +3795,88 @@ async function renderDeptTasks(dept){
   }
 }
 
+async function dStartExtra(oid,si,key,dept){
+  // Extra — iş vaxtından sonra işləmək üçün
+  // Normal dStart kimidir, amma iş vaxtı yoxlaması yoxdur
+  const now = new Date().toISOString();
+  
+  const el = document.getElementById('ts-'+oid);
+  if(el){ el.className='ts-box ts-go'; el.textContent='⚡ Extra vaxt...'; }
+  document.querySelectorAll(`[onclick*="dStartExtra('${oid}"]`).forEach(b=>b.disabled=true);
+  
+  try{
+    await sb.from('task_logs')
+      .delete()
+      .eq('order_id', oid)
+      .eq('stage_index', parseInt(si)-1)
+      .eq('dept_key', dept);
+    await sb.from('task_logs').insert({
+      order_id:oid, stage_index:parseInt(si)-1,
+      worker_id:currentUser?.id, worker_name:currentUser?.name,
+      dept_key:dept, action:'started_extra', started_at:now
+    });
+  }catch(e){
+    console.error('[dStartExtra]', e);
+    if(el){ el.className='ts-box ts-idle'; el.textContent='❌ Xəta'; }
+    document.querySelectorAll(`[onclick*="dStartExtra('${oid}"]`).forEach(b=>b.disabled=false);
+    return;
+  }
+  
+  if(el){ el.className='ts-box ts-go'; el.textContent='⚡ Extra — İcra olunur...'; }
+  const db = document.getElementById('td-'+oid);
+  if(db) db.disabled = false;
+  
+  // Timer — iş vaxtı yoxlaması olmadan işlə
+  if(!document.getElementById('timer-'+oid)){
+    const taskCard = document.getElementById('tcard-'+oid);
+    if(taskCard){
+      const btns = taskCard.querySelector('.task-btns');
+      if(btns){
+        const timerDiv = document.createElement('div');
+        timerDiv.id = 'timer-'+oid;
+        timerDiv.setAttribute('data-start', now);
+        timerDiv.style.cssText = 'font-size:14px;font-weight:600;color:#7C3AED;text-align:center;margin:8px 0';
+        timerDiv.textContent = '⚡ 0 dəq 0 san (Extra)';
+        btns.parentNode.insertBefore(timerDiv, btns);
+      }
+    }
+  }
+  
+  const timerEl = document.getElementById('timer-'+oid);
+  if(timerEl){
+    if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
+    const t0 = new Date(now);
+    const update = ()=>{
+      const diff = Date.now() - t0;
+      const m = Math.floor(diff/60000);
+      const s = Math.floor((diff%60000)/1000);
+      if(timerEl && timerEl.isConnected){
+        timerEl.textContent = `⚡ ${m} dəq ${s} san (Extra)`;
+        timerEl.style.color = '#7C3AED';
+      }
+    };
+    update();
+    const int = setInterval(update, 1000);
+    timerEl.dataset.intervalId = int;
+  }
+  
+  invalidateCache('logs','orders');
+  toast('⚡ Extra vaxt başladı!');
+}
+
 async function dStart(oid,si,key,dept){
+  // İş vaxtı yoxla — 08:30-18:30
+  if(!isWorkTime()){
+    const now2 = new Date();
+    const h = now2.getHours(), m2 = now2.getMinutes();
+    if(h < WORK_START_H || (h === WORK_START_H && m2 < WORK_START_M)){
+      toast('⏰ İş vaxtı hələ başlamayıb. Başlanğıc: 08:30', 5000);
+    } else {
+      toast('🔴 İş vaxtı bitib (18:30). Sabah 08:30-da davam edin.', 5000);
+    }
+    return;
+  }
+  
   const now=new Date().toISOString();
   
   const el=document.getElementById('ts-'+oid);
@@ -3754,7 +3928,24 @@ async function dStart(oid,si,key,dept){
   if(timerEl){
     if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
     const t0 = new Date(now);
+    const WEND = WORK_END_H * 60 + WORK_END_M;
     const update = ()=>{
+      const nowMins = new Date().getHours()*60 + new Date().getMinutes();
+      // 18:30-da timer durdur
+      if(nowMins >= WEND){
+        const workEndToday = new Date();
+        workEndToday.setHours(WORK_END_H, WORK_END_M, 0, 0);
+        const mins = t0 < workEndToday ? Math.floor((workEndToday - t0)/60000) : 0;
+        if(timerEl && timerEl.isConnected){
+          timerEl.textContent = `🔴 Pause — ${mins} dəq (18:30)`;
+          timerEl.style.color = '#E24B4A';
+        }
+        if(timerEl.dataset.intervalId){
+          clearInterval(parseInt(timerEl.dataset.intervalId));
+          timerEl.dataset.intervalId = '';
+        }
+        return;
+      }
       const diff = Date.now() - t0;
       const m = Math.floor(diff/60000);
       const s = Math.floor((diff%60000)/1000);
@@ -7546,29 +7737,26 @@ function updateStageOrder(keys){
   if(!wrap||!list)return;
   if(!keys.length){wrap.style.display='none';return;}
   wrap.style.display='block';
+  const letters = ['A','B','C','D','E'];
   list.innerHTML=keys.map((k,i)=>{
     if(k.includes('||')){
-      // Paralel mərhələ
+      // Paralel mərhələ — 2, 3 və ya daha çox şöbə
       const parts=k.split('||');
-      const d1=DEPT_INFO[parts[0]]||{name:parts[0],icon:'🔧',hours:0};
-      const d2=DEPT_INFO[parts[1]]||{name:parts[1],icon:'🔧',hours:0};
       return`<div style="border:2px solid var(--or);border-radius:var(--r);padding:8px;background:var(--lo);margin-bottom:4px">
-        <div style="font-size:10px;font-weight:700;color:var(--or);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">⚡ Paralel mərhələ</div>
-        <div style="display:flex;gap:6px">
-          <div class="stage-order-item" style="flex:1;margin:0;border:1px solid rgba(247,137,48,.3)">
-            <span class="so-num">${i+1}A</span>
-            <span style="font-size:13px">${d1.icon}</span>
-            <span style="flex:1;font-size:12px;font-weight:500">${d1.name}</span>
-            <span style="font-size:10px;color:var(--t3)">${d1.hours}s</span>
-          </div>
-          <div class="stage-order-item" style="flex:1;margin:0;border:1px solid rgba(247,137,48,.3)">
-            <span class="so-num">${i+1}B</span>
-            <span style="font-size:13px">${d2.icon}</span>
-            <span style="flex:1;font-size:12px;font-weight:500">${d2.name}</span>
-            <span style="font-size:10px;color:var(--t3)">${d2.hours}s</span>
-          </div>
+        <div style="font-size:10px;font-weight:700;color:var(--or);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">⚡ Paralel mərhələ (${parts.length} şöbə)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${parts.map((p,pi)=>{
+            const d=DEPT_INFO[p]||{name:p,icon:'🔧',hours:0};
+            return`<div class="stage-order-item" style="flex:1;min-width:120px;margin:0;border:1px solid rgba(247,137,48,.3)">
+              <span class="so-num">${i+1}${letters[pi]||pi}</span>
+              <span style="font-size:13px">${d.icon}</span>
+              <span style="flex:1;font-size:12px;font-weight:500">${d.name}</span>
+              <span style="font-size:10px;color:var(--t3)">${d.hours}s</span>
+            </div>`;
+          }).join('')}
         </div>
         <div style="display:flex;gap:4px;margin-top:6px;justify-content:flex-end">
+          <button class="so-move" onclick="mergeStages(${i})" style="font-size:11px;padding:3px 8px;background:var(--lo);color:var(--or);font-weight:600">+ Paralel əlavə et</button>
           <button class="so-move" onclick="unmergeStages(${i})" style="font-size:11px;padding:3px 8px">↕ Ayır</button>
           <button class="so-move" onclick="moveStage('${k}',-1)" ${i===0?'disabled':''}>↑</button>
           <button class="so-move" onclick="moveStage('${k}',1)" ${i===keys.length-1?'disabled':''}>↓</button>
@@ -7653,20 +7841,23 @@ function confirmParallel(idx, selectedKey){
   const currentKey = keys[idx];
   if(!currentKey) return;
   
-  const currentDept = currentKey.split('||')[0];
-  const merged = currentDept + '||' + selectedKey;
+  // Mövcud paralel şöbələri al (artıq 2 varsa 3-cünü əlavə et)
+  const currentParts = currentKey.split('||');
   
-  // Əgər seçilən şöbə artıq siyahıda varsa, onu sil
-  const existingIdx = keys.findIndex(k=>k===selectedKey || (k.includes('||') && k.split('||').includes(selectedKey)));
-  if(existingIdx > -1 && existingIdx !== idx){
-    if(keys[existingIdx].includes('||')){
-      const parts = keys[existingIdx].split('||').filter(p=>p!==selectedKey);
-      if(parts.length===1) keys[existingIdx] = parts[0];
-      else keys[existingIdx] = parts.join('||');
-    } else {
-      keys.splice(existingIdx, 1);
-    }
+  // Əgər seçilən şöbə artıq başqa yerdə varsa, onu oradan sil
+  const existingIdx = keys.findIndex((k,i)=>i!==idx && (k===selectedKey || (k.includes('||') && k.split('||').includes(selectedKey))));
+  if(existingIdx > -1){
+    const parts = keys[existingIdx].split('||').filter(p=>p!==selectedKey);
+    if(parts.length===1) keys[existingIdx] = parts[0];
+    else if(parts.length===0) keys.splice(existingIdx,1);
+    else keys[existingIdx] = parts.join('||');
   }
+  
+  // Yeni birləşmiş key — mövcud paralellərə 3-cünü əlavə et
+  if(!currentParts.includes(selectedKey)){
+    currentParts.push(selectedKey);
+  }
+  const merged = currentParts.join('||');
   
   const newIdx = keys.indexOf(currentKey);
   if(newIdx > -1) keys[newIdx] = merged;
@@ -7674,7 +7865,6 @@ function confirmParallel(idx, selectedKey){
   window._currentStageOrder = keys;
   closeParallelModal();
   
-  // İndi mode soruş: hər ikisi bitsin yoxsa biri?
   askParallelMode(merged, keys);
 }
 
