@@ -1890,7 +1890,7 @@ async function startCatalogMode(){
   // Modelləri yüklə
   try{
     const {data:models} = await sb.from('models').select('*').eq('is_active', true).order('name');
-    const allModels = (models || []).filter(m => m.show_in_catalog !== false);
+    const allModels = (models || []).filter(m => m.show_in_catalog === true);
     window._customerCatalogModels = allModels;
     renderCustomerCatalog(allModels);
   }catch(e){
@@ -4762,8 +4762,8 @@ async function openCustomerCatalog(){
   
   try {
     const {data:models} = await sb.from('models').select('*').order('name');
-    const active = (models || []).filter(m => m.is_active !== false);
-    // Cache — sifariş formasına tez açmaq üçün
+    // show_in_catalog === true olanları göstər (false və null olanları gizlət)
+    const active = (models || []).filter(m => m.show_in_catalog === true);
     window._customerCatalogModels = active;
     renderCustomerCatalog(active);
   } catch(e) {
