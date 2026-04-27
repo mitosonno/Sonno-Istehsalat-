@@ -1359,31 +1359,84 @@ async function validateDeadline(input){
   
   let d = new Date(dateStr);
   d.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0,0,0,0);
   const minDate = getMinDeadlineDate();
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  const isMeneger = currentUser && (currentUser.role === 'manager' || currentUser.role === 'admin');
   
-  // Bazar günü yoxla — ekranda xəbərdarlıq göstər
+  // Bu gün seçilibsə — qadağan
+  if(d <= today && !isAdmin){
+    showDeadlineWarningModal(
+      '⚠️ Bu gün qəbul edilmir',
+      'Sifariş günü deadline ola bilməz. Ən tez <b>sabah</b> tarixini seçin.',
+      minDate.toISOString().split('T')[0],
+      input,
+      false // keçməyə icazə yox
+    );
+    return;
+  }
+  
+  // Bazar günü — modal göstər
   if(d.getDay() === 0){
     const nextDay = new Date(d);
     nextDay.setDate(d.getDate()+1);
-    const nextDayStr = nextDay.toLocaleDateString('az-AZ', {weekday:'long', day:'numeric', month:'long'});
-    
-    // Ekranda xəbərdarlıq modalı göstər
     showSundayWarning(input, nextDay);
     return;
   }
   
-  // Admin deyilsə minimum 7 iş günü yoxla
-  const isAdmin = currentUser && currentUser.role === 'admin';
-  if(!isAdmin && d < minDate){
-    d = new Date(minDate);
-    const minStr = minDate.toLocaleDateString('az-AZ');
-    toast('⚠ Minimum 7 iş günü tələb olunur. Ən tez: '+minStr, 5000);
-  } else if(isAdmin && d < minDate){
-    toast('⚠ Admin kimi 7 gündən az deadline (tövsiyə: '+minDate.toLocaleDateString('az-AZ')+')', 4000);
+  // 7 iş günündən az — menecer üçün xəbərdarlıq (amma keçə bilər)
+  if(d < minDate){
+    if(isAdmin){
+      // Admin — sadəcə toast, keçir
+      toast('⚠ 7 iş günündən az deadline. Tövsiyə: '+minDate.toLocaleDateString('az-AZ'), 4000);
+    } else {
+      // Menecer — modal ilə xəbərdarlıq, amma "Yenə də davam et" düyməsi var
+      showDeadlineWarningModal(
+        '⚠️ 7 iş günündən az',
+        'Standart minimum <b>7 iş günüdür</b>.<br><br>Tövsiyə olunan ən tez tarix: <b style="color:var(--tl)">'
+          + minDate.toLocaleDateString('az-AZ', {weekday:'long', day:'numeric', month:'long'}) + '</b>',
+        minDate.toISOString().split('T')[0],
+        input,
+        true // menecer keçə bilər
+      );
+      return;
+    }
   }
   
   input.value = d.toISOString().split('T')[0];
   await checkDailyLimit(input.value, input);
+}
+
+function showDeadlineWarningModal(title, message, suggestedDate, input, allowOverride){
+  const old = document.getElementById('sunday-warning-modal');
+  if(old) old.remove();
+  
+  const modal = document.createElement('div');
+  modal.id = 'sunday-warning-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:28px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="font-size:42px;margin-bottom:10px">📅</div>
+      <div style="font-size:17px;font-weight:700;color:#111820;margin-bottom:8px">${title}</div>
+      <div style="font-size:13px;color:#666;margin-bottom:20px;line-height:1.6">${message}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button onclick="acceptSundayFix('${suggestedDate}')"
+          style="padding:13px;background:var(--tl);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700">
+          ✓ Tövsiyə olunan tarixi seç
+        </button>
+        ${allowOverride ? `
+        <button onclick="document.getElementById('sunday-warning-modal').remove();checkDailyLimit(document.getElementById('o-dead').value, document.getElementById('o-dead'))"
+          style="padding:11px;background:#fff;color:#E24B4A;border:1px solid #E24B4A;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600">
+          Yenə də bu tarixi istifadə et
+        </button>` : ''}
+        <button onclick="document.getElementById('sunday-warning-modal').remove();document.getElementById('o-dead').value=''"
+          style="padding:11px;background:#f5f5f5;color:#666;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px">
+          ← Ləğv et
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
 }
 
 function showSundayWarning(input, suggestedDate){
