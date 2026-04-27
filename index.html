@@ -3446,14 +3446,9 @@ async function renderDeptTasks(dept){
           <div class="task-btns">
             <button class="btn btn-o btn-lg" 
               id="start-btn-${o.id}"
-              ${started||done?'disabled':(!isWorkTime()&&new Date().getHours()<WORK_START_H?'disabled':(!isWorkTime()&&!window._overtimeAllowed?'disabled':''))} 
-              onclick="dStart('${o.id}','${si}','${key}','${dept}')"
-              style="${!started&&!done&&!isWorkTime()&&!window._overtimeAllowed?'opacity:0.45':''}">
-              ${!started&&!done
-                ? (!isWorkTime()
-                    ? (new Date().getHours()<WORK_START_H ? '⏰ 08:30-da' : (window._overtimeAllowed ? '▶ Başla (Əlavə)' : '🔴 Blok'))
-                    : '▶ Başla')
-                : '▶ Başla'}
+              ${started||done?'disabled':''} 
+              onclick="dStart('${o.id}','${si}','${key}','${dept}')">
+              ${started||done ? '▶ Başla' : !isWorkTime() && new Date().getHours() < WORK_START_H ? '⏰ 08:30-da' : '▶ Başla'}
             </button>
             <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${total}')">✓ Tamamla</button>
           </div>
@@ -3875,18 +3870,23 @@ async function dStart(oid,si,key,dept){
   if(el){el.className='ts-box ts-go';el.textContent='⏱ İcra olunur...';}
   const db=document.getElementById('td-'+oid);if(db)db.disabled=false;
   
-  // Timer HTML əlavə et
-  if(!document.getElementById('timer-'+oid)){
-    const taskCard = document.getElementById('tcard-'+oid);
-    if(taskCard){
-      const btns = taskCard.querySelector('.task-btns');
-      if(btns){
-        const timerDiv = document.createElement('div');
-        timerDiv.id = 'timer-'+oid;
-        timerDiv.style.cssText = 'font-size:14px;font-weight:600;color:var(--or);text-align:center;margin:8px 0';
-        timerDiv.textContent = '⏱ 0 dəq 0 san';
-        btns.parentNode.insertBefore(timerDiv, btns);
-      }
+  // Köhnə timer-ı tam sil
+  const oldTimer = document.getElementById('timer-'+oid);
+  if(oldTimer){
+    if(oldTimer.dataset.intervalId) clearInterval(parseInt(oldTimer.dataset.intervalId));
+    oldTimer.remove();
+  }
+  
+  // Yeni timer div yarat
+  const taskCard = document.getElementById('tcard-'+oid);
+  if(taskCard){
+    const btns = taskCard.querySelector('.task-btns');
+    if(btns){
+      const timerDiv = document.createElement('div');
+      timerDiv.id = 'timer-'+oid;
+      timerDiv.style.cssText = 'font-size:14px;font-weight:600;color:var(--or);text-align:center;margin:8px 0';
+      timerDiv.textContent = '⏱ 0 dəq 0 san';
+      btns.parentNode.insertBefore(timerDiv, btns);
     }
   }
   
@@ -7761,13 +7761,13 @@ async function editModel(id){
     }
   });
   
-  renderDeptChecklist(selectedKeys);
-  // Görünürlük toggle-larını doldur
-  syncToggle('am-show-catalog', m.show_in_catalog !== false);
-  syncToggle('am-show-price', m.show_price !== false);
   openSheet('add-model');
-  // Listener-ları aktivləşdir
-  setTimeout(()=>initToggleListeners(), 100);
+  // Sheet açıldıqdan sonra render et
+  setTimeout(()=>{
+    renderDeptChecklist(selectedKeys);
+    syncToggle('am-show-catalog', m.show_in_catalog !== false);
+    syncToggle('am-show-price', m.show_price !== false);
+  }, 50);
 }
 
 function setEmoji(e){
