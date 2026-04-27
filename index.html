@@ -2557,6 +2557,7 @@ async function showOD(id){
     </div>
     ` : ''}`;
   openSheet('order-detail');
+  console.log('[showOD] openSheet çağırıldı, sheet:', document.getElementById('order-detail-sheet')?.className);
   }catch(e){
     hideLoader();
     console.error('[showOD] Xəta:', e);
@@ -8236,8 +8237,9 @@ async function saveUser(){
 function openSheet(n){
   const ov=document.getElementById(n+'-ov');
   const sh=document.getElementById(n+'-sheet');
+  console.log('[openSheet]', n, 'ov:', !!ov, 'sh:', !!sh);
   if(ov)ov.classList.add('on');
-  if(sh)setTimeout(()=>sh.classList.add('on'),10);
+  if(sh)setTimeout(()=>{ sh.classList.add('on'); console.log('[openSheet] sheet.on added, class:', sh.className); },10);
 }
 function closeSheet(n){
   const ov=document.getElementById(n+'-ov');
