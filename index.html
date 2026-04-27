@@ -7568,6 +7568,13 @@ window._toggleState = {catalog: true, price: true};
 function toggleSwitch(key){
   window._toggleState[key] = !window._toggleState[key];
   setToggleUI(key, window._toggleState[key]);
+  
+  // Əgər model düzəldilirsə — dərhal Supabase-ə yaz
+  if(editingModelId){
+    const field = key === 'catalog' ? 'show_in_catalog' : 'show_price';
+    sb.from('models').update({[field]: window._toggleState[key]}).eq('id', editingModelId)
+      .then(()=> toast(window._toggleState[key] ? '✓ Aktivləşdi' : '✓ Deaktivləşdi'));
+  }
 }
 
 function setToggleUI(key, val){
