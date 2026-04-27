@@ -2317,7 +2317,7 @@ async function renderDash(){
       const createdDate = o.created_at ? new Date(o.created_at).toLocaleDateString('az-AZ',{day:'2-digit',month:'short'}) : '—';
       const modelImg = (() => {
   const _u = getFirstImage(m);
-  return _u ? `<img src="${_u}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;flex-shrink:0" onclick="event.stopPropagation();showLightbox(getModelImages(m),0)" title="Böyük gör">` : `<div style="width:32px;height:32px;border-radius:6px;background:var(--lt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${m.emoji}</div>`;
+  return _u ? `<img src="${_u}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;flex-shrink:0">` : `<div style="width:32px;height:32px;border-radius:6px;background:var(--lt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${m.emoji}</div>`;
 })();
       
       const rowBg = o.status === 'late' ? '#FEEEED' : o.status === 'delivered' ? '#E8F5E9' : 'transparent';
@@ -2419,7 +2419,7 @@ async function showOrderSheet(type){
 
     return`<div class="list-item" onclick="closeSheet('order-list');${type==='delivered'?`showDeliveredDetail('${o.id}')`:`showOD('${o.id}')`}" style="border-bottom:1px solid var(--bd)">
       <div class="li-icon" style="background:${o.status==='late'?'#FCEBEB':o.status==='delivered'?'#E8F5E9':stageColor}">
-        ${(() => { const _u = getFirstImage(m); return _u ? `<img src="${_u}" style="width:40px;height:40px;object-fit:cover;border-radius:10px" onclick="event.stopPropagation();showLightbox(getModelImages(m),0)" title="Böyük gör">` : `<div style="font-size:22px">${m.emoji}</div>`; })()}
+        ${(() => { const _u = getFirstImage(m); return _u ? `<img src="${_u}" style="width:40px;height:40px;object-fit:cover;border-radius:10px">` : `<div style="font-size:22px">${m.emoji}</div>`; })()}
       </div>
       <div class="li-body">
         <div class="li-title">${o.client} <span class="mono">${o.order_number}</span></div>
@@ -2475,20 +2475,21 @@ async function showDeliveredDetail(id){
 }
 
 async function showOD(id){
+  console.log('[showOD] Çağırıldı, id:', id);
+  try{
   showLoader();
   const{data:o}=await sb.from('orders').select('*').eq('id',id).single();
   const{data:logs}=await sb.from('task_logs').select('*').eq('order_id',id).order('created_at');
   hideLoader();
   if(!o)return;
   
-  // Modeli appModels-dən tap (show_in_catalog-dan asılı olmayaraq)
-  // Əgər tapılmasa birbaşa Supabase-dən çək
+  // Modeli appModels-dən tap, tapılmasa Supabase-dən çək
   let m = appModels.find(x=>x.id===o.model_id);
   if(!m && o.model_id){
     const {data:mData} = await sb.from('models').select('*').eq('id',o.model_id).single();
-    m = mData || {name:'?',stages:[]};
+    m = mData;
   }
-  if(!m) m = {name:'?',stages:[]};
+  if(!m) m = {name:'?',stages:[],emoji:'📦'};
   const st=ST[o.status]||ST.created;
   const logMap={};(logs||[]).forEach(l=>{logMap[l.stage_index]={started:l.started_at,completed:l.completed_at,dur:l.duration_minutes};});
   document.getElementById('od-title').textContent=o.order_number+' — '+o.client;
@@ -2556,9 +2557,12 @@ async function showOD(id){
     </div>
     ` : ''}`;
   openSheet('order-detail');
+  }catch(e){
+    hideLoader();
+    console.error('[showOD] Xəta:', e);
+    toast('❌ Sifariş açılmadı: '+e.message, 5000);
+  }
 }
-
-// ═══════════ ADMIN ORDER OPS ═══════════
 async function adminCancelOrder(oid, orderNum){
   const reason = prompt('Sifariş ' + orderNum + ' imtina səbəbi:');
   if(reason === null) return;
