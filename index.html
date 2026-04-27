@@ -1890,7 +1890,7 @@ async function startCatalogMode(){
   // Modelləri yüklə
   try{
     const {data:models} = await sb.from('models').select('*').eq('is_active', true).order('name');
-    const allModels = (models || []).filter(m => m.show_in_catalog === true);
+    const allModels = (models || []).filter(m => m.show_in_catalog !== false);
     window._customerCatalogModels = allModels;
     renderCustomerCatalog(allModels);
   }catch(e){
@@ -4849,7 +4849,7 @@ async function openCustomerCatalog(){
   try {
     // Həmişə təzə data çək — cache istifadə etmə
     const {data:models} = await sb.from('models').select('*').order('name');
-    const active = (models || []).filter(m => m.show_in_catalog === true);
+    const active = (models || []).filter(m => m.show_in_catalog !== false);
     window._customerCatalogModels = active;
     renderCustomerCatalog(active);
   } catch(e) {
@@ -7693,12 +7693,13 @@ function openAddModel(){
   renderImagesPreview();
   window._currentStageOrder = [];
   window._parallelModes = {};
-  renderDeptChecklist([]);
-  // Toggle-ları sıfırla
-  syncToggle('am-show-catalog', true);
-  syncToggle('am-show-price', true);
   openSheet('add-model');
-  setTimeout(()=>initToggleListeners(), 100);
+  // Sheet açıldıqdan sonra render et
+  setTimeout(()=>{
+    renderDeptChecklist([]);
+    syncToggle('am-show-catalog', true);
+    syncToggle('am-show-price', true);
+  }, 50);
 }
 
 // ═══════════ ƏLAVƏ İŞ İCAZƏSİ ═══════════
