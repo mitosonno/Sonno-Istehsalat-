@@ -3437,37 +3437,52 @@ async function renderDeptTasks(dept){
           ${wHtml}
           <div class="ts-box ${stCls}" id="ts-${o.id}">${stTxt}</div>
           ${started&&!done?`
-          <div style="font-size:14px;font-weight:600;color:var(--or);text-align:center;margin:8px 0" id="timer-${o.id}" data-start="${startTime}">⏱ hesablanır...</div>
+          <div style="font-size:14px;font-weight:600;color:var(--or);text-align:center;margin:8px 0" id="timer-${o.id}">⏱ hesablanır...</div>
           <script>
           (function(){
             const el = document.getElementById('timer-${o.id}');
             if(!el) return;
             const t0 = new Date('${startTime}');
-            if(el.dataset.intervalId) clearInterval(parseInt(el.dataset.intervalId));
-            const upd = ()=>{
-              const diff = Date.now() - t0;
-              if(diff < 0) return;
-              const m = Math.floor(diff/60000);
-              const s = Math.floor((diff%60000)/1000);
-              if(el && el.isConnected) el.textContent = '⏱ '+m+' dəq '+s+' san';
-            };
-            upd();
-            const intv = setInterval(upd, 1000);
-            el.dataset.intervalId = intv;
+            const elapsedMs = Date.now() - t0;
+            const WEND = ${WORK_END_H}*60+${WORK_END_M};
+            const nowMins = new Date().getHours()*60+new Date().getMinutes();
+            
+            if(nowMins >= WEND){
+              // İş vaxtı bitib — pause göstər
+              const workEnd = new Date(); workEnd.setHours(${WORK_END_H},${WORK_END_M},0,0);
+              const pausedMs = t0 < workEnd ? workEnd-t0 : 0;
+              el.dataset.elapsedMs = pausedMs;
+              const m=Math.floor(pausedMs/60000), s=Math.floor((pausedMs%60000)/1000);
+              el.textContent = '⏸ Pauza — '+m+' dəq '+s+' san';
+              el.style.color = 'var(--or)';
+              // Başla düyməsini pauza et
+              const sb2 = document.getElementById('start-btn-${o.id}');
+              if(sb2){ sb2.textContent='⏸ Pauza — davam et'; sb2.disabled=false; sb2.style.opacity='1'; sb2.onclick=()=>resumeTimer('${o.id}'); }
+            } else {
+              // Normal iş vaxtı — timer işlət
+              el.dataset.startMs = Date.now() - elapsedMs;
+              if(el.dataset.intervalId) clearInterval(parseInt(el.dataset.intervalId));
+              const upd = ()=>{
+                const nowM2 = new Date().getHours()*60+new Date().getMinutes();
+                if(nowM2>=WEND){ clearInterval(parseInt(el.dataset.intervalId||0)); return; }
+                const diff = Date.now() - parseInt(el.dataset.startMs||Date.now());
+                const m=Math.floor(diff/60000), s=Math.floor((diff%60000)/1000);
+                if(el && el.isConnected) el.textContent='⏱ '+m+' dəq '+s+' san';
+              };
+              upd();
+              const intv=setInterval(upd,1000);
+              el.dataset.intervalId=intv;
+            }
           })();
           <\/script>`:''}
-          <div class="task-btns" style="grid-template-columns:${!started&&!done&&!isWorkTime()&&new Date().getHours()>=WORK_END_H?'1fr 1fr 1fr':'1fr 1fr'}">
+          <div class="task-btns">
             <button class="btn btn-o btn-lg" 
-              ${started||done?'disabled':(!isWorkTime()?'disabled':'')} 
+              id="start-btn-${o.id}"
+              ${started||done?'disabled':(!isWorkTime()&&new Date().getHours()<WORK_START_H?'disabled':'')} 
               onclick="dStart('${o.id}','${si}','${key}','${dept}')"
-              style="${!started&&!done&&!isWorkTime()?'opacity:0.45':''}">
-              ${!started&&!done&&!isWorkTime()
-                ? (new Date().getHours()<WORK_START_H||(new Date().getHours()===WORK_START_H&&new Date().getMinutes()<WORK_START_M)?'⏰ 08:30-da':'🔴 Bitib')
-                : '▶ Başla'}
+              style="${!started&&!done&&!isWorkTime()&&new Date().getHours()<WORK_START_H?'opacity:0.45':''}">
+              ${!started&&!done&&!isWorkTime()&&new Date().getHours()<WORK_START_H?'⏰ 08:30-da':'▶ Başla'}
             </button>
-            ${!started&&!done&&!isWorkTime()&&new Date().getHours()>=WORK_END_H
-              ? `<button class="btn btn-lg" onclick="dStartExtra('${o.id}','${si}','${key}','${dept}')" style="background:#7C3AED;color:#fff;border:none">⚡ Extra</button>`
-              : ''}
             <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${total}')">✓ Tamamla</button>
           </div>
           ${(() => {
@@ -3748,19 +3763,119 @@ function isWorkTime(){
   return mins >= WORK_START_H*60+WORK_START_M && mins < WORK_END_H*60+WORK_END_M;
 }
 
-// Hər dəqiqə yoxla — 18:30-da pause et
+// Timer başlat — elapsed dəqiqədən davam et
+function startTimerFromElapsed(oid, elapsedMs){
+  const timerEl = document.getElementById('timer-'+oid);
+  if(!timerEl) return;
+  if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
+  
+  const startMs = Date.now() - elapsedMs; // virtual başlanğıc
+  timerEl.dataset.startMs = startMs;
+  
+  const WEND = WORK_END_H*60 + WORK_END_M;
+  
+  const update = ()=>{
+    const nowMins = new Date().getHours()*60 + new Date().getMinutes();
+    if(nowMins >= WEND){
+      // 18:30-da pause
+      const elapsed = Date.now() - startMs;
+      const m = Math.floor(elapsed/60000);
+      const s = Math.floor((elapsed%60000)/1000);
+      if(timerEl && timerEl.isConnected){
+        timerEl.dataset.elapsedMs = elapsed; // pause anındakı vaxtı saxla
+        timerEl.textContent = `⏸ Pauza — ${m} dəq ${s} san`;
+        timerEl.style.color = 'var(--or)';
+      }
+      // Start düyməsini "⏸ Pauza" et
+      const startBtn = document.getElementById('start-btn-'+oid);
+      if(startBtn && !startBtn.disabled){
+        startBtn.textContent = '⏸ Pauza — davam et';
+        startBtn.disabled = false;
+        startBtn.onclick = ()=>resumeTimer(oid);
+        startBtn.style.opacity = '1';
+      }
+      if(timerEl.dataset.intervalId){
+        clearInterval(parseInt(timerEl.dataset.intervalId));
+        timerEl.dataset.intervalId = '';
+      }
+      return;
+    }
+    
+    const elapsed = Date.now() - startMs;
+    const m = Math.floor(elapsed/60000);
+    const s = Math.floor((elapsed%60000)/1000);
+    if(timerEl && timerEl.isConnected){
+      timerEl.textContent = `⏱ ${m} dəq ${s} san`;
+      timerEl.style.color = 'var(--or)';
+    }
+  };
+  update();
+  const int = setInterval(update, 1000);
+  timerEl.dataset.intervalId = int;
+}
+
+// Pause-dan davam et
+function resumeTimer(oid){
+  const timerEl = document.getElementById('timer-'+oid);
+  if(!timerEl) return;
+  
+  const elapsedMs = parseInt(timerEl.dataset.elapsedMs || '0');
+  startTimerFromElapsed(oid, elapsedMs);
+  
+  // Düyməni geri qaytar
+  const startBtn = document.getElementById('start-btn-'+oid);
+  if(startBtn){
+    startBtn.textContent = '⏱ Davam edir...';
+    startBtn.disabled = true;
+  }
+  
+  toast('▶ Timer davam edir — iş saatı xaricindədir');
+}
+
+// Hər dəqiqə yoxla — 18:30-da pause, 08:30-da avtomatik davam
 setInterval(()=>{
   const now = new Date();
-  if(now.getHours()===WORK_END_H && now.getMinutes()===WORK_END_M){
+  const h = now.getHours(), m = now.getMinutes();
+  
+  // 18:30 — avtomatik pause
+  if(h===WORK_END_H && m===WORK_END_M){
     document.querySelectorAll('[id^="timer-"]').forEach(el=>{
       if(el.dataset.intervalId){
         clearInterval(parseInt(el.dataset.intervalId));
+        const startMs = parseInt(el.dataset.startMs||'0');
+        const elapsed = startMs ? Date.now()-startMs : 0;
+        el.dataset.elapsedMs = elapsed;
         el.dataset.intervalId='';
-        el.style.color='#E24B4A';
-        el.textContent='🔴 Pause — 18:30 iş vaxtı bitdi';
+        const mm=Math.floor(elapsed/60000), ss=Math.floor((elapsed%60000)/1000);
+        el.textContent=`⏸ Pauza — ${mm} dəq ${ss} san`;
+        el.style.color='var(--or)';
+        const oid = el.id.replace('timer-','');
+        const startBtn = document.getElementById('start-btn-'+oid);
+        if(startBtn){
+          startBtn.textContent='⏸ Pauza — davam et';
+          startBtn.disabled=false;
+          startBtn.onclick=()=>resumeTimer(oid);
+          startBtn.style.opacity='1';
+        }
       }
     });
-    toast('🔴 İş vaxtı bitdi — 18:30. Sabah 08:30-da davam edin.', 8000);
+    toast('⏸ İş vaxtı bitdi — 18:30. Timer pauza oldu.', 8000);
+  }
+  
+  // 08:30 — avtomatik davam et (bazar günü xaricində)
+  if(h===WORK_START_H && m===WORK_START_M){
+    const dayOfWeek = now.getDay(); // 0 = bazar
+    if(dayOfWeek === 0){
+      toast('📅 Bazar günüdür — avtomatik başlamır. İstəsəniz özünüz başladın.', 6000);
+      return;
+    }
+    document.querySelectorAll('[id^="timer-"]').forEach(el=>{
+      if(!el.dataset.intervalId && el.dataset.elapsedMs){
+        const oid = el.id.replace('timer-','');
+        resumeTimer(oid);
+      }
+    });
+    toast('▶ İş vaxtı başladı — 08:30. Timerlər davam edir.', 5000);
   }
 }, 60000);
 
@@ -3807,7 +3922,6 @@ async function dStart(oid,si,key,dept){
       if(btns){
         const timerDiv = document.createElement('div');
         timerDiv.id = 'timer-'+oid;
-        timerDiv.setAttribute('data-start', now);
         timerDiv.style.cssText = 'font-size:14px;font-weight:600;color:var(--or);text-align:center;margin:8px 0';
         timerDiv.textContent = '⏱ 0 dəq 0 san';
         btns.parentNode.insertBefore(timerDiv, btns);
@@ -3815,34 +3929,8 @@ async function dStart(oid,si,key,dept){
     }
   }
   
-  // Timer başlat — 18:30-da avtomatik pause
-  const timerEl = document.getElementById('timer-'+oid);
-  if(timerEl){
-    if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
-    const t0 = new Date(now);
-    const WEND = WORK_END_H*60 + WORK_END_M;
-    const update = ()=>{
-      const nowMins = new Date().getHours()*60 + new Date().getMinutes();
-      if(nowMins >= WEND){
-        const workEndToday = new Date();
-        workEndToday.setHours(WORK_END_H, WORK_END_M, 0, 0);
-        const mins = t0 < workEndToday ? Math.floor((workEndToday-t0)/60000) : 0;
-        if(timerEl && timerEl.isConnected){
-          timerEl.textContent = `🔴 Pause — ${mins} dəq (18:30)`;
-          timerEl.style.color = '#E24B4A';
-        }
-        if(timerEl.dataset.intervalId){ clearInterval(parseInt(timerEl.dataset.intervalId)); timerEl.dataset.intervalId=''; }
-        return;
-      }
-      const diff = Date.now() - t0;
-      const m = Math.floor(diff/60000);
-      const s = Math.floor((diff%60000)/1000);
-      if(timerEl && timerEl.isConnected) timerEl.textContent = `⏱ ${m} dəq ${s} san`;
-    };
-    update();
-    const int = setInterval(update, 1000);
-    timerEl.dataset.intervalId = int;
-  }
+  // Timer başlat — 0-dan
+  startTimerFromElapsed(oid, 0);
   
   invalidateCache('logs','orders');
   toast('▶ Başladı — vaxt sayılır');
@@ -4757,17 +4845,17 @@ let _currentCustomer = null; // Giriş etmiş müştəri
 
 async function openCustomerCatalog(){
   const body = document.getElementById('customer-catalog-body');
-  body.innerHTML = '<div style="text-align:center;padding:40px;color:#888">Yüklənir...</div>';
+  body.innerHTML = '<div style="text-align:center;padding:40px;color:#888">⏳ Yüklənir...</div>';
   document.getElementById('customer-catalog-screen').style.display = 'block';
   
   try {
+    // Həmişə təzə data çək — cache istifadə etmə
     const {data:models} = await sb.from('models').select('*').order('name');
-    // show_in_catalog === true olanları göstər (false və null olanları gizlət)
     const active = (models || []).filter(m => m.show_in_catalog === true);
     window._customerCatalogModels = active;
     renderCustomerCatalog(active);
   } catch(e) {
-    body.innerHTML = '<div style="text-align:center;padding:40px;color:#E24B4A">Yüklənmə xətası</div>';
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:#E24B4A">❌ Yüklənmə xətası</div>';
   }
 }
 
@@ -7569,11 +7657,22 @@ function toggleSwitch(key){
   window._toggleState[key] = !window._toggleState[key];
   setToggleUI(key, window._toggleState[key]);
   
-  // Əgər model düzəldilirsə — dərhal Supabase-ə yaz
   if(editingModelId){
     const field = key === 'catalog' ? 'show_in_catalog' : 'show_price';
-    sb.from('models').update({[field]: window._toggleState[key]}).eq('id', editingModelId)
-      .then(()=> toast(window._toggleState[key] ? '✓ Aktivləşdi' : '✓ Deaktivləşdi'));
+    const val = window._toggleState[key];
+    console.log('[toggle]', field, '=', val, 'model:', editingModelId);
+    sb.from('models').update({[field]: val}).eq('id', editingModelId)
+      .then(({error})=>{
+        if(error){
+          console.error('[toggle] Xəta:', error);
+          toast('❌ Xəta: '+error.message, 5000);
+          // Geri qaytar
+          window._toggleState[key] = !val;
+          setToggleUI(key, !val);
+        } else {
+          toast(val ? '✓ Kataloqda göstərilir' : '✓ Kataloqdan gizlədildi');
+        }
+      });
   }
 }
 
