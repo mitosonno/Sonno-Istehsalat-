@@ -879,11 +879,29 @@ textarea{resize:vertical;min-height:80px}
         <input id="am-sale-price" type="number" min="0" step="0.01" placeholder="0.00" style="font-weight:600">
         <span style="font-size:11px;color:var(--t3);margin-top:3px">Bu qiymət sifarişdə dəyişdirilmir</span>
       </div>
-      <div class="fg">
-        <label>Maya dəyəri (₼)</label>
-        <input id="am-cost-price" type="number" min="0" step="0.01" placeholder="0.00">
-        <span style="font-size:11px;color:var(--t3);margin-top:3px">Daxili qeyd üçün</span>
-      </div>
+    <div class="fg">
+      <label>Maya dəyəri (₼)</label>
+      <input id="am-cost-price" type="number" min="0" step="0.01" placeholder="0.00">
+      <span style="font-size:11px;color:var(--t3);margin-top:3px">Daxili qeyd üçün</span>
+    </div>
+    </div>
+    <!-- Görünürlük -->
+    <div style="background:#f8f9fa;border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;margin-bottom:4px">
+      <div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Katalog görünürlüyü</div>
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--bd)">
+        <input type="checkbox" id="am-show-catalog" checked style="width:18px;height:18px;accent-color:var(--tl);cursor:pointer;flex-shrink:0">
+        <div>
+          <div style="font-size:14px;font-weight:600">Kataloqda göstərilsin</div>
+          <div style="font-size:11px;color:var(--t3)">Müştəri kataloqunda və sifariş formada görünsün</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer">
+        <input type="checkbox" id="am-show-price" checked style="width:18px;height:18px;accent-color:var(--tl);cursor:pointer;flex-shrink:0">
+        <div>
+          <div style="font-size:14px;font-weight:600">Qiymət göstərilsin</div>
+          <div style="font-size:11px;color:var(--t3)">Kataloqda qiyməti göstər</div>
+        </div>
+      </label>
     </div>
     <div class="fg">
       <label>Şəkil / Emoji <span style="font-size:11px;color:var(--t3);font-weight:400">(1-3 şəkil yüklə bilərsiniz)</span></label>
@@ -1864,7 +1882,7 @@ async function startCatalogMode(){
   // Modelləri yüklə
   try{
     const {data:models} = await sb.from('models').select('*').eq('is_active', true).order('name');
-    const allModels = models || [];
+    const allModels = (models || []).filter(m => m.show_in_catalog !== false);
     window._customerCatalogModels = allModels;
     renderCustomerCatalog(allModels);
   }catch(e){
@@ -4751,8 +4769,11 @@ function renderCustomerCatalogItems(models){
           <div style="font-size:13px;font-weight:700;color:#111820;line-height:1.3;margin-bottom:4px">${m.name}</div>
           ${m.description ? `<div style="font-size:11px;color:#888;margin-bottom:6px;line-height:1.4">${m.description}</div>` : ''}
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <div style="font-size:20px;font-weight:800;color:#111820">${price>0?price.toFixed(0)+' ₼':'—'}</div>
-            ${price>0?`<div style="font-size:10px;color:#888">qiymətdən</div>`:''}
+            ${m.show_price === false
+              ? `<div style="font-size:12px;color:#888;font-style:italic">Qiymət üçün menecerimizlə əlaqə</div>`
+              : `<div style="font-size:20px;font-weight:800;color:#111820">${price>0?price.toFixed(0)+' ₼':'—'}</div>
+                 ${price>0?`<div style="font-size:10px;color:#888">qiymətdən</div>`:''}`
+            }
           </div>
           <button onclick="openCustomerOrderForm('${m.id}')" 
             style="width:100%;padding:11px;background:#111820;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s"
@@ -6930,6 +6951,47 @@ async function refreshStats(){
       </div>
     </div>
     
+    <!-- Vitrin / Nəqd satış -->
+    <div class="slbl">🏪 Vitrin vs 💵 Nəqd satış</div>
+    <div style="margin-bottom:14px">
+      ${(()=>{
+        const showroom = filteredOrders.filter(o=>o.sale_type==='showroom');
+        const cash = filteredOrders.filter(o=>o.sale_type!=='showroom');
+        const showroomRev = showroom.reduce((s,o)=>s+(o.final_price||0),0);
+        const cashRev = cash.reduce((s,o)=>s+(o.final_price||0),0);
+        const showroomQty = showroom.reduce((s,o)=>s+(o.qty||0),0);
+        const cashQty = cash.reduce((s,o)=>s+(o.qty||0),0);
+        const total = filteredOrders.length || 1;
+        const showroomPct = Math.round(showroom.length/total*100);
+        const cashPct = 100 - showroomPct;
+        return `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div style="background:#FFF4E8;padding:14px;border-radius:10px;border-left:4px solid var(--or)">
+              <div style="font-size:11px;font-weight:700;color:var(--or);margin-bottom:6px;text-transform:uppercase">🏪 Vitrin</div>
+              <div style="font-size:24px;font-weight:800;color:#111820">${showroom.length}</div>
+              <div style="font-size:11px;color:var(--t2)">${showroomQty} ədəd məhsul</div>
+              <div style="font-size:16px;font-weight:700;color:var(--or);margin-top:6px">${showroomRev.toFixed(0)} ₼</div>
+              <div style="font-size:11px;color:var(--t3)">%${showroomPct} pay</div>
+            </div>
+            <div style="background:#E8F5E9;padding:14px;border-radius:10px;border-left:4px solid #2E7D32">
+              <div style="font-size:11px;font-weight:700;color:#2E7D32;margin-bottom:6px;text-transform:uppercase">💵 Nəqd</div>
+              <div style="font-size:24px;font-weight:800;color:#111820">${cash.length}</div>
+              <div style="font-size:11px;color:var(--t2)">${cashQty} ədəd məhsul</div>
+              <div style="font-size:16px;font-weight:700;color:#2E7D32;margin-top:6px">${cashRev.toFixed(0)} ₼</div>
+              <div style="font-size:11px;color:var(--t3)">%${cashPct} pay</div>
+            </div>
+          </div>
+          <div style="background:#f0f0f0;border-radius:20px;height:8px;overflow:hidden;margin-bottom:4px">
+            <div style="height:100%;background:linear-gradient(90deg,var(--or) ${showroomPct}%,#2E7D32 ${showroomPct}%);border-radius:20px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3)">
+            <span>🏪 Vitrin %${showroomPct}</span>
+            <span>💵 Nəqd %${cashPct}</span>
+          </div>
+        `;
+      })()}
+    </div>
+
     <!-- Ən çox satılan modellər -->
     <div class="slbl">🏆 Ən çox satılan modellər</div>
     <div class="sec-card" style="margin-bottom:14px">
@@ -7411,6 +7473,11 @@ async function editModel(id){
   });
   
   renderDeptChecklist(selectedKeys);
+  // Görünürlük checkbox-larını doldur
+  const sc = document.getElementById('am-show-catalog');
+  const sp = document.getElementById('am-show-price');
+  if(sc) sc.checked = m.show_in_catalog !== false;
+  if(sp) sp.checked = m.show_price !== false;
   openSheet('add-model');
 }
 
@@ -7790,29 +7857,28 @@ async function saveModel(){
   
   const totalHours=stages.reduce((s,x)=>s+x.hours,0);
   const category = document.getElementById('am-category')?.value || null;
+  const showInCatalog = document.getElementById('am-show-catalog')?.checked !== false;
+  const showPrice = document.getElementById('am-show-price')?.checked !== false;
   
   // Şəkilləri hazırla — yeni format: JSON array (1-3 şəkil)
   // Köhnə format: single string (köhnə modellər üçün)
   let imgUrlValue = null;
   if(modelImagesArr.length > 1){
-    // Birdən çox şəkil → JSON array
     imgUrlValue = JSON.stringify(modelImagesArr);
   } else if(modelImagesArr.length === 1){
-    // Tək şəkil → adi string (köhnə uyumluluq)
     imgUrlValue = modelImagesArr[0];
   } else if(modelImgData && modelImgData.startsWith('data:')){
-    // Backup — köhnə kod üçün
     imgUrlValue = modelImgData;
   }
   
   showLoader();
   if(editingModelId){
-    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category};
+    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,show_in_catalog:showInCatalog,show_price:showPrice};
     if(imgUrlValue) upd.img_url = imgUrlValue;
     await sb.from('models').update(upd).eq('id',editingModelId);
     toast('✓ Model yeniləndi: '+name);
   }else{
-    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:imgUrlValue,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:true});
+    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:imgUrlValue,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:true,show_in_catalog:showInCatalog,show_price:showPrice});
     toast('✓ Model əlavə edildi: '+name);
   }
   hideLoader();
