@@ -2151,6 +2151,9 @@ async function initApp(){
   document.getElementById('topbar-role').textContent=rL[u.role]||u.role;
   document.getElementById('dash-date').textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
   
+  // Əlavə iş icazəsini yüklə
+  loadOvertimeSetting();
+  
   // Data arxa planda yüklə (parallel)
   const dataPromise = Promise.all([
     sb.from('models').select('*'),  // Bütün modelləri çək - is_active filtrini client-də et
@@ -3478,10 +3481,14 @@ async function renderDeptTasks(dept){
           <div class="task-btns">
             <button class="btn btn-o btn-lg" 
               id="start-btn-${o.id}"
-              ${started||done?'disabled':(!isWorkTime()&&new Date().getHours()<WORK_START_H?'disabled':'')} 
+              ${started||done?'disabled':(!isWorkTime()&&new Date().getHours()<WORK_START_H?'disabled':(!isWorkTime()&&!window._overtimeAllowed?'disabled':''))} 
               onclick="dStart('${o.id}','${si}','${key}','${dept}')"
-              style="${!started&&!done&&!isWorkTime()&&new Date().getHours()<WORK_START_H?'opacity:0.45':''}">
-              ${!started&&!done&&!isWorkTime()&&new Date().getHours()<WORK_START_H?'⏰ 08:30-da':'▶ Başla'}
+              style="${!started&&!done&&!isWorkTime()&&!window._overtimeAllowed?'opacity:0.45':''}">
+              ${!started&&!done
+                ? (!isWorkTime()
+                    ? (new Date().getHours()<WORK_START_H ? '⏰ 08:30-da' : (window._overtimeAllowed ? '▶ Başla (Əlavə)' : '🔴 Blok'))
+                    : '▶ Başla')
+                : '▶ Başla'}
             </button>
             <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${total}')">✓ Tamamla</button>
           </div>
@@ -3886,10 +3893,14 @@ async function dStart(oid,si,key,dept){
     const h = now2.getHours(), m2 = now2.getMinutes();
     if(h < WORK_START_H || (h===WORK_START_H && m2 < WORK_START_M)){
       toast('⏰ İş vaxtı hələ başlamayıb. Başlanğıc: 08:30', 5000);
-    } else {
-      toast('🔴 İş vaxtı bitib (18:30). Sabah 08:30-da davam edin.', 5000);
+      return;
     }
-    return;
+    // 18:30-dan sonra — icazə varmı?
+    if(!window._overtimeAllowed){
+      toast('🔴 İş vaxtı bitib (18:30). Admin əlavə işə icazə verməyib.', 5000);
+      return;
+    }
+    // İcazə var — davam et
   }
 
   const now=new Date().toISOString();
@@ -6738,6 +6749,23 @@ async function renderSettingsSection(el){
           <button class="btn btn-t" style="font-size:12px;padding:10px 16px" onclick="saveDailyLimit()">💾 Yadda saxla</button>
         </div>
       </div>
+      
+      <!-- Əlavə iş icazəsi -->
+      <div style="padding-top:16px;border-top:1px solid var(--bd)">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--dp)">⏰ Əlavə işə icazə (18:30+)</div>
+            <div style="font-size:12px;color:var(--t2);margin-top:3px">Açıq olduqda işçilər 18:30-dan sonra "Başla" düyməsini basa bilər</div>
+          </div>
+          <div id="overtime-toggle" onclick="toggleOvertimePermission()" 
+            style="width:48px;height:26px;border-radius:26px;cursor:pointer;position:relative;transition:.3s;flex-shrink:0;background:${window._overtimeAllowed?'var(--tl)':'#ccc'}">
+            <div id="overtime-toggle-knob" style="position:absolute;width:20px;height:20px;background:#fff;border-radius:50%;top:3px;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,.3);left:${window._overtimeAllowed?'25px':'3px'}"></div>
+          </div>
+        </div>
+        <div style="font-size:11px;margin-top:6px;padding:6px 10px;border-radius:8px;background:${window._overtimeAllowed?'#E8F5E9':'#FFF4E8'};color:${window._overtimeAllowed?'#2E7D32':'var(--or)'}">
+          ${window._overtimeAllowed?'✓ İşçilər 18:30-dan sonra işə başlaya bilər':'✗ 18:30-dan sonra "Başla" düyməsi bloklanır'}
+        </div>
+      </div>
     </div>
     
     <div class="sec-card card-pad">
@@ -7650,8 +7678,32 @@ function openAddModel(){
   setTimeout(()=>initToggleListeners(), 100);
 }
 
-// Toggle switch sistemi
-window._toggleState = {catalog: true, price: true};
+// ═══════════ ƏLAVƏ İŞ İCAZƏSİ ═══════════
+window._overtimeAllowed = false; // Default: bağlı
+
+// App yükləndikdə Supabase-dən oxu
+async function loadOvertimeSetting(){
+  try{
+    const {data} = await sb.from('app_settings').select('value').eq('key','overtime_allowed').maybeSingle();
+    window._overtimeAllowed = data?.value === 'true';
+  }catch(e){
+    window._overtimeAllowed = false;
+  }
+}
+
+async function toggleOvertimePermission(){
+  window._overtimeAllowed = !window._overtimeAllowed;
+  // Supabase-ə yaz
+  await sb.from('app_settings').upsert({key:'overtime_allowed', value:String(window._overtimeAllowed)});
+  // UI yenilə
+  const track = document.getElementById('overtime-toggle');
+  const knob = document.getElementById('overtime-toggle-knob');
+  if(track) track.style.background = window._overtimeAllowed ? 'var(--tl)' : '#ccc';
+  if(knob) knob.style.left = window._overtimeAllowed ? '25px' : '3px';
+  toast(window._overtimeAllowed ? '✓ Əlavə işə icazə verildi' : '✓ Əlavə iş bloklandı');
+  // Status yazısını yenilə
+  setTimeout(()=>adminSec('settings'), 300);
+}
 
 function toggleSwitch(key){
   window._toggleState[key] = !window._toggleState[key];
