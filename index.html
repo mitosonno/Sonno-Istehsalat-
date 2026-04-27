@@ -903,6 +903,31 @@ textarea{resize:vertical;min-height:80px}
         </div>
       </div>
     </div>
+    <!-- Görünürlük parametrləri -->
+    <div style="background:#f8f9fa;border:1px solid var(--bd);border-radius:var(--r);padding:14px;margin-bottom:4px">
+      <div style="font-size:12px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Görünürlük parametrləri</div>
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--bd)">
+        <input type="checkbox" id="am-show-catalog" checked style="width:18px;height:18px;accent-color:var(--tl);cursor:pointer">
+        <div>
+          <div style="font-size:14px;font-weight:600">Kataloqda göstərilsin</div>
+          <div style="font-size:11px;color:var(--t3)">Müştəri kataloqunda görünsün</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--bd)">
+        <input type="checkbox" id="am-show-price" checked style="width:18px;height:18px;accent-color:var(--tl);cursor:pointer">
+        <div>
+          <div style="font-size:14px;font-weight:600">Qiymət göstərilsin</div>
+          <div style="font-size:11px;color:var(--t3)">Kataloqda qiyməti göstər</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer">
+        <input type="checkbox" id="am-is-active" checked style="width:18px;height:18px;accent-color:var(--tl);cursor:pointer">
+        <div>
+          <div style="font-size:14px;font-weight:600">Aktiv</div>
+          <div style="font-size:11px;color:var(--t3)">Qeyd açılmasa model silinmədən gizlənir</div>
+        </div>
+      </label>
+    </div>
     <div class="slbl">İstehsal mərhələləri — şöbələri seçin</div>
     <div class="dept-check-list" id="dept-check-list"></div>
     <div id="stage-order-wrap" style="display:none;margin-top:14px">
@@ -4901,12 +4926,15 @@ function renderCustomerCatalog(models){
 
 function renderCustomerCatalogItems(models){
   const body = document.getElementById('customer-catalog-body');
-  if(!models.length){
+  // show_in_catalog === false olanları gizlət
+  const visible = models.filter(m => m.show_in_catalog !== false);
+  
+  if(!visible.length){
     body.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:#888"><div style="font-size:48px;margin-bottom:12px">🔍</div><div style="font-size:16px;font-weight:600">Nəticə tapılmadı</div></div>';
     return;
   }
   
-  body.innerHTML = models.map(m => {
+  body.innerHTML = visible.map(m => {
     const imgs = getModelImages(m);
     const hasMulti = imgs.length > 1;
     const ccId = 'cc-img-'+m.id;
@@ -4942,8 +4970,10 @@ function renderCustomerCatalogItems(models){
           <div style="font-size:13px;font-weight:700;color:#111820;line-height:1.3;margin-bottom:4px">${m.name}</div>
           ${m.description ? `<div style="font-size:11px;color:#888;margin-bottom:6px;line-height:1.4">${m.description}</div>` : ''}
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <div style="font-size:20px;font-weight:800;color:#111820">${price>0?price.toFixed(0)+' ₼':'—'}</div>
-            ${price>0?`<div style="font-size:10px;color:#888">qiymətdən</div>`:''}
+            ${m.show_price !== false && price > 0
+              ? `<div style="font-size:20px;font-weight:800;color:#111820">${price.toFixed(0)} ₼</div><div style="font-size:10px;color:#888">qiymətdən</div>`
+              : `<div style="font-size:13px;color:#888;font-style:italic">Qiymət menecer tərəfindən</div>`
+            }
           </div>
           <button onclick="openCustomerOrderForm('${m.id}')" 
             style="width:100%;padding:11px;background:#111820;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s"
@@ -7378,11 +7408,22 @@ function renderModelsList(models){
     const thumb = _u
       ? `<img src="${_u}" style="width:40px;height:40px;object-fit:cover;border-radius:10px;cursor:zoom-in" onclick="event.stopPropagation();showLightbox(${JSON.stringify(_imgs).replace(/"/g,'&quot;')},0)" title="Böyük gör">`
       : m.emoji;
+    
+    // Status badge-ləri
+    const badges = [];
+    if(m.is_active === false) badges.push(`<span style="font-size:10px;background:#FEEEED;color:#E24B4A;padding:2px 7px;border-radius:10px;font-weight:600">● Passiv</span>`);
+    if(m.show_in_catalog === false) badges.push(`<span style="font-size:10px;background:#f0f0f0;color:#888;padding:2px 7px;border-radius:10px;font-weight:600">🚫 Kataloqda yox</span>`);
+    if(m.show_price === false) badges.push(`<span style="font-size:10px;background:#FFF4E8;color:var(--or);padding:2px 7px;border-radius:10px;font-weight:600">💰 Qiymət gizli</span>`);
+    
     return `
-      <div class="list-item">
+      <div class="list-item" style="${m.is_active === false ? 'opacity:0.6' : ''}">
         <div class="li-icon" style="background:var(--lt);font-size:22px">${thumb}</div>
         <div class="li-body">
-          <div class="li-title">${m.name} ${m.category?`<span style="font-size:10px;background:var(--lt);color:var(--tl);padding:2px 8px;border-radius:10px;margin-left:6px;font-weight:600">${catNames[m.category]||m.category}</span>`:''}</div>
+          <div class="li-title">
+            ${m.name} 
+            ${m.category?`<span style="font-size:10px;background:var(--lt);color:var(--tl);padding:2px 8px;border-radius:10px;margin-left:4px;font-weight:600">${catNames[m.category]||m.category}</span>`:''}
+            ${badges.join(' ')}
+          </div>
           <div class="li-sub">${(m.stages||[]).length} mərhələ · ${m.total_hours}s · ${m.sale_price?m.sale_price+' ₼':''} ${m.description?' · '+m.description:''}</div>
         </div>
         <div style="display:flex;gap:6px">
@@ -7602,6 +7643,15 @@ async function editModel(id){
   });
   
   renderDeptChecklist(selectedKeys);
+  
+  // Görünürlük checkbox-larını doldur
+  const showCatalogEl = document.getElementById('am-show-catalog');
+  const showPriceEl = document.getElementById('am-show-price');
+  const isActiveEl = document.getElementById('am-is-active');
+  if(showCatalogEl) showCatalogEl.checked = m.show_in_catalog !== false; // default true
+  if(showPriceEl) showPriceEl.checked = m.show_price !== false; // default true
+  if(isActiveEl) isActiveEl.checked = m.is_active !== false; // default true
+  
   openSheet('add-model');
 }
 
@@ -7980,6 +8030,9 @@ async function saveModel(){
   
   const totalHours=stages.reduce((s,x)=>s+x.hours,0);
   const category = document.getElementById('am-category')?.value || null;
+  const showInCatalog = document.getElementById('am-show-catalog')?.checked ?? true;
+  const showPrice = document.getElementById('am-show-price')?.checked ?? true;
+  const isActive = document.getElementById('am-is-active')?.checked ?? true;
   
   // Şəkilləri hazırla — yeni format: JSON array (1-3 şəkil)
   // Köhnə format: single string (köhnə modellər üçün)
@@ -7997,12 +8050,12 @@ async function saveModel(){
   
   showLoader();
   if(editingModelId){
-    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category};
+    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:isActive,show_in_catalog:showInCatalog,show_price:showPrice};
     if(imgUrlValue) upd.img_url = imgUrlValue;
     await sb.from('models').update(upd).eq('id',editingModelId);
     toast('✓ Model yeniləndi: '+name);
   }else{
-    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:imgUrlValue,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:true});
+    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:imgUrlValue,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:isActive,show_in_catalog:showInCatalog,show_price:showPrice});
     toast('✓ Model əlavə edildi: '+name);
   }
   hideLoader();
