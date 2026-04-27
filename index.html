@@ -2338,7 +2338,9 @@ async function renderDash(){
 }
 
 function orderListItem(o){
-  const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
+  // Bütün modellərdən axtar (show_in_catalog-dan asılı olmayaraq)
+  const allM = window._allModelsCache || appModels;
+  const m = allM.find(x=>x.id===o.model_id) || appModels.find(x=>x.id===o.model_id) || {name:'?',emoji:'📦',stages:[]};
   const st=ST[o.status]||ST.created;
   const _u = getFirstImage(m);
   const icon = _u 
@@ -2478,7 +2480,15 @@ async function showOD(id){
   const{data:logs}=await sb.from('task_logs').select('*').eq('order_id',id).order('created_at');
   hideLoader();
   if(!o)return;
-  const m=appModels.find(x=>x.id===o.model_id)||{name:'?',stages:[]};
+  
+  // Modeli appModels-dən tap (show_in_catalog-dan asılı olmayaraq)
+  // Əgər tapılmasa birbaşa Supabase-dən çək
+  let m = appModels.find(x=>x.id===o.model_id);
+  if(!m && o.model_id){
+    const {data:mData} = await sb.from('models').select('*').eq('id',o.model_id).single();
+    m = mData || {name:'?',stages:[]};
+  }
+  if(!m) m = {name:'?',stages:[]};
   const st=ST[o.status]||ST.created;
   const logMap={};(logs||[]).forEach(l=>{logMap[l.stage_index]={started:l.started_at,completed:l.completed_at,dur:l.duration_minutes};});
   document.getElementById('od-title').textContent=o.order_number+' — '+o.client;
