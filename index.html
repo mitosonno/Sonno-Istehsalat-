@@ -2162,7 +2162,7 @@ async function initApp(){
     getForwardingConfig(),
   ]).then(([mr,wr,cr,fwd])=>{
     // Yalnız is_active === false olanları çıxart (null/undefined/true qalsın)
-    appModels=(mr.data||[]).filter(m => m.is_active !== false);
+    appModels=(mr.data||[]).filter(m => m.show_in_catalog !== false);
     appWorkers=wr.data||[];
     appClients=cr.data||[];
     window.forwardingConfig = fwd || {};
@@ -2680,7 +2680,7 @@ function renderOrderForm(){
   if(!appModels.length){
     // Modelləri yenidən çəkməyə cəhd et
     sb.from('models').select('*').then(({data})=>{
-      appModels = (data||[]).filter(m => m.is_active !== false);
+      appModels = (data||[]).filter(m => m.show_in_catalog !== false);
       renderProductGrid(appModels);
     });
   }
@@ -3707,55 +3707,38 @@ function isWorkTime(){
   return mins >= WORK_START_H*60+WORK_START_M && mins < WORK_END_H*60+WORK_END_M;
 }
 
-// Timer başlat — elapsed dəqiqədən davam et
+// Timer başlat — elapsed millisaniyədən davam et
 function startTimerFromElapsed(oid, elapsedMs){
   const timerEl = document.getElementById('timer-'+oid);
   if(!timerEl) return;
   if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
   
-  const startMs = Date.now() - elapsedMs; // virtual başlanğıc
-  timerEl.dataset.startMs = startMs;
-  
+  const t0 = Date.now() - elapsedMs;
   const WEND = WORK_END_H*60 + WORK_END_M;
   
   const update = ()=>{
+    if(!timerEl.isConnected){ clearInterval(parseInt(timerEl.dataset.intervalId||0)); return; }
     const nowMins = new Date().getHours()*60 + new Date().getMinutes();
     if(nowMins >= WEND){
-      // 18:30-da pause
-      const elapsed = Date.now() - startMs;
-      const m = Math.floor(elapsed/60000);
-      const s = Math.floor((elapsed%60000)/1000);
-      if(timerEl && timerEl.isConnected){
-        timerEl.dataset.elapsedMs = elapsed; // pause anındakı vaxtı saxla
-        timerEl.textContent = `⏸ Pauza — ${m} dəq ${s} san`;
-        timerEl.style.color = 'var(--or)';
-      }
-      // Start düyməsini "⏸ Pauza" et
+      const elapsed = Date.now() - t0;
+      const m=Math.floor(elapsed/60000), s=Math.floor((elapsed%60000)/1000);
+      timerEl.dataset.elapsedMs = elapsed;
+      timerEl.textContent = `⏸ Pauza — ${m} dəq ${s} san`;
+      timerEl.style.color = 'var(--or)';
+      clearInterval(parseInt(timerEl.dataset.intervalId||0));
+      timerEl.dataset.intervalId = '';
       const startBtn = document.getElementById('start-btn-'+oid);
-      if(startBtn && !startBtn.disabled){
-        startBtn.textContent = '⏸ Pauza — davam et';
-        startBtn.disabled = false;
-        startBtn.onclick = ()=>resumeTimer(oid);
-        startBtn.style.opacity = '1';
-      }
-      if(timerEl.dataset.intervalId){
-        clearInterval(parseInt(timerEl.dataset.intervalId));
-        timerEl.dataset.intervalId = '';
-      }
+      if(startBtn){ startBtn.textContent='⏸ Pauza — davam et'; startBtn.disabled=false; startBtn.style.opacity='1'; startBtn.onclick=()=>resumeTimer(oid); }
       return;
     }
-    
-    const elapsed = Date.now() - startMs;
-    const m = Math.floor(elapsed/60000);
-    const s = Math.floor((elapsed%60000)/1000);
-    if(timerEl && timerEl.isConnected){
-      timerEl.textContent = `⏱ ${m} dəq ${s} san`;
-      timerEl.style.color = 'var(--or)';
-    }
+    const elapsed = Date.now() - t0;
+    const m=Math.floor(elapsed/60000), s=Math.floor((elapsed%60000)/1000);
+    timerEl.textContent = `⏱ ${m} dəq ${s} san`;
+    timerEl.style.color = 'var(--or)';
   };
   update();
-  const int = setInterval(update, 1000);
-  timerEl.dataset.intervalId = int;
+  const intv = setInterval(update, 1000);
+  timerEl.dataset.intervalId = intv;
 }
 
 // Render sonrası bütün timerları başlat
@@ -3764,47 +3747,8 @@ function initTimers(){
     const oid = el.dataset.oid;
     const startTime = el.dataset.startTime;
     if(!startTime || !oid) return;
-    if(el.dataset.intervalId) clearInterval(parseInt(el.dataset.intervalId));
-    
-    const t0 = new Date(startTime);
-    const WEND = WORK_END_H*60 + WORK_END_M;
-    const nowMins = new Date().getHours()*60 + new Date().getMinutes();
-    
-    if(nowMins >= WEND){
-      // İş vaxtı bitib — pause göstər
-      const workEnd = new Date();
-      workEnd.setHours(WORK_END_H, WORK_END_M, 0, 0);
-      const pausedMs = t0 < workEnd ? workEnd - t0 : 0;
-      el.dataset.elapsedMs = pausedMs;
-      const m=Math.floor(pausedMs/60000), s=Math.floor((pausedMs%60000)/1000);
-      el.textContent = `⏸ Pauza — ${m} dəq ${s} san`;
-      el.style.color = 'var(--or)';
-      const startBtn = document.getElementById('start-btn-'+oid);
-      if(startBtn){
-        startBtn.textContent = '⏸ Pauza — davam et';
-        startBtn.disabled = false;
-        startBtn.style.opacity = '1';
-        startBtn.onclick = ()=>resumeTimer(oid);
-      }
-    } else {
-      // Normal iş vaxtı — timer işlət
-      const elapsedMs = Date.now() - t0;
-      el.dataset.startMs = Date.now() - elapsedMs;
-      const upd = ()=>{
-        const nowM = new Date().getHours()*60 + new Date().getMinutes();
-        if(nowM >= WEND){
-          clearInterval(parseInt(el.dataset.intervalId||0));
-          el.dataset.intervalId = '';
-          return;
-        }
-        const diff = Date.now() - parseInt(el.dataset.startMs || Date.now());
-        const m=Math.floor(diff/60000), s=Math.floor((diff%60000)/1000);
-        if(el && el.isConnected) el.textContent = `⏱ ${m} dəq ${s} san`;
-      };
-      upd();
-      const intv = setInterval(upd, 1000);
-      el.dataset.intervalId = intv;
-    }
+    const elapsedMs = Date.now() - new Date(startTime).getTime();
+    startTimerFromElapsed(oid, elapsedMs);
   });
 }
 
