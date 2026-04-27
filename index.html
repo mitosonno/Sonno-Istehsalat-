@@ -1800,30 +1800,22 @@ async function startCatalogMode(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='none';
   
-  const container = document.createElement('div');
-  container.id = 'catalog-screen';
-  container.style.cssText = 'position:fixed;inset:0;background:#fafaf9;overflow-y:auto;z-index:9999;font-family:\'DM Sans\',sans-serif';
-  container.innerHTML = `
-    <div style="background:linear-gradient(135deg,#007565,#004F51);color:#fff;padding:24px 20px;text-align:center">
-      <div style="font-size:24px;font-weight:700;letter-spacing:0.5px">🛋️ SONNO</div>
-      <div style="font-size:13px;opacity:0.8;margin-top:4px">Mebel Kataloqu</div>
-    </div>
-    <div id="catalog-body" style="max-width:800px;margin:0 auto;padding:16px">
-      <div style="text-align:center;padding:40px;color:#888">Yüklənir...</div>
-    </div>
-    <div style="text-align:center;padding:24px;color:#aaa;font-size:11px">
-      © SONNO Mebel · Əlaqə üçün menecerinizlə danışın
-    </div>
-  `;
-  document.body.appendChild(container);
+  // Yeni dizayn kataloq ekranını göstər
+  const screen = document.getElementById('customer-catalog-screen');
+  screen.style.display = 'block';
   
-  // Supabase-dən modelləri yüklə
+  // "Geri" düyməsini gizlət — public modda geri gedəcək yer yoxdur
+  const backBtn = screen.querySelector('button[onclick="closeCustomerCatalog()"]');
+  if(backBtn) backBtn.style.display = 'none';
+  
+  // Modelləri yüklə
   try{
     const {data:models} = await sb.from('models').select('*').eq('is_active', true).order('name');
     const allModels = models || [];
-    renderCatalog(allModels);
+    window._customerCatalogModels = allModels;
+    renderCustomerCatalog(allModels);
   }catch(e){
-    document.getElementById('catalog-body').innerHTML = '<div style="padding:40px;text-align:center;color:#E24B4A">Katalog yüklənmədi</div>';
+    document.getElementById('customer-catalog-body').innerHTML = '<div style="padding:40px;text-align:center;color:#E24B4A;grid-column:1/-1">Katalog yüklənmədi</div>';
   }
 }
 
