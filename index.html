@@ -1714,6 +1714,34 @@ window.addEventListener('popstate', (e)=>{
   }
 });
 
+// ═══════════ GLOBAL DATA CACHE ═══════════
+const _cache = {
+  orders: null, ordersAt: 0,
+  models: null, modelsAt: 0,
+  TTL: 30000, // 30 saniyə
+};
+
+async function cachedOrders(){
+  if(_cache.orders && Date.now()-_cache.ordersAt < _cache.TTL) return _cache.orders;
+  const {data} = await sb.from('orders').select('*').order('created_at',{ascending:false});
+  _cache.orders = data||[]; _cache.ordersAt = Date.now();
+  return _cache.orders;
+}
+
+async function cachedModels(){
+  if(_cache.models && Date.now()-_cache.modelsAt < _cache.TTL) return _cache.models;
+  const {data} = await sb.from('models').select('*').order('name');
+  _cache.models = data||[]; _cache.modelsAt = Date.now();
+  appModels = _cache.models.filter(m=>m.show_in_catalog!==false);
+  window._allModelsCache = _cache.models;
+  return _cache.models;
+}
+
+function invalidateCache(...keys){
+  if(!keys.length||keys.includes('orders')){ _cache.orders=null; }
+  if(!keys.length||keys.includes('models')){ _cache.models=null; }
+}
+
 // ═══════════ SUPABASE KEEP-ALIVE ═══════════
 // Hər 4 dəqiqədə kiçik ping göndər - Supabase yuxuya getməsin
 let _keepAliveInterval = null;
@@ -2287,13 +2315,20 @@ function clearDashFilter(){
 async function renderDash(){
   showLoader();
   try{
-    let query = sb.from('orders').select('*').order('created_at',{ascending:false});
     const dateFrom = document.getElementById('dash-date-from')?.value;
     const dateTo = document.getElementById('dash-date-to')?.value;
-    if(dateFrom) query = query.gte('created_at', dateFrom+'T00:00:00');
-    if(dateTo) query = query.lte('created_at', dateTo+'T23:59:59');
-    const{data:orders}=await query;
-    const all=orders||[];
+    
+    // Filter varsa cache işlətmə, yoxsa cache istifadə et
+    let all;
+    if(dateFrom || dateTo){
+      let query = sb.from('orders').select('*').order('created_at',{ascending:false});
+      if(dateFrom) query = query.gte('created_at', dateFrom+'T00:00:00');
+      if(dateTo) query = query.lte('created_at', dateTo+'T23:59:59');
+      const {data} = await query;
+      all = data||[];
+    } else {
+      all = await cachedOrders();
+    }
     
     // Pending sifariş bildirişi — müştəri sifarişləri (CUS-) current_stage=0
     const pending = all.filter(o=>{
@@ -2531,8 +2566,12 @@ async function showDeliveredDetail(id){
 
 async function showOD(id){
   showLoader();
-  const{data:o}=await sb.from('orders').select('*').eq('id',id).single();
-  const{data:logs}=await sb.from('task_logs').select('*').eq('order_id',id).order('created_at');
+  // Order-i cache-dən tap, yoxdursa Supabase-dən çək
+  const cached = _cache.orders?.find(x=>x.id===id);
+  const [{data:o}, {data:logs}] = await Promise.all([
+    cached ? Promise.resolve({data:cached}) : sb.from('orders').select('*').eq('id',id).single(),
+    sb.from('task_logs').select('*').eq('order_id',id).order('created_at'),
+  ]);
   hideLoader();
   if(!o)return;
   const m=appModels.find(x=>x.id===o.model_id)||{name:'?',stages:[]};
@@ -3139,7 +3178,7 @@ function showDV(v){
 // ═══════════ CACHE SİSTEMİ — SADƏLƏŞDİRİLDİ ═══════════
 // Cache deaktiv edildi — race condition problem yaradırdı
 // Hər çağırış birbaşa Supabase-ə gedir (sadə və proqnozlaşdırılan)
-const _cache = {};
+// cache artıq yuxarıda təyin edilib
 const CACHE_TTL = 0; // Disable cache
 
 // Köməkçi funksiya: Müştəri sifarişi təsdiq gözləyirmi?
@@ -3155,10 +3194,6 @@ function isPendingCustomerOrder(o){
 async function cachedFetch(key, fetcher){
   // Cache deaktiv — həmişə təzə data
   return await fetcher();
-}
-
-function invalidateCache(...keys){
-  // No-op — cache yoxdur
 }
 
 async function renderDeptTasks(dept){
@@ -4656,8 +4691,8 @@ function resetAllOrdersFilters(){
 
 async function renderAllOrdersPage(){
   showLoader();
-  const [{data:orders},{data:users}] = await Promise.all([
-    sb.from('orders').select('*').order('created_at',{ascending:false}),
+  const [orders, {data:users}] = await Promise.all([
+    cachedOrders(),
     sb.from('users').select('id,name,username,role'),
   ]);
   hideLoader();
