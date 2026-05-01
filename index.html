@@ -6375,17 +6375,34 @@ Hər bölmə 2-4 nöqtə olsun. Azərbaycan dilində yaz.`},
 
 // ═══════════ ADMIN ═══════════
 async function renderAdmin(){
-  const[{data:users},{data:models},{data:workers},{data:clients}]=await Promise.all([
-    sb.from('users').select('count'),
-    sb.from('models').select('count'),
-    sb.from('workers').select('count'),
-    sb.from('clients').select('count'),
-  ]);
-  const uc=document.getElementById('ami-u');if(uc)uc.textContent=(users?.length||0)+' nəfər';
-  const mc=document.getElementById('ami-m');if(mc)mc.textContent=(models?.length||0)+' model';
-  const wc=document.getElementById('ami-w');if(wc)wc.textContent=(workers?.length||0)+' işçi';
-  const cc=document.getElementById('ami-c');if(cc)cc.textContent=(clients?.length||0)+' nəfər';
-  updatePendingBadge(); // Badge-i yenilə
+  // Admin datasını bir dəfə yüklə — hamısı paralel
+  if(!window._adminDataLoaded){
+    showLoader();
+    const [{data:users},{data:models},{data:workers},{data:clients}] = await Promise.all([
+      sb.from('users').select('*'),
+      sb.from('models').select('*'),
+      sb.from('workers').select('*'),
+      sb.from('clients').select('*'),
+    ]);
+    window._adminUsers   = users   || [];
+    window._adminModels  = models  || [];
+    window._adminWorkers = workers || [];
+    window._adminClients = clients || [];
+    window._allModelsCache = window._adminModels;
+    window._adminDataLoaded = true;
+    hideLoader();
+  }
+  
+  const uc=document.getElementById('ami-u');if(uc)uc.textContent=window._adminUsers.length+' nəfər';
+  const mc=document.getElementById('ami-m');if(mc)mc.textContent=window._adminModels.length+' model';
+  const wc=document.getElementById('ami-w');if(wc)wc.textContent=window._adminWorkers.length+' işçi';
+  const cc=document.getElementById('ami-c');if(cc)cc.textContent=window._adminClients.length+' nəfər';
+  updatePendingBadge();
+}
+
+// Admin cache-i sıfırla (dəyişiklik olduqda)
+function invalidateAdminCache(){
+  window._adminDataLoaded = false;
 }
 
 async function adminSec(sec){
@@ -6406,8 +6423,8 @@ async function renderPendingOrdersSection(el){
   showLoader();
   // Müştəri sifarişlərini tap: order_number CUS- ilə başlayır VƏ current_stage=0 (təsdiqlənməyib)
   // Və ya notes içində [📱 MÜŞTƏRİ SİFARİŞİ] etiketi var
-  const {data:allOrders} = await sb.from('orders').select('*').order('created_at',{ascending:false});
-  const {data:models} = await sb.from('models').select('*');
+  const allOrders = (await sb.from('orders').select('*').order('created_at',{ascending:false})).data || [];
+  const models = window._adminModels && window._adminModels.length ? window._adminModels : (await sb.from('models').select('*')).data || [];
   hideLoader();
   
   // Filtrlə: təsdiq gözləyən müştəri sifarişləri
@@ -6567,7 +6584,7 @@ async function updatePendingBadge(){
 
 async function renderClientsSection(el){
   showLoader();
-  const {data:clients} = await sb.from('clients').select('*').order('name');
+  const clients = window._adminClients && window._adminClients.length ? window._adminClients : (await sb.from('clients').select('*').order('name')).data || [];
   const {data:orders} = await sb.from('orders').select('client, final_price, status');
   hideLoader();
   
@@ -7584,9 +7601,7 @@ async function refreshStats(){
 }
   
 async function renderUsersSection(el){
-  showLoader();
-  const{data:users}=await sb.from('users').select('*').order('created_at');
-  hideLoader();
+  const users = window._adminUsers && window._adminUsers.length ? window._adminUsers : (await sb.from('users').select('*').order('created_at')).data || [];
   const rL={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
   const rC={admin:'role-admin',manager:'role-manager',logistics:'role-logistics',dept:'role-dept'};
   el.innerHTML=`
@@ -7649,8 +7664,8 @@ async function savePinChg(key){
 }
 
 async function renderModelsSection(el){
-  const{data:models}=await sb.from('models').select('*');
-  const allModels = models||[];
+  const allModels = window._adminModels && window._adminModels.length ? window._adminModels : (await sb.from('models').select('*')).data || [];
+  window._allModelsCache = allModels;
   const catalogUrl = window.location.origin + window.location.pathname + '?catalog=1';
   el.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
@@ -7754,7 +7769,7 @@ function filterModelsList(query){
 }
 
 async function renderWorkersSection(el){
-  const{data:workers}=await sb.from('workers').select('*');
+  const workers = window._adminWorkers && window._adminWorkers.length ? window._adminWorkers : (await sb.from('workers').select('*')).data || [];
   const byDept={};
   (workers||[]).forEach(w=>{if(!byDept[w.dept_key])byDept[w.dept_key]=[];byDept[w.dept_key].push(w);});
   el.innerHTML=`
@@ -8528,10 +8543,10 @@ async function saveModel(){
     const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,show_in_catalog:showInCatalog,show_price:showPrice,price_variants:priceVariants};
     if(imgUrlValue) upd.img_url = imgUrlValue;
     await sb.from('models').update(upd).eq('id',editingModelId);
-    toast('✓ Model yeniləndi: '+name);
+    toast('✓ Model yeniləndi: '+name); invalidateAdminCache();
   }else{
     await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:imgUrlValue,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:true,show_in_catalog:showInCatalog,show_price:showPrice,price_variants:priceVariants});
-    toast('✓ Model əlavə edildi: '+name);
+    toast('✓ Model əlavə edildi: '+name); invalidateAdminCache();
   }
   hideLoader();
   closeSheet('add-model');
