@@ -860,7 +860,7 @@ textarea{resize:vertical;min-height:80px}
 
 <!-- Add model sheet -->
 <div class="sheet-overlay" id="add-model-ov" onclick="closeSheet('add-model')"></div>
-<div class="sheet" id="add-model-sheet" style="display:flex;flex-direction:column">
+<div class="sheet" id="add-model-sheet" style="display:flex;flex-direction:column;overflow:hidden">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="am-title">Yeni model</div>
   <div class="sheet-body" style="flex:1;overflow-y:auto">
@@ -954,7 +954,7 @@ textarea{resize:vertical;min-height:80px}
       <div id="stage-order-list"></div>
     </div>
   </div>
-  <div style="padding:14px 20px;border-top:1px solid var(--bd);display:flex;gap:8px;flex-shrink:0;background:var(--sf);position:sticky;bottom:0;z-index:10">
+  <div style="padding:14px 20px;border-top:1px solid var(--bd);display:flex;gap:8px;flex-shrink:0;background:var(--sf);">
     <button class="btn btn-ln" style="flex:1" onclick="closeSheet('add-model')">Ləğv et</button>
     <button class="btn btn-t" style="flex:2" onclick="saveModel()">💾 Yadda saxla</button>
   </div>
@@ -1901,12 +1901,18 @@ async function startCatalogMode(){
   const screen = document.getElementById('customer-catalog-screen');
   screen.style.display = 'block';
   
-  // Qonaq modu — login olmadan link ilə açılıb
+  // Dərhal loader göstər
+  const body = document.getElementById('customer-catalog-body');
+  if(body) body.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px"><div style="font-size:48px;margin-bottom:16px">⏳</div><div style="font-size:16px;font-weight:600;color:#555">Katalog yüklənir...</div></div>';
+  
+  // Qonaq modu
   window._catalogGuestMode = true;
+  
+  // URL parametrlərini oxu
+  const urlParams = new URLSearchParams(window.location.search);
   window._catalogNoPriceMode = urlParams.get('noPrice') === '1';
   
   if(window._catalogNoPriceMode){
-    // B2C başlığı göstər
     const countEl = document.getElementById('cc-count');
     if(countEl){ countEl.textContent = 'B2C'; countEl.style.background='rgba(67,185,127,.2)'; countEl.style.color='#2d8f5e'; countEl.style.borderColor='rgba(67,185,127,.4)'; }
   }
@@ -1915,12 +1921,13 @@ async function startCatalogMode(){
   if(backBtn) backBtn.style.display = 'none';
   
   try{
-    const {data:models} = await sb.from('models').select('*').eq('is_active', true).order('name');
+    const {data:models, error} = await sb.from('models').select('*').order('name');
+    if(error) throw error;
     const allModels = (models || []).filter(m => m.show_in_catalog !== false);
     window._customerCatalogModels = allModels;
     renderCustomerCatalog(allModels);
   }catch(e){
-    document.getElementById('customer-catalog-body').innerHTML = '<div style="padding:40px;text-align:center;color:#E24B4A;grid-column:1/-1">Katalog yüklənmədi</div>';
+    if(body) body.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#E24B4A"><div style="font-size:36px;margin-bottom:12px">❌</div><div>Katalog yüklənmədi</div><button onclick="location.reload()" style="margin-top:16px;padding:10px 24px;background:#007565;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600">Yenidən cəhd et</button></div>';
   }
 }
 
