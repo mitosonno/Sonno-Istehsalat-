@@ -1718,7 +1718,7 @@ window.addEventListener('popstate', (e)=>{
 const _cache = {
   orders: null, ordersAt: 0,
   models: null, modelsAt: 0,
-  TTL: 30000, // 30 saniyə
+  TTL: 0, // Cache deaktiv — həmişə təzə data
 };
 
 async function cachedOrders(){
