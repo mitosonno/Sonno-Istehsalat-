@@ -1735,6 +1735,13 @@ sb.from('app_settings').select('key').limit(1).then(()=>{
   console.log('[keep-alive] İlk ping - Supabase oyandırıldı');
 });
 
+// Kataloq linki ilə açılıbsa — dərhal modellər sorğusunu başlat (paralel)
+if(new URLSearchParams(window.location.search).get('catalog') === '1'){
+  window._catalogPreload = sb.from('models')
+    .select('id,name,description,emoji,img_url,sale_price,show_in_catalog,show_price,price_variants,category,stages')
+    .order('name');
+}
+
 // ═══════════ PAGE LOAD ═══════════
 (async()=>{
   const urlParams = new URLSearchParams(window.location.search);
@@ -1923,7 +1930,12 @@ async function startCatalogMode(){
   if(backBtn) backBtn.style.display = 'none';
   
   try{
-    const {data:models, error} = await sb.from('models').select('*').order('name');
+    // Əgər preload varsa istifadə et (daha sürətli)
+    const query = window._catalogPreload || 
+      sb.from('models').select('id,name,description,emoji,img_url,sale_price,show_in_catalog,show_price,price_variants,category,stages').order('name');
+    window._catalogPreload = null;
+    
+    const {data:models, error} = await query;
     if(error) throw error;
     const allModels = (models || []).filter(m => m.show_in_catalog !== false);
     window._customerCatalogModels = allModels;
@@ -4949,7 +4961,7 @@ async function openCustomerCatalog(){
   
   try {
     // Həmişə təzə data çək — cache istifadə etmə
-    const {data:models} = await sb.from('models').select('*').order('name');
+    const {data:models} = await sb.from('models').select('id,name,description,emoji,img_url,sale_price,show_in_catalog,show_price,price_variants,category,stages').order('name');
     const active = (models || []).filter(m => m.show_in_catalog !== false);
     window._customerCatalogModels = active;
     renderCustomerCatalog(active);
