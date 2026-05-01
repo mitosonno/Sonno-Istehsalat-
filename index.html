@@ -422,7 +422,7 @@ textarea{resize:vertical;min-height:80px}
 <div id="customer-order-form" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;align-items:flex-end;justify-content:center">
   <div style="background:#fff;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;border-radius:20px 20px 0 0;padding:20px 18px;padding-bottom:env(safe-area-inset-bottom,20px)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div style="font-size:17px;font-weight:700">🛒 Sifariş et</div>
+      <div id="cof-title" style="font-size:17px;font-weight:700">🛒 Sifariş et</div>
       <button onclick="closeCustomerOrderForm()" style="background:#eee;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px">✕</button>
     </div>
     <div id="cof-model-preview" style="padding:12px;background:#f8f8f6;border-radius:10px;margin-bottom:16px;display:flex;gap:12px;align-items:center"></div>
@@ -436,27 +436,30 @@ textarea{resize:vertical;min-height:80px}
         <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Telefon <span style="color:#E24B4A">*</span></label>
         <input id="cof-phone" type="tel" placeholder="+994 50 xxx xx xx" style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div>
-          <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Ədəd</label>
-          <input id="cof-qty" type="number" min="1" value="1" style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
+      <!-- Qonaq modda gizlənən sahələr -->
+      <div id="cof-extra-fields">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Ədəd</label>
+            <input id="cof-qty" type="number" min="1" value="1" style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
+          </div>
+          <div>
+            <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">İstənilən tarix</label>
+            <input id="cof-deadline" type="date" style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Parça adı</label>
+          <input id="cof-fabric" type="text" placeholder="Məs: Velvet, Dəri, Linen..." style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Parça rəngi / kodu</label>
+          <input id="cof-color" type="text" placeholder="Məs: Boz, VL-204..." style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
         </div>
         <div>
-          <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">İstənilən tarix</label>
-          <input id="cof-deadline" type="date" style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
+          <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Ölçülər / Qeydlər</label>
+          <textarea id="cof-notes" rows="3" placeholder="Məs: 220x95 sm, ayaqlar metal olsun..." style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px;resize:vertical"></textarea>
         </div>
-      </div>
-      <div>
-        <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Parça adı</label>
-        <input id="cof-fabric" type="text" placeholder="Məs: Velvet, Dəri, Linen..." style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
-      </div>
-      <div>
-        <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Parça rəngi / kodu</label>
-        <input id="cof-color" type="text" placeholder="Məs: Boz, VL-204..." style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px">
-      </div>
-      <div>
-        <label style="font-size:12px;color:#666;font-weight:600;display:block;margin-bottom:4px">Ölçülər / Qeydlər</label>
-        <textarea id="cof-notes" rows="3" placeholder="Məs: 220x95 sm, ayaqlar metal olsun..." style="width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:14px;resize:vertical"></textarea>
       </div>
     </div>
     
@@ -464,9 +467,9 @@ textarea{resize:vertical;min-height:80px}
     
     <div style="display:flex;gap:10px;margin-top:16px">
       <button onclick="closeCustomerOrderForm()" style="flex:1;padding:14px;background:#eee;color:#333;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600">Ləğv et</button>
-      <button onclick="submitCustomerOrder()" style="flex:2;padding:14px;background:#007565;color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700">📤 Sifarişi göndər</button>
+      <button id="cof-submit-btn" onclick="submitCustomerOrder()" style="flex:2;padding:14px;background:#007565;color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700">📤 Sifarişi göndər</button>
     </div>
-    <div style="text-align:center;margin-top:12px;font-size:11px;color:#888">
+    <div style="text-align:center;margin-top:12px;font-size:11px;color:#888" id="cof-footer-text">
       Sifarişiniz admin tərəfindən yoxlanılacaq və təsdiq ediləcək
     </div>
   </div>
@@ -880,7 +883,6 @@ textarea{resize:vertical;min-height:80px}
         <option value="dest">🎁 Dəst (Divan+Kreslo)</option>
         <option value="diger">📦 Digər</option>
       </select>
-    </div>
     </div>
     <!-- Qiymət Variantları -->
     <div class="fg" style="margin-bottom:4px">
@@ -5103,7 +5105,7 @@ function renderCustomerCatalogItems(models){
             style="width:100%;padding:11px;background:#111820;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s"
             onmouseover="this.style.background='#F79130'" 
             onmouseout="this.style.background='#111820'">
-            ${window._catalogGuestMode ? '📋 Sifariş məlumatlarını doldurun' : '🛒 Sifariş et'}
+            ${window._catalogGuestMode ? '📞 Bizimlə əlaqə saxla' : '🛒 Sifariş et'}
           </button>
         </div>
       </div>
@@ -5175,7 +5177,7 @@ async function openCustomerOrderForm(modelId){
     <div style="flex:1;min-width:0">
       <div style="font-size:14px;font-weight:700">${m.name}</div>
       ${m.description?`<div style="font-size:11px;color:#888;margin-top:2px">${m.description}</div>`:''}
-      <div style="font-size:15px;font-weight:700;color:#F78930;margin-top:4px">${(m.sale_price||0).toFixed(0)} ₼</div>
+      ${!window._catalogGuestMode && !window._catalogNoPriceMode ? `<div style="font-size:15px;font-weight:700;color:#F78930;margin-top:4px">${(m.sale_price||0).toFixed(0)} ₼</div>` : ''}
     </div>
   `;
   
@@ -5201,10 +5203,27 @@ async function openCustomerOrderForm(modelId){
   // Validasiya — bazar seçiləndə avto düzəlt
   dlInput.onchange = function(){ validateCustomerDeadline(this); };
   
+  // Qonaq modu — yalnız ad + telefon
+  const isGuest = window._catalogGuestMode;
+  const extraFields = document.getElementById('cof-extra-fields');
+  const cofTitle = document.getElementById('cof-title');
+  const cofSubmit = document.getElementById('cof-submit-btn');
+  const cofFooter = document.getElementById('cof-footer-text');
+  
+  if(isGuest){
+    if(extraFields) extraFields.style.display = 'none';
+    if(cofTitle) cofTitle.textContent = '📞 Bizimlə əlaqə saxla';
+    if(cofSubmit) cofSubmit.textContent = '📤 Göndər';
+    if(cofFooter) cofFooter.textContent = 'Məlumatlarınız alındıqdan sonra menecerimiz sizinlə əlaqə saxlayacaq';
+  } else {
+    if(extraFields) extraFields.style.display = 'block';
+    if(cofTitle) cofTitle.textContent = '🛒 Sifariş et';
+    if(cofSubmit) cofSubmit.textContent = '📤 Sifarişi göndər';
+    if(cofFooter) cofFooter.textContent = 'Sifarişiniz admin tərəfindən yoxlanılacaq və təsdiq ediləcək';
+  }
+  
   document.getElementById('customer-order-form').style.display = 'flex';
 }
-
-// Müştəri forması üçün tarix yoxlaması
 function validateCustomerDeadline(input){
   const dateStr = input.value;
   if(!dateStr) return;
