@@ -1386,6 +1386,18 @@ function showWarningDialog(count){
 
 // ═══════════ DEADLINE VALIDATION ═══════════
 // Minimum 7 iş günü (yalnız Bazar çıxılır) + sifariş günü çıxılır
+// Timezone-safe tarix formatı — UTC problemi olmadan
+function dateToStr(d){
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function strToDate(s){
+  // "YYYY-MM-DD" → lokal tarix (UTC-yə çevrilmir)
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+
 function getMinDeadlineDate(){
   let d = new Date();
   d.setHours(0,0,0,0);
@@ -1405,8 +1417,7 @@ async function validateDeadline(input){
   const dateStr = input.value;
   if(!dateStr) return;
   
-  let d = new Date(dateStr);
-  d.setHours(0,0,0,0);
+  let d = strToDate(dateStr);
   const today = new Date(); today.setHours(0,0,0,0);
   const minDate = getMinDeadlineDate();
   const isAdmin = currentUser && currentUser.role === 'admin';
@@ -1417,7 +1428,7 @@ async function validateDeadline(input){
     showDeadlineWarningModal(
       '⚠️ Bu gün qəbul edilmir',
       'Sifariş günü deadline ola bilməz. Ən tez <b>sabah</b> tarixini seçin.',
-      minDate.toISOString().split('T')[0],
+      dateToStr(minDate),
       input,
       false // keçməyə icazə yox
     );
@@ -1443,7 +1454,7 @@ async function validateDeadline(input){
         '⚠️ 7 iş günündən az',
         'Standart minimum <b>7 iş günüdür</b>.<br><br>Tövsiyə olunan ən tez tarix: <b style="color:var(--tl)">'
           + minDate.toLocaleDateString('az-AZ', {weekday:'long', day:'numeric', month:'long'}) + '</b>',
-        minDate.toISOString().split('T')[0],
+        dateToStr(minDate),
         input,
         true // menecer keçə bilər
       );
@@ -1451,7 +1462,7 @@ async function validateDeadline(input){
     }
   }
   
-  input.value = d.toISOString().split('T')[0];
+  input.value = dateToStr(d);
   await checkDailyLimit(input.value, input);
 }
 
@@ -1510,7 +1521,7 @@ function showSundayWarning(input, suggestedDate){
           style="flex:1;padding:12px;border:1px solid #ddd;background:#fff;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600">
           ← Geri
         </button>
-        <button onclick="acceptSundayFix('${suggestedDate.toISOString().split('T')[0]}')"
+        <button onclick="acceptSundayFix('${dateToStr(suggestedDate)}')"
           style="flex:2;padding:12px;background:var(--tl);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700">
           ✓ OK — ${dayName.split(',')[0]}
         </button>
@@ -1577,7 +1588,7 @@ async function suggestNextAvailable(fromDate, limit, newQty, input){
     const dow = check.getDay();
     if(dow===0) continue; // Yalnız Bazar çıxılır
     
-    const checkStr = check.toISOString().split('T')[0];
+    const checkStr = dateToStr(check);
     const {data} = await sb.from('orders')
       .select('qty')
       .eq('deadline', checkStr)
@@ -2778,9 +2789,9 @@ function renderOrderForm(){
   renderProductGrid(appModels);
   const deadInput = document.getElementById('o-dead');
   const minDate = getMinDeadlineDate();
-  deadInput.min = minDate.toISOString().split('T')[0];
+  deadInput.min = dateToStr(minDate);
   if(!deadInput.value){
-    deadInput.value = minDate.toISOString().split('T')[0];
+    deadInput.value = dateToStr(minDate);
   }
   // Mobile: stack layout
   if(window.innerWidth<=768){
@@ -2961,7 +2972,7 @@ function updateEta(m){
   if(dl){const ok2=new Date(dl)>=d;ok=ok2?' · <span style="color:var(--tl)">✓ Vaxt var</span>':' · <span style="color:#E24B4A">⚠ Risk</span>';}
   document.getElementById('eta-txt').innerHTML=`${h} saat · ${days} iş günü · ETA: ${eta}${ok}`;
   // Auto-set deadline
-  if(!dl) document.getElementById('o-dead').value=d.toISOString().split('T')[0];
+  if(!dl) document.getElementById('o-dead').value=dateToStr(d);
 }
 
 function renderPipePrev(m){
@@ -5235,8 +5246,8 @@ async function openCustomerOrderForm(modelId){
   // Minimum tarix = bu gün + 7 iş günü (bazar sayılmasın)
   const minDate = getMinDeadlineDate();
   const dlInput = document.getElementById('cof-deadline');
-  dlInput.min = minDate.toISOString().split('T')[0];
-  dlInput.value = minDate.toISOString().split('T')[0];
+  dlInput.min = dateToStr(minDate);
+  dlInput.value = dateToStr(minDate);
   // Validasiya — bazar seçiləndə avto düzəlt
   dlInput.onchange = function(){ validateCustomerDeadline(this); };
   
@@ -5282,7 +5293,7 @@ function validateCustomerDeadline(input){
     toast('⚠ Minimum 7 iş günü sonraya sifariş verilə bilər. Ən tez: '+minStr, 5000);
   }
   
-  input.value = d.toISOString().split('T')[0];
+  input.value = dateToStr(d);
 }
 
 function closeCustomerOrderForm(){
