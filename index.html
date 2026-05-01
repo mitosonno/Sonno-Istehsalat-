@@ -1405,9 +1405,7 @@ async function validateDeadline(input){
   const dateStr = input.value;
   if(!dateStr) return;
   
-  // Timezone-safe parse: "YYYY-MM-DD" UTC kimi deyil lokal vaxt kimi oxu
-  const [dy,dm,dd2] = dateStr.split('-').map(Number);
-  let d = new Date(dy, dm-1, dd2);
+  let d = new Date(dateStr);
   d.setHours(0,0,0,0);
   const today = new Date(); today.setHours(0,0,0,0);
   const minDate = getMinDeadlineDate();
@@ -1453,8 +1451,7 @@ async function validateDeadline(input){
     }
   }
   
-const _pad=n=>String(n).padStart(2,'0');
-  input.value=`${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}`;
+  input.value = d.toISOString().split('T')[0];
   await checkDailyLimit(input.value, input);
 }
 
@@ -2234,7 +2231,7 @@ async function initApp(){
   
   // Data arxa planda yüklə (parallel)
   const dataPromise = Promise.all([
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active').order('name'),
+    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
     sb.from('workers').select('*').eq('status','active'),
     sb.from('clients').select('*').order('name'),
     getForwardingConfig(),
@@ -2964,10 +2961,7 @@ function updateEta(m){
   if(dl){const ok2=new Date(dl)>=d;ok=ok2?' · <span style="color:var(--tl)">✓ Vaxt var</span>':' · <span style="color:#E24B4A">⚠ Risk</span>';}
   document.getElementById('eta-txt').innerHTML=`${h} saat · ${days} iş günü · ETA: ${eta}${ok}`;
   // Auto-set deadline
-  if(!dl){ 
-    const pad = n=>String(n).padStart(2,'0');
-    document.getElementById('o-dead').value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  }
+  if(!dl) document.getElementById('o-dead').value=d.toISOString().split('T')[0];
 }
 
 function renderPipePrev(m){
@@ -3046,7 +3040,7 @@ async function renderDeptPick(){
       .not('completed_at','is',null)
       .order('completed_at', {ascending:false})
       .limit(200),
-    sb.from('models').select('id,name,emoji,stages,category,img_url').order('name'),
+    cachedModels(),
     sb.from('dept_pins').select('dept_key,pin_code'),
   ]);
   hideLoader();
@@ -3227,7 +3221,7 @@ async function renderDeptTasks(dept){
       .in('status', ['in_progress','created','late','ready'])
       .gt('current_stage', 0)
       .order('created_at', {ascending: true}),
-    sb.from('models').select('id,name,emoji,stages,category,img_url').order('name'),
+    cachedModels(),
     sb.from('task_logs')
       .select('id,order_id,stage_index,dept_key,started_at,completed_at,worker_name,action')
       .order('started_at', {ascending: false})
@@ -3570,12 +3564,7 @@ async function renderDeptTasks(dept){
               id="start-btn-${o.id}"
               ${started||done?'disabled':''}
               onclick="dStart('${o.id}','${si}','${key}','${dept}')">
-              ${started||done ? '▶ Başla' : (()=>{
-                const now2=new Date(), totalMins2=now2.getHours()*60+now2.getMinutes();
-                if(totalMins2 < WORK_START_H*60+WORK_START_M) return '⏰ 08:30-da';
-                if(totalMins2 >= WORK_END_H*60+WORK_END_M && !window._overtimeAllowed) return '🔴 Blok';
-                return '▶ Başla';
-              })()}
+              ▶ Başla
             </button>
             <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${total}')">✓ Tamamla</button>
           </div>
@@ -4133,7 +4122,7 @@ async function renderLogisticsDone(){
   showLoader();
   const [{data:orders, error:oErr},{data:models}] = await Promise.all([
     sb.from('orders').select('*').eq('status','delivered'),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active').order('name'),
+    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
   ]);
   hideLoader();
   
@@ -4203,7 +4192,7 @@ async function renderLogisticsDept(){
   showLoader();
   const [{data:orders},{data:models},{data:drivers},{data:users}] = await Promise.all([
     sb.from('orders').select('*').not('status', 'eq', 'delivered').order('created_at',{ascending:true}),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active').order('name'),
+    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
     sb.from('workers').select('*').eq('dept_key','logistics').eq('status','active'),
     sb.from('users').select('id,name'),
   ]);
@@ -4895,7 +4884,7 @@ async function showCustomerOrders(client){
   showLoader();
   const [{data:orders},{data:models}] = await Promise.all([
     sb.from('orders').select('*').eq('client', client.name).order('created_at',{ascending:false}),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active').order('name'),
+    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
   ]);
   hideLoader();
   const allOrders = orders||[];
@@ -5293,8 +5282,7 @@ function validateCustomerDeadline(input){
     toast('⚠ Minimum 7 iş günü sonraya sifariş verilə bilər. Ən tez: '+minStr, 5000);
   }
   
-const _pad=n=>String(n).padStart(2,'0');
-  input.value=`${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}`;
+  input.value = d.toISOString().split('T')[0];
 }
 
 function closeCustomerOrderForm(){
@@ -6168,7 +6156,7 @@ async function sendAI(){
   const [{data:orders},{data:logs},{data:models},{data:workers},{data:users}] = await Promise.all([
     sb.from('orders').select('*'),
     sb.from('task_logs').select('*'),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active').order('name'),
+    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
     sb.from('workers').select('*'),
     sb.from('users').select('*'),
   ]);
@@ -6342,7 +6330,7 @@ async function runAutoAnalysis(){
   const [{data:orders},{data:logs},{data:models},{data:workers}] = await Promise.all([
     sb.from('orders').select('*'),
     sb.from('task_logs').select('*'),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active').order('name'),
+    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
     sb.from('workers').select('*'),
   ]);
   
@@ -6391,7 +6379,7 @@ async function renderAdmin(){
     showLoader();
     const [{data:users},{data:models},{data:workers},{data:clients}] = await Promise.all([
       sb.from('users').select('*'),
-      sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active').order('name'),
+      sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
       sb.from('workers').select('*'),
       sb.from('clients').select('*'),
     ]);
