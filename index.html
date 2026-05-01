@@ -568,11 +568,15 @@ textarea{resize:vertical;min-height:80px}
         <div style="display:grid;grid-template-columns:1fr 340px;gap:20px" id="order-layout">
           <div>
             <div class="slbl" style="margin-top:0">Məhsul seçin</div>
-            <div style="display:flex;gap:8px;margin-bottom:10px">
-              <input type="text" id="product-search" placeholder="🔍 Model axtar..." style="flex:1;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px" oninput="filterProducts(this.value)">
-              <button onclick="shareCatalogLink()" title="Kataloqu WhatsApp-da paylaş" style="padding:10px 14px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border:none;border-radius:var(--r);cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;font-size:13px;font-weight:700;white-space:nowrap;flex-shrink:0">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                Paylaş
+            <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+              <input type="text" id="product-search" placeholder="🔍 Model axtar..." style="flex:1;min-width:150px;padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px" oninput="filterProducts(this.value)">
+              <button onclick="shareCatalogLink('b2b')" title="B2B — qiymətli katalog" style="padding:10px 12px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border:none;border-radius:var(--r);cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit;font-size:12px;font-weight:700;white-space:nowrap;flex-shrink:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                B2B
+              </button>
+              <button onclick="shareCatalogLink('b2c')" title="B2C — qiymetsiz katalog" style="padding:10px 12px;background:linear-gradient(135deg,#43b97f,#2d8f5e);color:#fff;border:none;border-radius:var(--r);cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit;font-size:12px;font-weight:700;white-space:nowrap;flex-shrink:0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                B2C
               </button>
             </div>
             <div class="pgrid" id="product-grid"></div>
@@ -872,18 +876,29 @@ textarea{resize:vertical;min-height:80px}
         <option value="diger">📦 Digər</option>
       </select>
     </div>
-    <!-- Qiymət -->
+    </div>
+    <!-- Qiymət Variantları -->
+    <div class="fg" style="margin-bottom:4px">
+      <label style="display:flex;justify-content:space-between;align-items:center">
+        <span>Qiymət variantları <span style="color:#E24B4A">*</span></span>
+        <button type="button" onclick="addPriceVariant()" style="background:var(--tl);color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">+ Variant əlavə et</button>
+      </label>
+      <div id="am-variants-list" style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+        <!-- Variantlar buraya əlavə olunur -->
+      </div>
+      <div style="font-size:11px;color:var(--t3);margin-top:4px">Məs: 9x1.8 → 650 ₼ &nbsp;|&nbsp; 1x2 → 750 ₼</div>
+    </div>
     <div class="fg2">
       <div class="fg">
-        <label>Satış qiyməti (₼) <span style="color:#E24B4A">*</span></label>
-        <input id="am-sale-price" type="number" min="0" step="0.01" placeholder="0.00" style="font-weight:600">
-        <span style="font-size:11px;color:var(--t3);margin-top:3px">Bu qiymət sifarişdə dəyişdirilmir</span>
+        <label>Maya dəyəri (₼)</label>
+        <input id="am-cost-price" type="number" min="0" step="0.01" placeholder="0.00">
+        <span style="font-size:11px;color:var(--t3);margin-top:3px">Daxili qeyd üçün</span>
       </div>
-    <div class="fg">
-      <label>Maya dəyəri (₼)</label>
-      <input id="am-cost-price" type="number" min="0" step="0.01" placeholder="0.00">
-      <span style="font-size:11px;color:var(--t3);margin-top:3px">Daxili qeyd üçün</span>
-    </div>
+      <div class="fg">
+        <label>Əsas qiymət (₼)</label>
+        <input id="am-sale-price" type="number" min="0" step="0.01" placeholder="0.00" style="font-weight:600">
+        <span style="font-size:11px;color:var(--t3);margin-top:3px">Variant yoxdursa istifadə olunur</span>
+      </div>
     </div>
     <!-- Görünürlük -->
     <div style="background:#f8f9fa;border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;margin-bottom:4px">
@@ -1875,19 +1890,25 @@ async function startOrderTrackMode(orderId){
 
 // ═══════════ KATALOG MODE (PUBLIC) ═══════════
 async function startCatalogMode(){
-  // Bütün səhifəni gizlət
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='none';
   
-  // Yeni dizayn kataloq ekranını göstər
   const screen = document.getElementById('customer-catalog-screen');
   screen.style.display = 'block';
   
-  // "Geri" düyməsini gizlət — public modda geri gedəcək yer yoxdur
+  // B2C modda qiymətlər gizlənir
+  const urlParams = new URLSearchParams(window.location.search);
+  window._catalogNoPriceMode = urlParams.get('noPrice') === '1';
+  
+  if(window._catalogNoPriceMode){
+    // B2C başlığı göstər
+    const countEl = document.getElementById('cc-count');
+    if(countEl){ countEl.textContent = 'B2C'; countEl.style.background='rgba(67,185,127,.2)'; countEl.style.color='#2d8f5e'; countEl.style.borderColor='rgba(67,185,127,.4)'; }
+  }
+  
   const backBtn = screen.querySelector('button[onclick="closeCustomerCatalog()"]');
   if(backBtn) backBtn.style.display = 'none';
   
-  // Modelləri yüklə
   try{
     const {data:models} = await sb.from('models').select('*').eq('is_active', true).order('name');
     const allModels = (models || []).filter(m => m.show_in_catalog !== false);
@@ -3446,14 +3467,9 @@ async function renderDeptTasks(dept){
           <div class="task-btns">
             <button class="btn btn-o btn-lg" 
               id="start-btn-${o.id}"
-              ${started||done ? 'disabled' : 
-                (!isWorkTime() && (new Date().getHours() < WORK_START_H || (new Date().getHours() === WORK_START_H && new Date().getMinutes() < WORK_START_M))) ? 'disabled' :
-                (!isWorkTime() && !window._overtimeAllowed) ? 'disabled' : ''}
-              onclick="dStart('${o.id}','${si}','${key}','${dept}')"
-              style="${!started&&!done&&!isWorkTime()&&!window._overtimeAllowed ? 'opacity:0.4' : ''}">
-              ${started||done ? '▶ Başla' :
-                (!isWorkTime() && (new Date().getHours() < WORK_START_H || (new Date().getHours()===WORK_START_H && new Date().getMinutes()<WORK_START_M))) ? '⏰ 08:30-da' :
-                (!isWorkTime() && !window._overtimeAllowed) ? '🔴 Blok' : '▶ Başla'}
+              ${started||done?'disabled':''}
+              onclick="dStart('${o.id}','${si}','${key}','${dept}')">
+              ▶ Başla
             </button>
             <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${total}')">✓ Tamamla</button>
           </div>
@@ -3697,6 +3713,51 @@ async function renderDeptTasks(dept){
   }
 }
 
+// ═══════════ QİYMƏT VARİANTLARI ═══════════
+let _priceVariants = [];
+
+function renderVariantsList(){
+  const list = document.getElementById('am-variants-list');
+  if(!list) return;
+  if(!_priceVariants.length){
+    list.innerHTML = '<div style="font-size:12px;color:#aaa;padding:6px 0">Variant yoxdur — tək qiymət istifadə olunacaq</div>';
+    return;
+  }
+  list.innerHTML = _priceVariants.map((v,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;background:#f8f9fa;padding:8px 10px;border-radius:8px;border:1px solid var(--bd)">
+      <input type="text" value="${v.label||''}" placeholder="Ölçü / Ad (məs: 9x1.8)"
+        oninput="_priceVariants[${i}].label=this.value"
+        style="flex:1;padding:6px 10px;border:1px solid var(--bd);border-radius:6px;font-family:inherit;font-size:13px">
+      <input type="number" value="${v.price||0}" placeholder="Qiymət" min="0"
+        oninput="_priceVariants[${i}].price=parseFloat(this.value)||0"
+        style="width:90px;padding:6px 10px;border:1px solid var(--bd);border-radius:6px;font-family:inherit;font-size:13px;font-weight:600">
+      <span style="font-size:13px;color:var(--t3)">₼</span>
+      <button type="button" onclick="removePriceVariant(${i})"
+        style="background:#FEEEED;color:#E24B4A;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:18px;line-height:1;flex-shrink:0">×</button>
+    </div>
+  `).join('');
+}
+
+function addPriceVariant(){
+  _priceVariants.push({label:'', price:0});
+  renderVariantsList();
+  setTimeout(()=>{
+    const inputs = document.querySelectorAll('#am-variants-list input[type="text"]');
+    if(inputs.length) inputs[inputs.length-1].focus();
+  }, 50);
+}
+
+function removePriceVariant(idx){
+  _priceVariants.splice(idx,1);
+  renderVariantsList();
+}
+
+function loadVariants(v){
+  try { _priceVariants = v ? (typeof v==='string' ? JSON.parse(v) : JSON.parse(JSON.stringify(v))) : []; }
+  catch(e){ _priceVariants = []; }
+  renderVariantsList();
+}
+
 // ═══════════ İŞ SAATI SİSTEMİ ═══════════
 const WORK_START_H = 8,  WORK_START_M = 30;
 const WORK_END_H   = 18, WORK_END_M   = 30;
@@ -3837,22 +3898,28 @@ setInterval(()=>{
 }, 60000);
 
 async function dStart(oid,si,key,dept){
-  // İş vaxtı yoxla
-  if(!isWorkTime()){
-    const now2 = new Date();
-    const h = now2.getHours(), m2 = now2.getMinutes();
-    if(h < WORK_START_H || (h===WORK_START_H && m2 < WORK_START_M)){
-      toast('⏰ İş vaxtı hələ başlamayıb. Başlanğıc: 08:30', 5000);
-      return;
-    }
-    // 18:30-dan sonra — icazə varmı?
+  const now2 = new Date();
+  const h = now2.getHours(), mins2 = now2.getMinutes();
+  const totalMins = h*60 + mins2;
+  const workStart = WORK_START_H*60 + WORK_START_M;
+  const workEnd = WORK_END_H*60 + WORK_END_M;
+
+  if(totalMins < workStart){
+    // 08:30-dan əvvəl
+    toast('⏰ İş vaxtı hələ başlamayıb. Başlanğıc: 08:30', 5000);
+    return;
+  }
+
+  if(totalMins >= workEnd){
+    // 18:30-dan sonra — icazə yoxla
     if(!window._overtimeAllowed){
-      toast('🔴 İş vaxtı bitib (18:30). Admin əlavə işə icazə verməyib.', 5000);
+      toast('🔴 İş vaxtı bitib (18:30). Sabah 08:30-da başlaya bilərsiniz.', 5000);
       return;
     }
     // İcazə var — davam et
   }
 
+  // Normal iş vaxtı və ya icazəli əlavə iş — başlat
   const now=new Date().toISOString();
   const el=document.getElementById('ts-'+oid);
   if(el){el.className='ts-box ts-go';el.textContent='⏱ Başladılır...';}
@@ -4789,11 +4856,19 @@ async function showCustomerOrders(client){
   }).join('');
 }
 
-function shareCatalogLink(){
-  const catalogUrl = window.location.origin + window.location.pathname + '?catalog=1';
-  const text = `🛋️ SONNO Mebel Kataloqu\n\nMəhsullarımıza baxmaq və sifariş vermək üçün:\n${catalogUrl}`;
-  const waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
-  window.open(waUrl, '_blank');
+function shareCatalogLink(type){
+  // type = 'b2b' (qiymətli) | 'b2c' (qiymetsiz)
+  const mode = type || 'b2b';
+  const catalogUrl = window.location.origin + window.location.pathname + '?catalog=1' + (mode==='b2c' ? '&noPrice=1' : '');
+  
+  if(mode === 'b2b'){
+    const text = `🛋️ SONNO Mebel Kataloqu — B2B\n\nMəhsullarımız, ölçülər və qiymətlər:\n${catalogUrl}`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  } else {
+    const text = `🛋️ SONNO Mebel Kataloqu\n\nMəhsullarımıza baxmaq üçün:\n${catalogUrl}\n\nQiymət üçün bizimlə əlaqə saxlayın.`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  }
+  toast(`✓ ${mode==='b2b'?'B2B (qiymətli)':'B2C (qiymetsiz)'} katalog linki WhatsApp-a göndərildi`);
 }
 
 function doCustomerLogout(){
@@ -4930,20 +5005,44 @@ function renderCustomerCatalogItems(models){
         </div>`;
     
     return `
-      <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);border:1px solid #eee;transition:box-shadow .2s;cursor:pointer" 
+      <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);border:1px solid #eee;transition:box-shadow .2s" 
         onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)'" 
         onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,.08)'">
         ${imageHtml}
         <div style="padding:12px">
           <div style="font-size:13px;font-weight:700;color:#111820;line-height:1.3;margin-bottom:4px">${m.name}</div>
           ${m.description ? `<div style="font-size:11px;color:#888;margin-bottom:6px;line-height:1.4">${m.description}</div>` : ''}
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            ${m.show_price === false
-              ? `<div style="font-size:12px;color:#888;font-style:italic">Qiymət üçün menecerimizlə əlaqə</div>`
-              : `<div style="font-size:20px;font-weight:800;color:#111820">${price>0?price.toFixed(0)+' ₼':'—'}</div>
-                 ${price>0?`<div style="font-size:10px;color:#888">qiymətdən</div>`:''}`
+          
+          ${(()=>{
+            const variants = m.price_variants && m.price_variants.length ? m.price_variants : null;
+            if(m.show_price === false || window._catalogNoPriceMode){
+              return `<div style="font-size:12px;color:#888;font-style:italic;margin-bottom:10px">Qiymət üçün menecerimizlə əlaqə</div>`;
             }
-          </div>
+            if(variants){
+              return `
+                <div style="margin-bottom:10px">
+                  <div style="font-size:11px;color:#888;margin-bottom:5px;font-weight:600">Ölçü seçin:</div>
+                  <div style="display:flex;flex-wrap:wrap;gap:5px" id="variants-${m.id}">
+                    ${variants.map((v,i)=>`
+                      <button onclick="selectVariant('${m.id}',${i},${v.price})" 
+                        id="variant-${m.id}-${i}"
+                        style="padding:5px 10px;border:1.5px solid ${i===0?'#111820':'#ddd'};border-radius:8px;background:${i===0?'#111820':'#fff'};color:${i===0?'#fff':'#333'};cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;transition:.15s">
+                        ${v.label}
+                      </button>
+                    `).join('')}
+                  </div>
+                  <div id="price-${m.id}" style="font-size:22px;font-weight:800;color:#111820;margin-top:8px">${variants[0].price.toFixed(0)} ₼</div>
+                </div>
+              `;
+            }
+            return `
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <div style="font-size:20px;font-weight:800;color:#111820">${price>0?price.toFixed(0)+' ₼':'—'}</div>
+                ${price>0?`<div style="font-size:10px;color:#888">qiymətdən</div>`:''}
+              </div>
+            `;
+          })()}
+          
           <button onclick="openCustomerOrderForm('${m.id}')" 
             style="width:100%;padding:11px;background:#111820;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s"
             onmouseover="this.style.background='#F79130'" 
@@ -4954,6 +5053,22 @@ function renderCustomerCatalogItems(models){
       </div>
     `;
   }).join('');
+}
+
+function selectVariant(modelId, idx, price){
+  // Bütün variantları sıfırla
+  document.querySelectorAll(`[id^="variant-${modelId}-"]`).forEach(btn=>{
+    btn.style.background='#fff'; btn.style.color='#333'; btn.style.borderColor='#ddd';
+  });
+  // Seçilmişi vurğula
+  const sel = document.getElementById(`variant-${modelId}-${idx}`);
+  if(sel){ sel.style.background='#111820'; sel.style.color='#fff'; sel.style.borderColor='#111820'; }
+  // Qiyməti yenilə
+  const priceEl = document.getElementById(`price-${modelId}`);
+  if(priceEl) priceEl.textContent = price.toFixed(0) + ' ₼';
+  // Seçimi yadda saxla
+  window._selectedVariants = window._selectedVariants || {};
+  window._selectedVariants[modelId] = idx;
 }
 
 // Katalog karusel (müştəri)
@@ -5222,6 +5337,9 @@ ${notes ? '📝 Qeyd: ' + notes + '\n' : ''}⏳ TƏSDIQ GÖZLƏYİR - Admin yoxl
     
     closeCustomerOrderForm();
     closeCustomerCatalog();
+    
+    // 1C-yə hesab-faktura göndər (arxa fonda)
+    send1CInvoice(successData).catch(e => console.warn('[1C] Göndərilmədi:', e.message));
     
     // Uğur mesajı göstər
     const successDiv = document.createElement('div');
@@ -7662,15 +7780,52 @@ function openAddModel(){
   window._currentStageOrder = [];
   window._parallelModes = {};
   openSheet('add-model');
-  // Sheet açıldıqdan sonra render et
   setTimeout(()=>{
     renderDeptChecklist([]);
+    loadVariants([]);
     syncToggle('am-show-catalog', true);
     syncToggle('am-show-price', true);
   }, 50);
 }
 
-// ═══════════ ƏLAVƏ İŞ İCAZƏSİ ═══════════
+// ═══════════ 1C İNTEQRASİYA ═══════════
+const BRIDGE_URL = 'YOUR_NGROK_URL'; // məs: https://abc123.ngrok.io
+
+async function send1CInvoice(order){
+  try {
+    const m = appModels.find(x=>x.id===order.model_id) || {name:'?'};
+    const managerUser = appWorkers?.find(x=>x.id===order.created_by);
+    const managerName = managerUser?.name || currentUser?.name || 'SONNO';
+    
+    const payload = {
+      client:       order.client,
+      model:        m.name,
+      model_code:   order.order_number,  // parça kodu = sifariş nömrəsi
+      manager:      managerName,
+      price:        order.final_price || order.sale_price || 0,
+      qty:          order.qty || 1,
+      deadline:     order.deadline || '',
+      order_number: order.order_number,
+      company:      'SONNO',             // şirkət adı
+    };
+
+    const resp = await fetch(BRIDGE_URL + '/create-invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await resp.json();
+    if(result.success){
+      console.log('[1C] Hesab-faktura yaradıldı:', result.invoice_number);
+      toast('✓ 1C-də hesab-faktura yaradıldı: ' + result.invoice_number, 4000);
+    } else {
+      console.warn('[1C] Xəta:', result.error);
+    }
+  } catch(e) {
+    console.warn('[1C] Bağlantı xətası:', e.message);
+  }
+}
 window._overtimeAllowed = false; // Default: bağlı
 
 // App yükləndikdə Supabase-dən oxu
@@ -7681,6 +7836,29 @@ async function loadOvertimeSetting(){
   }catch(e){
     window._overtimeAllowed = false;
   }
+  // Düymə mətnlərini yenilə
+  updateStartButtonLabels();
+}
+
+function updateStartButtonLabels(){
+  const now = new Date();
+  const totalMins = now.getHours()*60 + now.getMinutes();
+  const workStart = WORK_START_H*60 + WORK_START_M;
+  const workEnd = WORK_END_H*60 + WORK_END_M;
+  
+  document.querySelectorAll('[id^="start-btn-"]').forEach(btn=>{
+    if(btn.disabled) return; // artıq başlayıb və ya bitib
+    if(totalMins < workStart){
+      btn.textContent = '⏰ 08:30-da';
+      btn.style.opacity = '0.5';
+    } else if(totalMins >= workEnd && !window._overtimeAllowed){
+      btn.textContent = '🔴 Blok';
+      btn.style.opacity = '0.5';
+    } else {
+      btn.textContent = '▶ Başla';
+      btn.style.opacity = '1';
+    }
+  });
 }
 
 async function toggleOvertimePermission(){
@@ -7696,6 +7874,7 @@ async function toggleOvertimePermission(){
   setTimeout(()=>adminSec('settings'), 300);
   // Şöbə ekranı açıqdırsa yenilə
   if(pinDept) renderDeptTasks(pinDept);
+  else updateStartButtonLabels();
 }
 
 function toggleSwitch(key){
@@ -7768,9 +7947,9 @@ async function editModel(id){
   });
   
   openSheet('add-model');
-  // Sheet açıldıqdan sonra render et
   setTimeout(()=>{
     renderDeptChecklist(selectedKeys);
+    loadVariants(m.price_variants || []);
     syncToggle('am-show-catalog', m.show_in_catalog !== false);
     syncToggle('am-show-price', m.show_price !== false);
   }, 50);
@@ -8152,6 +8331,7 @@ async function saveModel(){
   const category = document.getElementById('am-category')?.value || null;
   const showInCatalog = window._toggleState?.catalog !== false;
   const showPrice = window._toggleState?.price !== false;
+  const priceVariants = _priceVariants.filter(v=>v.label).length ? _priceVariants.filter(v=>v.label) : null;
   
   // Şəkilləri hazırla — yeni format: JSON array (1-3 şəkil)
   // Köhnə format: single string (köhnə modellər üçün)
@@ -8166,12 +8346,12 @@ async function saveModel(){
   
   showLoader();
   if(editingModelId){
-    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,show_in_catalog:showInCatalog,show_price:showPrice};
+    const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,show_in_catalog:showInCatalog,show_price:showPrice,price_variants:priceVariants};
     if(imgUrlValue) upd.img_url = imgUrlValue;
     await sb.from('models').update(upd).eq('id',editingModelId);
     toast('✓ Model yeniləndi: '+name);
   }else{
-    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:imgUrlValue,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:true,show_in_catalog:showInCatalog,show_price:showPrice});
+    await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:imgUrlValue,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:true,show_in_catalog:showInCatalog,show_price:showPrice,price_variants:priceVariants});
     toast('✓ Model əlavə edildi: '+name);
   }
   hideLoader();
