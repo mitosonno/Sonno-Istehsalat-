@@ -1730,7 +1730,7 @@ async function cachedOrders(){
 
 async function cachedModels(){
   if(_cache.models && Date.now()-_cache.modelsAt < _cache.TTL) return _cache.models;
-  const {data} = await sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active').order('name');
+  const {data} = await sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active').order('name');
   _cache.models = data||[]; _cache.modelsAt = Date.now();
   appModels = _cache.models.filter(m=>m.show_in_catalog!==false);
   window._allModelsCache = _cache.models;
@@ -2231,7 +2231,7 @@ async function initApp(){
   
   // Data arxa planda yüklə (parallel)
   const dataPromise = Promise.all([
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+    sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
     sb.from('workers').select('*').eq('status','active'),
     sb.from('clients').select('*').order('name'),
     getForwardingConfig(),
@@ -4122,7 +4122,7 @@ async function renderLogisticsDone(){
   showLoader();
   const [{data:orders, error:oErr},{data:models}] = await Promise.all([
     sb.from('orders').select('*').eq('status','delivered'),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+    sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
   ]);
   hideLoader();
   
@@ -4192,7 +4192,7 @@ async function renderLogisticsDept(){
   showLoader();
   const [{data:orders},{data:models},{data:drivers},{data:users}] = await Promise.all([
     sb.from('orders').select('*').not('status', 'eq', 'delivered').order('created_at',{ascending:true}),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+    sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
     sb.from('workers').select('*').eq('dept_key','logistics').eq('status','active'),
     sb.from('users').select('id,name'),
   ]);
@@ -4884,7 +4884,7 @@ async function showCustomerOrders(client){
   showLoader();
   const [{data:orders},{data:models}] = await Promise.all([
     sb.from('orders').select('*').eq('client', client.name).order('created_at',{ascending:false}),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+    sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
   ]);
   hideLoader();
   const allOrders = orders||[];
@@ -6156,7 +6156,7 @@ async function sendAI(){
   const [{data:orders},{data:logs},{data:models},{data:workers},{data:users}] = await Promise.all([
     sb.from('orders').select('*'),
     sb.from('task_logs').select('*'),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+    sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
     sb.from('workers').select('*'),
     sb.from('users').select('*'),
   ]);
@@ -6330,7 +6330,7 @@ async function runAutoAnalysis(){
   const [{data:orders},{data:logs},{data:models},{data:workers}] = await Promise.all([
     sb.from('orders').select('*'),
     sb.from('task_logs').select('*'),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+    sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
     sb.from('workers').select('*'),
   ]);
   
@@ -6379,7 +6379,7 @@ async function renderAdmin(){
     showLoader();
     const [{data:users},{data:models},{data:workers},{data:clients}] = await Promise.all([
       sb.from('users').select('*'),
-      sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+      sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
       sb.from('workers').select('*'),
       sb.from('clients').select('*'),
     ]);
