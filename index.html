@@ -2148,17 +2148,7 @@ async function startKioskMode(dept){
   let buf='';
   let pinCode='1234';
 
-  // PIN + modellər paralel yüklə
-  const [pinsRes, mr, wr] = await Promise.all([
-    sb.from('dept_pins').select('*').eq('dept_key',dept).single(),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,category,show_in_catalog,show_price,price_variants,img_url'),
-    sb.from('workers').select('*').eq('status','active'),
-  ]);
-  if(pinsRes.data?.pin_code) pinCode = pinsRes.data.pin_code;
-  appModels = (mr.data||[]).filter(m=>m.show_in_catalog!==false);
-  window._allModelsCache = mr.data||[];
-  appWorkers = wr.data||[];
-
+  // kiosk_pp ƏVVƏL təyin et — düymələr dərhal işləsin
   window.kiosk_pp = function(k){
     if(k==='⌫'){buf=buf.slice(0,-1);}
     else if(buf.length<4){buf+=k;}
@@ -2176,7 +2166,6 @@ async function startKioskMode(dept){
   async function checkKioskPin(dept,code,entered){
     if(entered===code){
       document.querySelectorAll('.kdot').forEach(d=>d.classList.add('filled'));
-      // Session-a saxla — növbəti açılışda PIN istəməsin
       sessionStorage.setItem('kiosk_pin_'+dept, '1');
       if(!currentUser){
         currentUser = { id:'kiosk-'+dept, name:info.name, role:'dept', username:dept };
@@ -2188,6 +2177,17 @@ async function startKioskMode(dept){
       setTimeout(()=>{buf='';updateKioskDots();document.getElementById('k-err').textContent='';},800);
     }
   }
+
+  // PIN + modellər paralel yüklə (arxa fonda)
+  const [pinsRes, mr, wr] = await Promise.all([
+    sb.from('dept_pins').select('*').eq('dept_key',dept).single(),
+    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,category,show_in_catalog,show_price,price_variants,img_url'),
+    sb.from('workers').select('*').eq('status','active'),
+  ]);
+  if(pinsRes.data?.pin_code) pinCode = pinsRes.data.pin_code;
+  appModels = (mr.data||[]).filter(m=>m.show_in_catalog!==false);
+  window._allModelsCache = mr.data||[];
+  appWorkers = wr.data||[];
 }
 
 async function openKioskDept(dept){
