@@ -2161,21 +2161,30 @@ async function startKioskMode(dept){
 }
 
 async function openKioskDept(dept){
-  // Kiosk ekranını gizlət
   const kiosk = document.getElementById('kiosk-screen');
   if(kiosk) kiosk.style.display='none';
 
-  // Supabase-dən lazımi data yüklə (minimal)
   showLoader();
   try{
     const[mr,wr]=await Promise.all([
-      sb.from('models').select('*').eq('is_active',true),
+      sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,category,show_in_catalog,show_price,price_variants,img_url'),
       sb.from('workers').select('*').eq('status','active'),
     ]);
-    appModels=mr.data||[];
-    appWorkers=wr.data||[];
-  }catch(e){}
+    appModels = (mr.data||[]).filter(m=>m.show_in_catalog!==false);
+    window._allModelsCache = mr.data||[];
+    appWorkers = wr.data||[];
+  }catch(e){ console.error('[kiosk]',e); }
   hideLoader();
+
+  // Kiosk modda currentUser — şöbə işçisi kimi
+  if(!currentUser){
+    currentUser = {
+      id: 'kiosk-'+dept,
+      name: DEPT_INFO[dept]?.name || dept,
+      role: 'dept',
+      username: dept,
+    };
+  }
 
   // App-i göstər amma yalnız dept ekranı
   const app = document.getElementById('app');
