@@ -2088,12 +2088,36 @@ function renderCatalog(models){
 // ═══════════ KİOSK MODE ═══════════
 async function startKioskMode(dept){
   const info = DEPT_INFO[dept];
+  if(!info){ console.error('Dept tapılmadı:', dept); return; }
 
-  // Bütün səhifəni gizlət
+  // Əvvəlki session varsa — PIN istəmədən birbaşa aç
+  const savedPin = sessionStorage.getItem('kiosk_pin_'+dept);
+  if(savedPin){
+    // Modellər cache-dən varsa yüklə
+    if(!appModels.length || !window._allModelsCache){
+      showLoader();
+      try{
+        const[mr,wr]=await Promise.all([
+          sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,category,show_in_catalog,show_price,price_variants,img_url'),
+          sb.from('workers').select('*').eq('status','active'),
+        ]);
+        appModels = (mr.data||[]).filter(m=>m.show_in_catalog!==false);
+        window._allModelsCache = mr.data||[];
+        appWorkers = wr.data||[];
+      }catch(e){}
+      hideLoader();
+    }
+    if(!currentUser){
+      currentUser = { id:'kiosk-'+dept, name:info.name, role:'dept', username:dept };
+    }
+    openKioskDept(dept);
+    return;
+  }
+
+  // PIN ekranı göstər
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='none';
 
-  // Kiosk ekranı yarat
   const kiosk = document.createElement('div');
   kiosk.id = 'kiosk-screen';
   kiosk.style.cssText = `position:fixed;inset:0;background:#111820;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;font-family:'DM Sans',sans-serif`;
@@ -2104,12 +2128,10 @@ async function startKioskMode(dept){
       <div style="font-size:28px;font-weight:700;color:#fff;margin-bottom:4px">${info.name}</div>
       <div style="font-size:14px;color:rgba(255,255,255,.4)">PIN kodunu daxil edin</div>
     </div>
-
     <div style="display:flex;gap:12px;margin-bottom:8px" id="k-dots">
       <div class="kdot"></div><div class="kdot"></div><div class="kdot"></div><div class="kdot"></div>
     </div>
     <div id="k-err" style="color:#E24B4A;font-size:13px;min-height:20px;margin-bottom:20px;text-align:center"></div>
-
     <div style="display:grid;grid-template-columns:repeat(3,72px);gap:10px">
       ${['1','2','3','4','5','6','7','8','9','','0','⌫'].map(k=>
         k===''?`<div></div>`:
@@ -2118,21 +2140,24 @@ async function startKioskMode(dept){
     </div>
   `;
 
-  // CSS for kiosk dots
   const style = document.createElement('style');
   style.textContent = `.kdot{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.3);transition:all .15s}.kdot.filled{background:#F78930;border-color:#F78930}.kdot.err{background:#E24B4A;border-color:#E24B4A}`;
   document.head.appendChild(style);
   document.body.appendChild(kiosk);
 
-  // PIN logic
   let buf='';
   let pinCode='1234';
 
-  // PIN-i Supabase-dən yüklə
-  try{
-    const{data:pins}=await sb.from('dept_pins').select('*').eq('dept_key',dept).single();
-    if(pins?.pin_code) pinCode=pins.pin_code;
-  }catch(e){}
+  // PIN + modellər paralel yüklə
+  const [pinsRes, mr, wr] = await Promise.all([
+    sb.from('dept_pins').select('*').eq('dept_key',dept).single(),
+    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,category,show_in_catalog,show_price,price_variants,img_url'),
+    sb.from('workers').select('*').eq('status','active'),
+  ]);
+  if(pinsRes.data?.pin_code) pinCode = pinsRes.data.pin_code;
+  appModels = (mr.data||[]).filter(m=>m.show_in_catalog!==false);
+  window._allModelsCache = mr.data||[];
+  appWorkers = wr.data||[];
 
   window.kiosk_pp = function(k){
     if(k==='⌫'){buf=buf.slice(0,-1);}
@@ -2151,6 +2176,11 @@ async function startKioskMode(dept){
   async function checkKioskPin(dept,code,entered){
     if(entered===code){
       document.querySelectorAll('.kdot').forEach(d=>d.classList.add('filled'));
+      // Session-a saxla — növbəti açılışda PIN istəməsin
+      sessionStorage.setItem('kiosk_pin_'+dept, '1');
+      if(!currentUser){
+        currentUser = { id:'kiosk-'+dept, name:info.name, role:'dept', username:dept };
+      }
       setTimeout(()=>openKioskDept(dept),300);
     }else{
       document.querySelectorAll('.kdot').forEach(d=>d.classList.add('err'));
@@ -2164,29 +2194,8 @@ async function openKioskDept(dept){
   const kiosk = document.getElementById('kiosk-screen');
   if(kiosk) kiosk.style.display='none';
 
-  showLoader();
-  try{
-    const[mr,wr]=await Promise.all([
-      sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,category,show_in_catalog,show_price,price_variants,img_url'),
-      sb.from('workers').select('*').eq('status','active'),
-    ]);
-    appModels = (mr.data||[]).filter(m=>m.show_in_catalog!==false);
-    window._allModelsCache = mr.data||[];
-    appWorkers = wr.data||[];
-  }catch(e){ console.error('[kiosk]',e); }
-  hideLoader();
-
-  // Kiosk modda currentUser — şöbə işçisi kimi
-  if(!currentUser){
-    currentUser = {
-      id: 'kiosk-'+dept,
-      name: DEPT_INFO[dept]?.name || dept,
-      role: 'dept',
-      username: dept,
-    };
-  }
-
-  // App-i göstər amma yalnız dept ekranı
+  // Login ekranı gizlət, app göstər
+  document.getElementById('login-screen').style.display='none';
   const app = document.getElementById('app');
   app.style.display='flex';
   app.classList.add('visible');
