@@ -2088,36 +2088,12 @@ function renderCatalog(models){
 // ═══════════ KİOSK MODE ═══════════
 async function startKioskMode(dept){
   const info = DEPT_INFO[dept];
-  if(!info){ console.error('Dept tapılmadı:', dept); return; }
 
-  // Əvvəlki session varsa — PIN istəmədən birbaşa aç
-  const savedPin = sessionStorage.getItem('kiosk_pin_'+dept);
-  if(savedPin){
-    // Modellər cache-dən varsa yüklə
-    if(!appModels.length || !window._allModelsCache){
-      showLoader();
-      try{
-        const[mr,wr]=await Promise.all([
-          sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,category,show_in_catalog,show_price,price_variants,img_url'),
-          sb.from('workers').select('*').eq('status','active'),
-        ]);
-        appModels = (mr.data||[]).filter(m=>m.show_in_catalog!==false);
-        window._allModelsCache = mr.data||[];
-        appWorkers = wr.data||[];
-      }catch(e){}
-      hideLoader();
-    }
-    if(!currentUser){
-      currentUser = { id:'kiosk-'+dept, name:info.name, role:'dept', username:dept };
-    }
-    openKioskDept(dept);
-    return;
-  }
-
-  // PIN ekranı göstər
+  // Bütün səhifəni gizlət
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='none';
 
+  // Kiosk ekranı yarat
   const kiosk = document.createElement('div');
   kiosk.id = 'kiosk-screen';
   kiosk.style.cssText = `position:fixed;inset:0;background:#111820;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;font-family:'DM Sans',sans-serif`;
@@ -2128,10 +2104,12 @@ async function startKioskMode(dept){
       <div style="font-size:28px;font-weight:700;color:#fff;margin-bottom:4px">${info.name}</div>
       <div style="font-size:14px;color:rgba(255,255,255,.4)">PIN kodunu daxil edin</div>
     </div>
+
     <div style="display:flex;gap:12px;margin-bottom:8px" id="k-dots">
       <div class="kdot"></div><div class="kdot"></div><div class="kdot"></div><div class="kdot"></div>
     </div>
     <div id="k-err" style="color:#E24B4A;font-size:13px;min-height:20px;margin-bottom:20px;text-align:center"></div>
+
     <div style="display:grid;grid-template-columns:repeat(3,72px);gap:10px">
       ${['1','2','3','4','5','6','7','8','9','','0','⌫'].map(k=>
         k===''?`<div></div>`:
@@ -2140,32 +2118,27 @@ async function startKioskMode(dept){
     </div>
   `;
 
+  // CSS for kiosk dots
   const style = document.createElement('style');
   style.textContent = `.kdot{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.3);transition:all .15s}.kdot.filled{background:#F78930;border-color:#F78930}.kdot.err{background:#E24B4A;border-color:#E24B4A}`;
   document.head.appendChild(style);
   document.body.appendChild(kiosk);
 
+  // PIN logic
   let buf='';
-  let pinCode = null; // null — hələ yüklənməyib
-  let pinLoaded = false;
+  let pinCode='1234';
 
-  // kiosk_pp ƏVVƏL təyin et — düymələr dərhal işləsin
+  // PIN-i Supabase-dən yüklə
+  try{
+    const{data:pins}=await sb.from('dept_pins').select('*').eq('dept_key',dept).single();
+    if(pins?.pin_code) pinCode=pins.pin_code;
+  }catch(e){}
+
   window.kiosk_pp = function(k){
     if(k==='⌫'){buf=buf.slice(0,-1);}
     else if(buf.length<4){buf+=k;}
     updateKioskDots();
-    if(buf.length===4){
-      if(!pinLoaded){
-        // PIN hələ yüklənməyib — gözlə
-        document.getElementById('k-err').textContent='⏳ Yüklənir...';
-        setTimeout(()=>{
-          document.getElementById('k-err').textContent='';
-          checkKioskPin(dept,pinCode,buf);
-        }, 1500);
-      } else {
-        setTimeout(()=>checkKioskPin(dept,pinCode,buf),120);
-      }
-    }
+    if(buf.length===4) setTimeout(()=>checkKioskPin(dept,pinCode,buf),120);
   };
 
   function updateKioskDots(){
@@ -2178,10 +2151,6 @@ async function startKioskMode(dept){
   async function checkKioskPin(dept,code,entered){
     if(entered===code){
       document.querySelectorAll('.kdot').forEach(d=>d.classList.add('filled'));
-      sessionStorage.setItem('kiosk_pin_'+dept, '1');
-      if(!currentUser){
-        currentUser = { id:'kiosk-'+dept, name:info.name, role:'dept', username:dept };
-      }
       setTimeout(()=>openKioskDept(dept),300);
     }else{
       document.querySelectorAll('.kdot').forEach(d=>d.classList.add('err'));
@@ -2189,39 +2158,46 @@ async function startKioskMode(dept){
       setTimeout(()=>{buf='';updateKioskDots();document.getElementById('k-err').textContent='';},800);
     }
   }
-
-  // PIN + modellər paralel yüklə (arxa fonda)
-  const [pinsRes, mr, wr] = await Promise.all([
-    sb.from('dept_pins').select('*').eq('dept_key',dept).single(),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,category,show_in_catalog,show_price,price_variants,img_url'),
-    sb.from('workers').select('*').eq('status','active'),
-  ]);
-  pinCode = pinsRes.data?.pin_code || '1234';
-  pinLoaded = true;
-  appModels = (mr.data||[]).filter(m=>m.show_in_catalog!==false);
-  window._allModelsCache = mr.data||[];
-  appWorkers = wr.data||[];
 }
 
 async function openKioskDept(dept){
+  // Kiosk ekranını gizlət
   const kiosk = document.getElementById('kiosk-screen');
   if(kiosk) kiosk.style.display='none';
 
-  document.getElementById('login-screen').style.display='none';
+  // Supabase-dən lazımi data yüklə (minimal)
+  showLoader();
+  try{
+    const[mr,wr]=await Promise.all([
+      sb.from('models').select('*').eq('is_active',true),
+      sb.from('workers').select('*').eq('status','active'),
+    ]);
+    appModels=mr.data||[];
+    appWorkers=wr.data||[];
+  }catch(e){}
+  hideLoader();
+
+  // App-i göstər amma yalnız dept ekranı
   const app = document.getElementById('app');
   app.style.display='flex';
   app.classList.add('visible');
 
-  // Kiosk mode — topbar, sidebar, nav gizlət
-  ['topbar','.topbar'].forEach(s=>{ const el=document.querySelector(s)||document.getElementById(s); if(el) el.style.display='none'; });
-  const sidebar=document.getElementById('sidebar'); if(sidebar) sidebar.style.display='none';
-  const bottomNav=document.getElementById('bottom-nav'); if(bottomNav) bottomNav.style.display='none';
+  // Kiosk mode — top bar, sidebar, bottom nav gizlət
+  const topbar = document.querySelector('.topbar');
+  if(topbar) topbar.style.display = 'none';
+  const sidebar = document.getElementById('sidebar');
+  if(sidebar) sidebar.style.display = 'none';
+  const bottomNav = document.getElementById('bottom-nav');
+  if(bottomNav) bottomNav.style.display = 'none';
+  
+  const nav = document.querySelector('.bottom-nav');
+  if(nav) nav.style.display='none';
 
-  // pinDept set et — dDone sonra bunu istifadə edir
-  pinDept = dept;
-  pinUnlocked[dept] = true;
-
-  // Başlıq
+  // Birbaşa şöbə tapşırıqlarına get
+  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
+  document.getElementById('sc-dept').classList.add('on');
+  
+  // Başlıq yarat
   const info = DEPT_INFO[dept];
   const deptHd = document.getElementById('dept-hd');
   if(deptHd){
@@ -2230,24 +2206,20 @@ async function openKioskDept(dept){
     document.getElementById('dt-name').textContent = info.name;
   }
 
-  // Kilit düyməsi
+  // "Çıxış" düyməsini "🔒 Kilit" et — PIN ekranına qayıt
   const lockBtn = deptHd?.querySelector('button');
   if(lockBtn){
     lockBtn.textContent='🔒 Kilit';
     lockBtn.onclick = ()=>{
-      stopDeptAutoRefresh();
       app.style.display='none';
-      const k=document.getElementById('kiosk-screen');
-      if(k){k.style.display='flex';}else{window.location.reload();}
+      const kiosk=document.getElementById('kiosk-screen');
+      if(kiosk){kiosk.style.display='flex';}else{window.location.reload();}
     };
   }
 
-  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
-  document.getElementById('sc-dept').classList.add('on');
   showDV('dept-tasks');
-  
   await renderDeptTasks(dept);
-  startDeptAutoRefresh();
+  pinUnlocked[dept]=true;
 }
 
 
@@ -3068,26 +3040,7 @@ async function createOrder(){
   goTo('dash');
 }
 
-// Şöbə ekranı avtomatik yeniləmə — hər 30 saniyə
-let _deptAutoRefresh = null;
-function startDeptAutoRefresh(){
-  if(_deptAutoRefresh) clearInterval(_deptAutoRefresh);
-  _deptAutoRefresh = setInterval(()=>{
-    if(pinDept && document.getElementById('sc-dept')?.classList.contains('on')){
-      // Aktiv timer olan sifarişləri saxla
-      const activeTimerOids = new Set();
-      document.querySelectorAll('[id^="timer-"]').forEach(el=>{
-        if(el.dataset.intervalId) activeTimerOids.add(el.id.replace('timer-',''));
-      });
-      // Yalnız aktiv timer yoxdursa tam yenilə
-      // Aktiv timer varsa — yalnız yeni tapşırıqları yüklə (sessiz)
-      renderDeptTasks(pinDept, true); // silent=true — loader yoxdur
-    }
-  }, 30000);
-}
-function stopDeptAutoRefresh(){
-  if(_deptAutoRefresh){ clearInterval(_deptAutoRefresh); _deptAutoRefresh=null; }
-}
+// ═══════════ DEPT / PIN ═══════════
 async function renderDeptPick(){
   showLoader();
   const [ordersRes, completedLogsRes, modelsData, pinsRes] = await Promise.all([
@@ -3184,7 +3137,6 @@ async function showDeptTasks(dept){
   document.getElementById('dt-name').textContent=info.name;
   showDV('dept-tasks');
   await renderDeptTasks(dept);
-  startDeptAutoRefresh();
 }
 
 let curDeptTab = 'active';
@@ -3265,13 +3217,13 @@ async function cachedFetch(key, fetcher){
   return await fetcher();
 }
 
-async function renderDeptTasks(dept, silent){
+async function renderDeptTasks(dept){
   if(dept === 'logistics'){
     if(curDeptTab === 'done') return renderLogisticsDone();
     return renderLogisticsDept();
   }
   
-  if(!silent) showLoader();
+  showLoader();
   
   // Hamısı paralel — eyni vaxtda
   const [ordersRes, allModels, logsRes] = await Promise.all([
@@ -3289,7 +3241,7 @@ async function renderDeptTasks(dept, silent){
   
   const allOrders = ordersRes.data || [];
   const allLogs = logsRes.data || [];
-
+  
   hideLoader();
   window.forwardingConfig = window.forwardingConfig || {};
   
@@ -3654,7 +3606,7 @@ async function renderDeptTasks(dept, silent){
       </div>`;
     }).join('')+(hidden>0?`<div style="text-align:center;padding:18px;background:var(--lo);border-radius:var(--rl);border:2px dashed rgba(247,137,48,.3);margin-top:8px"><div style="font-size:28px;font-weight:700;color:var(--or)">${hidden}</div><div style="font-size:13px;color:#854F0B;margin-top:2px">sifariş növbədə gözləyir</div></div>`:'');
 
-    // Timer-ları başlat — started_at-dan hesabla
+    // Timer-ları başlat
     setTimeout(()=>initTimers(), 50);
 
   } else if(curDeptTab==='shared'){
@@ -3963,14 +3915,13 @@ function startTimerFromElapsed(oid, elapsedMs){
 }
 
 // Render sonrası bütün timerları başlat
-function initTimers(savedTimers){
+function initTimers(){
   document.querySelectorAll('[data-start-time]').forEach(el=>{
     const oid = el.dataset.oid;
     const startTime = el.dataset.startTime;
     if(!startTime || !oid) return;
-    // Həmişə started_at-dan hesabla — düzgün elapsed
     const elapsedMs = Date.now() - new Date(startTime).getTime();
-    startTimerFromElapsed(oid, Math.max(0, elapsedMs));
+    startTimerFromElapsed(oid, elapsedMs);
   });
 }
 
