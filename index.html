@@ -4451,64 +4451,60 @@ async function sharedReceive(oid, dept){
 }
 
 async function dDone(oid, si, key, dept, totalStages){
-  // Çoxlu klik qarşısı — eyni vaxtda 2 dDone işləməsin
-  if(window._dDoneInProgress && window._dDoneInProgress[oid]){
-    console.log('dDone artıq işləyir:', oid);
-    return;
-  }
+  if(window._dDoneInProgress && window._dDoneInProgress[oid]) return;
   if(!window._dDoneInProgress) window._dDoneInProgress = {};
   window._dDoneInProgress[oid] = true;
-  
-  // 5 saniyəden sonra avtomatik açıl (xətaa qarşısı)
-  setTimeout(()=>{ if(window._dDoneInProgress) delete window._dDoneInProgress[oid]; }, 5000);
+  setTimeout(()=>{ if(window._dDoneInProgress) delete window._dDoneInProgress[oid]; }, 8000);
   
   const doneBtn = document.getElementById('td-'+oid);
   if(doneBtn) doneBtn.disabled = true;
   
+  // DƏRHAL kart gizlət — istifadəçi görür ki işlənir
+  const card = document.getElementById('tcard-'+oid);
+  if(card){ card.style.opacity='0.4'; card.style.pointerEvents='none'; }
+  
   const now = new Date().toISOString();
   const stageIndex = parseInt(si) - 1;
   
-  // startTime əvvəl localStorage-dan, sonra Supabase-dən
   let startTime = localStorage.getItem(key+'_'+dept+'_t') || localStorage.getItem(key+'_t');
   
-  // === Sifariş və model yüklə ===
-  let model = null;
-  let order = null;
+  // Order + model paralel yüklə (cache istifadə et)
+  let order = null, model = null;
   try{
-    const orderRes = await sb.from('orders').select('*').eq('id', oid).single();
+    const allModels = window._allModelsCache || [];
+    const [orderRes, logRes] = await Promise.all([
+      sb.from('orders').select('id,model_id,current_stage,status,parallel_done_depts').eq('id',oid).single(),
+      !startTime ? sb.from('task_logs').select('started_at').eq('order_id',oid).eq('stage_index',stageIndex).eq('dept_key',dept).maybeSingle() : Promise.resolve({data:null}),
+    ]);
     order = orderRes.data;
-    if(order?.model_id){
-      const mr = await sb.from('models').select('stages').eq('id', order.model_id).single();
+    if(logRes.data?.started_at) startTime = logRes.data.started_at;
+    
+    // Model cache-dən tap
+    model = allModels.find(m=>m.id===order?.model_id);
+    if(!model && order?.model_id){
+      const mr = await sb.from('models').select('stages').eq('id',order.model_id).single();
       model = mr.data;
     }
-    // localStorage-da yoxdursa Supabase log-dan oxu
-    if(!startTime){
-      const {data:existingLog} = await sb.from('task_logs')
-        .select('started_at')
-        .eq('order_id', oid)
-        .eq('stage_index', stageIndex)
-        .eq('dept_key', dept)
-        .maybeSingle();
-      if(existingLog?.started_at) startTime = existingLog.started_at;
-    }
   }catch(e){
-    console.error('[dDone] yükləmə xətası:', e);
+    console.error('[dDone] yükləmə xətası:',e);
+    if(card){ card.style.opacity='1'; card.style.pointerEvents='auto'; }
+    if(doneBtn) doneBtn.disabled=false;
+    return;
   }
   
-  const durMin = startTime ? Math.max(0, Math.round((new Date(now) - new Date(startTime))/60000)) : null;
+  const durMin = startTime ? Math.max(0,Math.round((new Date(now)-new Date(startTime))/60000)) : null;
   
   if(!order || !model){
     toast('⚠ Sifariş tapılmadı');
-    if(doneBtn) doneBtn.disabled = false;
+    if(card){ card.style.opacity='1'; card.style.pointerEvents='auto'; }
+    if(doneBtn) doneBtn.disabled=false;
     return;
   }
   
   const stages = model.stages || [];
   const currentStage = stages[stageIndex];
   const isParallel = currentStage?.dept?.includes('||');
-  const parallelMode = isParallel ? (currentStage.mode || 'all') : null;
-  
-  console.log('[dDone] başlayır:', {oid, si, dept, isParallel, parallelMode, current_stage: order.current_stage});
+  const parallelMode = isParallel ? (currentStage.mode||'all') : null;
   
   // === Log yaz (statistika üçün) ===
   try{
@@ -4672,11 +4668,10 @@ async function dDone(oid, si, key, dept, totalStages){
   toast('✅ Tamamlandı!');
   
   const timerEl = document.getElementById('timer-'+oid);
-  if(timerEl?.dataset.intervalId){
-    clearInterval(parseInt(timerEl.dataset.intervalId));
-  }
+  if(timerEl?.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
   
-  await renderDeptTasks(dept);
+  // Ekranı yenilə
+  if(pinDept) await renderDeptTasks(pinDept);
 }
 
 // Köməkçi funksiya — card-ı DOM-dan tamamilə sil
