@@ -2207,28 +2207,21 @@ async function openKioskDept(dept){
   const kiosk = document.getElementById('kiosk-screen');
   if(kiosk) kiosk.style.display='none';
 
-  // Login ekranı gizlət, app göstər
   document.getElementById('login-screen').style.display='none';
   const app = document.getElementById('app');
   app.style.display='flex';
   app.classList.add('visible');
 
-  // Kiosk mode — top bar, sidebar, bottom nav gizlət
-  const topbar = document.querySelector('.topbar');
-  if(topbar) topbar.style.display = 'none';
-  const sidebar = document.getElementById('sidebar');
-  if(sidebar) sidebar.style.display = 'none';
-  const bottomNav = document.getElementById('bottom-nav');
-  if(bottomNav) bottomNav.style.display = 'none';
-  
-  const nav = document.querySelector('.bottom-nav');
-  if(nav) nav.style.display='none';
+  // Kiosk mode — topbar, sidebar, nav gizlət
+  ['topbar','.topbar'].forEach(s=>{ const el=document.querySelector(s)||document.getElementById(s); if(el) el.style.display='none'; });
+  const sidebar=document.getElementById('sidebar'); if(sidebar) sidebar.style.display='none';
+  const bottomNav=document.getElementById('bottom-nav'); if(bottomNav) bottomNav.style.display='none';
 
-  // Birbaşa şöbə tapşırıqlarına get
-  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
-  document.getElementById('sc-dept').classList.add('on');
-  
-  // Başlıq yarat
+  // pinDept set et — dDone sonra bunu istifadə edir
+  pinDept = dept;
+  pinUnlocked[dept] = true;
+
+  // Başlıq
   const info = DEPT_INFO[dept];
   const deptHd = document.getElementById('dept-hd');
   if(deptHd){
@@ -2237,20 +2230,24 @@ async function openKioskDept(dept){
     document.getElementById('dt-name').textContent = info.name;
   }
 
-  // "Çıxış" düyməsini "🔒 Kilit" et — PIN ekranına qayıt
+  // Kilit düyməsi
   const lockBtn = deptHd?.querySelector('button');
   if(lockBtn){
     lockBtn.textContent='🔒 Kilit';
     lockBtn.onclick = ()=>{
+      stopDeptAutoRefresh();
       app.style.display='none';
-      const kiosk=document.getElementById('kiosk-screen');
-      if(kiosk){kiosk.style.display='flex';}else{window.location.reload();}
+      const k=document.getElementById('kiosk-screen');
+      if(k){k.style.display='flex';}else{window.location.reload();}
     };
   }
 
+  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
+  document.getElementById('sc-dept').classList.add('on');
   showDV('dept-tasks');
+  
   await renderDeptTasks(dept);
-  pinUnlocked[dept]=true;
+  startDeptAutoRefresh();
 }
 
 
@@ -3286,6 +3283,18 @@ async function renderDeptTasks(dept){
   const allOrders = ordersRes.data || [];
   const allLogs = logsRes.data || [];
   
+  // Aktiv timerləri saxla — yenidən render sonrası bərpa et
+  const savedTimers = {};
+  document.querySelectorAll('[id^="timer-"]').forEach(el=>{
+    const oid = el.id.replace('timer-','');
+    if(el.dataset.intervalId){
+      clearInterval(parseInt(el.dataset.intervalId));
+      const elapsed = el.dataset.elapsedMs ? parseInt(el.dataset.elapsedMs) :
+                      (el.dataset.startMs ? Date.now()-parseInt(el.dataset.startMs) : 0);
+      if(elapsed > 0) savedTimers[oid] = elapsed;
+    }
+  });
+
   hideLoader();
   window.forwardingConfig = window.forwardingConfig || {};
   
@@ -3650,8 +3659,8 @@ async function renderDeptTasks(dept){
       </div>`;
     }).join('')+(hidden>0?`<div style="text-align:center;padding:18px;background:var(--lo);border-radius:var(--rl);border:2px dashed rgba(247,137,48,.3);margin-top:8px"><div style="font-size:28px;font-weight:700;color:var(--or)">${hidden}</div><div style="font-size:13px;color:#854F0B;margin-top:2px">sifariş növbədə gözləyir</div></div>`:'');
 
-    // Timer-ları başlat
-    setTimeout(()=>initTimers(), 50);
+    // Timer-ları başlat — əvvəlki vəziyyətdən davam et
+    setTimeout(()=>initTimers(savedTimers), 50);
 
   } else if(curDeptTab==='shared'){
     // PARÇA ALIŞ TAB — ötürülmüş sifarişlər
@@ -3959,12 +3968,14 @@ function startTimerFromElapsed(oid, elapsedMs){
 }
 
 // Render sonrası bütün timerları başlat
-function initTimers(){
+function initTimers(savedTimers){
   document.querySelectorAll('[data-start-time]').forEach(el=>{
     const oid = el.dataset.oid;
     const startTime = el.dataset.startTime;
     if(!startTime || !oid) return;
-    const elapsedMs = Date.now() - new Date(startTime).getTime();
+    // Əvvəlki aktiv timer varsa — oradan davam et
+    const saved = savedTimers && savedTimers[oid];
+    const elapsedMs = saved || (Date.now() - new Date(startTime).getTime());
     startTimerFromElapsed(oid, elapsedMs);
   });
 }
