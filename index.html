@@ -3074,7 +3074,14 @@ function startDeptAutoRefresh(){
   if(_deptAutoRefresh) clearInterval(_deptAutoRefresh);
   _deptAutoRefresh = setInterval(()=>{
     if(pinDept && document.getElementById('sc-dept')?.classList.contains('on')){
-      renderDeptTasks(pinDept);
+      // Aktiv timer olan sifarişləri saxla
+      const activeTimerOids = new Set();
+      document.querySelectorAll('[id^="timer-"]').forEach(el=>{
+        if(el.dataset.intervalId) activeTimerOids.add(el.id.replace('timer-',''));
+      });
+      // Yalnız aktiv timer yoxdursa tam yenilə
+      // Aktiv timer varsa — yalnız yeni tapşırıqları yüklə (sessiz)
+      renderDeptTasks(pinDept, true); // silent=true — loader yoxdur
     }
   }, 30000);
 }
@@ -3258,13 +3265,13 @@ async function cachedFetch(key, fetcher){
   return await fetcher();
 }
 
-async function renderDeptTasks(dept){
+async function renderDeptTasks(dept, silent){
   if(dept === 'logistics'){
     if(curDeptTab === 'done') return renderLogisticsDone();
     return renderLogisticsDept();
   }
   
-  showLoader();
+  if(!silent) showLoader();
   
   // Hamısı paralel — eyni vaxtda
   const [ordersRes, allModels, logsRes] = await Promise.all([
@@ -3282,18 +3289,6 @@ async function renderDeptTasks(dept){
   
   const allOrders = ordersRes.data || [];
   const allLogs = logsRes.data || [];
-  
-  // Aktiv timerləri saxla — yenidən render sonrası bərpa et
-  const savedTimers = {};
-  document.querySelectorAll('[id^="timer-"]').forEach(el=>{
-    const oid = el.id.replace('timer-','');
-    if(el.dataset.intervalId){
-      clearInterval(parseInt(el.dataset.intervalId));
-      const elapsed = el.dataset.elapsedMs ? parseInt(el.dataset.elapsedMs) :
-                      (el.dataset.startMs ? Date.now()-parseInt(el.dataset.startMs) : 0);
-      if(elapsed > 0) savedTimers[oid] = elapsed;
-    }
-  });
 
   hideLoader();
   window.forwardingConfig = window.forwardingConfig || {};
@@ -3659,8 +3654,8 @@ async function renderDeptTasks(dept){
       </div>`;
     }).join('')+(hidden>0?`<div style="text-align:center;padding:18px;background:var(--lo);border-radius:var(--rl);border:2px dashed rgba(247,137,48,.3);margin-top:8px"><div style="font-size:28px;font-weight:700;color:var(--or)">${hidden}</div><div style="font-size:13px;color:#854F0B;margin-top:2px">sifariş növbədə gözləyir</div></div>`:'');
 
-    // Timer-ları başlat — əvvəlki vəziyyətdən davam et
-    setTimeout(()=>initTimers(savedTimers), 50);
+    // Timer-ları başlat — started_at-dan hesabla
+    setTimeout(()=>initTimers(), 50);
 
   } else if(curDeptTab==='shared'){
     // PARÇA ALIŞ TAB — ötürülmüş sifarişlər
@@ -3973,10 +3968,9 @@ function initTimers(savedTimers){
     const oid = el.dataset.oid;
     const startTime = el.dataset.startTime;
     if(!startTime || !oid) return;
-    // Əvvəlki aktiv timer varsa — oradan davam et
-    const saved = savedTimers && savedTimers[oid];
-    const elapsedMs = saved || (Date.now() - new Date(startTime).getTime());
-    startTimerFromElapsed(oid, elapsedMs);
+    // Həmişə started_at-dan hesabla — düzgün elapsed
+    const elapsedMs = Date.now() - new Date(startTime).getTime();
+    startTimerFromElapsed(oid, Math.max(0, elapsedMs));
   });
 }
 
