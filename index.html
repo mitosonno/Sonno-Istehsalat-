@@ -1730,7 +1730,7 @@ async function cachedOrders(){
 
 async function cachedModels(){
   if(_cache.models && Date.now()-_cache.modelsAt < _cache.TTL) return _cache.models;
-  const {data} = await sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active').order('name');
+  const {data} = await sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active').order('name');
   _cache.models = data||[]; _cache.modelsAt = Date.now();
   appModels = _cache.models.filter(m=>m.show_in_catalog!==false);
   window._allModelsCache = _cache.models;
@@ -4681,9 +4681,8 @@ async function dDone(oid, si, key, dept, totalStages){
   }
   
   await renderDeptTasks(dept);
+  setTimeout(()=>initTimers(), 100);
 }
-
-// Köməkçi funksiya — card-ı DOM-dan tamamilə sil
 // ═══════════ BÜTÜN SİFARİŞLƏR SƏHİFƏSİ ═══════════
 function resetAllOrdersFilters(){
   const s = document.getElementById('ao-search'); if(s) s.value = '';
