@@ -2229,8 +2229,24 @@ async function openKioskDept(dept){
   clearInterval(window._kioskRefresh);
   window._kioskRefresh = setInterval(async()=>{
     if(!pinDept) return;
+    // Aktiv timer olan sifarişlərin ID-lərini saxla
+    const activeTimers = {};
+    document.querySelectorAll('[id^="timer-"]').forEach(el=>{
+      if(el.dataset.intervalId && el.dataset.intervalId !== ''){
+        activeTimers[el.id.replace('timer-','')] = true;
+      }
+    });
+    
     await renderDeptTasks(pinDept, true);
-    setTimeout(()=>initTimers(), 50);
+    
+    // Yalnız timeri olmayan yeni tapşırıqlar üçün timer başlat
+    document.querySelectorAll('[data-start-time]').forEach(el=>{
+      const oid = el.dataset.oid;
+      if(!activeTimers[oid]){ // Yeni tapşırıqdırsa — timer başlat
+        const elapsedMs = Date.now() - new Date(el.dataset.startTime).getTime();
+        startTimerFromElapsed(oid, Math.max(0, elapsedMs));
+      }
+    });
   }, 30000);
 }
 
