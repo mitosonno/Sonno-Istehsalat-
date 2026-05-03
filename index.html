@@ -2222,27 +2222,38 @@ async function openKioskDept(dept){
   showDV('dept-tasks');
   pinDept = dept;
   pinUnlocked[dept] = true;
-  if(!currentUser) currentUser = {id:'kiosk-'+dept, name:DEPT_INFO[dept]?.name||dept, role:'dept', username:dept};
+  if(!currentUser) currentUser = {id:null, name:DEPT_INFO[dept]?.name||dept, role:'dept', username:dept};
+  
+  // İcazə sistemini yüklə — link ilə açılanda da işləsin
+  await loadOvertimeSetting();
+  
   await renderDeptTasks(dept);
 
-  // 30 saniyədə sessiz yeniləmə
+  // 30 saniyədə yalnız YENİ tapşırıqları yoxla — mövcud timerləri toxunma
   clearInterval(window._kioskRefresh);
   window._kioskRefresh = setInterval(async()=>{
     if(!pinDept) return;
-    // Aktiv timer olan sifarişlərin ID-lərini saxla
-    const activeTimers = {};
+    
+    // Aktiv timerləri yadda saxla
+    const runningTimers = {};
     document.querySelectorAll('[id^="timer-"]').forEach(el=>{
       if(el.dataset.intervalId && el.dataset.intervalId !== ''){
-        activeTimers[el.id.replace('timer-','')] = true;
+        const elapsed = el.dataset.elapsedMs;
+        runningTimers[el.id.replace('timer-','')] = elapsed;
       }
     });
     
+    // HTML-i yenilə
     await renderDeptTasks(pinDept, true);
     
-    // Yalnız timeri olmayan yeni tapşırıqlar üçün timer başlat
+    // Aktiv timerləri bərpa et + yeniləri başlat
     document.querySelectorAll('[data-start-time]').forEach(el=>{
       const oid = el.dataset.oid;
-      if(!activeTimers[oid]){ // Yeni tapşırıqdırsa — timer başlat
+      if(runningTimers[oid] !== undefined){
+        // Köhnə timer — elapsed-dən davam et
+        startTimerFromElapsed(oid, parseInt(runningTimers[oid]));
+      } else {
+        // Yeni timer — started_at-dan hesabla
         const elapsedMs = Date.now() - new Date(el.dataset.startTime).getTime();
         startTimerFromElapsed(oid, Math.max(0, elapsedMs));
       }
