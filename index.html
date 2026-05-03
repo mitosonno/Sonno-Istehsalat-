@@ -3925,7 +3925,7 @@ function startTimerFromElapsed(oid, elapsedMs){
   let intv;
   const update = ()=>{
     const el2 = document.getElementById('timer-'+oid);
-    if(!el2){ clearInterval(intv); return; }
+    if(!el2) return; // Element yoxdur — amma timeri dayandırma, növbəti saniyə yoxla
     const elapsed = Date.now() - t0;
     const m = Math.floor(elapsed/60000);
     const s = Math.floor((elapsed%60000)/1000);
@@ -4103,6 +4103,8 @@ async function dStart(oid,si,key,dept){
     if(btns){
       const timerDiv = document.createElement('div');
       timerDiv.id = 'timer-'+oid;
+      timerDiv.dataset.startTime = now;
+      timerDiv.dataset.oid = oid;
       timerDiv.style.cssText = 'font-size:14px;font-weight:600;color:var(--or);text-align:center;margin:8px 0';
       timerDiv.textContent = '⏱ 0 dəq 0 san';
       btns.parentNode.insertBefore(timerDiv, btns);
