@@ -3270,7 +3270,7 @@ async function renderDeptTasks(dept, silent){
   const [ordersRes, allModels, logsRes] = await Promise.all([
     sb.from('orders')
       .select('*')
-      .in('status', ['in_progress','created','late','ready'])
+      .in('status', ['in_progress','created','late','ready','delivered','completed'])
       .gt('current_stage', 0)
       .order('created_at', {ascending: true}),
     cachedModelsLight(),
