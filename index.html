@@ -4488,7 +4488,7 @@ async function sharedReceive(oid, dept){
     
     hideLoader();
     toast('✓ Alındı qeydə alındı');
-    // Shared tab-da olduğumuzdan əmin ol, sonra yenilə
+    invalidateCache('orders');
     curDeptTab = 'shared';
     setTimeout(()=>renderDeptTasks(dept), 300);
   }catch(e){
@@ -4563,7 +4563,8 @@ async function dDone(oid, si, key, dept, totalStages){
       .eq('dept_key', dept);
     await sb.from('task_logs').insert({
       order_id: oid, stage_index: stageIndex,
-      worker_id: currentUser.id, worker_name: currentUser.name,
+      worker_id: currentUser?.id || null,
+      worker_name: currentUser?.name || dept,
       dept_key: dept, action: 'completed',
       started_at: startTime || now, completed_at: now,
       duration_minutes: durMin
