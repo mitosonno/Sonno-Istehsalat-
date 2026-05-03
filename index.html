@@ -2225,8 +2225,11 @@ async function openKioskDept(dept){
 
   // 30 saniyədə sessiz yeniləmə
   clearInterval(window._kioskRefresh);
-  window._kioskRefresh=setInterval(()=>{
-    if(pinDept) renderDeptTasks(pinDept, true);
+  window._kioskRefresh=setInterval(async()=>{
+    if(pinDept){
+      await renderDeptTasks(pinDept, true);
+      initTimers();
+    }
   }, 30000);
 }
 
@@ -3145,6 +3148,14 @@ async function showDeptTasks(dept){
   document.getElementById('dt-name').textContent=info.name;
   showDV('dept-tasks');
   await renderDeptTasks(dept);
+  // 30 saniyədə sessiz yeniləmə
+  clearInterval(window._kioskRefresh);
+  window._kioskRefresh=setInterval(async()=>{
+    if(pinDept){
+      await renderDeptTasks(pinDept, true);
+      initTimers();
+    }
+  }, 30000);
 }
 
 let curDeptTab = 'active';
