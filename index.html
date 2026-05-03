@@ -4047,10 +4047,10 @@ async function dStart(oid,si,key,dept){
     await sb.from('task_logs').delete().eq('order_id',oid).eq('stage_index',parseInt(si)-1).eq('dept_key',dept);
     const logPayload = {
       order_id:oid, stage_index:parseInt(si)-1,
+      worker_id: currentUser?.id || null,
       worker_name:currentUser?.name || dept,
       dept_key:dept, action:'started', started_at:now
     };
-    if(currentUser?.id) logPayload.worker_id = currentUser.id;
     await sb.from('task_logs').insert(logPayload);
   }catch(e){
     console.error('[dStart] Supabase xətası:', e);
