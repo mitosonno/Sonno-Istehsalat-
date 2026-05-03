@@ -2171,7 +2171,7 @@ async function openKioskDept(dept){
   showLoader();
   try{
     const[mr,wr]=await Promise.all([
-      sb.from('models').select('*').eq('is_active',true),
+      sb.from('models').select('id,name,emoji,stages,category,is_active').order('name'),
       sb.from('workers').select('*').eq('status','active'),
     ]);
     appModels=mr.data||[];
