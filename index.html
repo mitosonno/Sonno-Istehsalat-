@@ -1386,6 +1386,18 @@ function showWarningDialog(count){
 
 // ═══════════ DEADLINE VALIDATION ═══════════
 // Minimum 7 iş günü (yalnız Bazar çıxılır) + sifariş günü çıxılır
+// Timezone-safe tarix formatı — UTC problemi olmadan
+function dateToStr(d){
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function strToDate(s){
+  // "YYYY-MM-DD" → lokal tarix (UTC-yə çevrilmir)
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+
 function getMinDeadlineDate(){
   let d = new Date();
   d.setHours(0,0,0,0);
@@ -1405,8 +1417,7 @@ async function validateDeadline(input){
   const dateStr = input.value;
   if(!dateStr) return;
   
-  let d = new Date(dateStr);
-  d.setHours(0,0,0,0);
+  let d = strToDate(dateStr);
   const today = new Date(); today.setHours(0,0,0,0);
   const minDate = getMinDeadlineDate();
   const isAdmin = currentUser && currentUser.role === 'admin';
@@ -1417,7 +1428,7 @@ async function validateDeadline(input){
     showDeadlineWarningModal(
       '⚠️ Bu gün qəbul edilmir',
       'Sifariş günü deadline ola bilməz. Ən tez <b>sabah</b> tarixini seçin.',
-      minDate.toISOString().split('T')[0],
+      dateToStr(minDate),
       input,
       false // keçməyə icazə yox
     );
@@ -1443,7 +1454,7 @@ async function validateDeadline(input){
         '⚠️ 7 iş günündən az',
         'Standart minimum <b>7 iş günüdür</b>.<br><br>Tövsiyə olunan ən tez tarix: <b style="color:var(--tl)">'
           + minDate.toLocaleDateString('az-AZ', {weekday:'long', day:'numeric', month:'long'}) + '</b>',
-        minDate.toISOString().split('T')[0],
+        dateToStr(minDate),
         input,
         true // menecer keçə bilər
       );
@@ -1451,7 +1462,7 @@ async function validateDeadline(input){
     }
   }
   
-  input.value = d.toISOString().split('T')[0];
+  input.value = dateToStr(d);
   await checkDailyLimit(input.value, input);
 }
 
@@ -1510,7 +1521,7 @@ function showSundayWarning(input, suggestedDate){
           style="flex:1;padding:12px;border:1px solid #ddd;background:#fff;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600">
           ← Geri
         </button>
-        <button onclick="acceptSundayFix('${suggestedDate.toISOString().split('T')[0]}')"
+        <button onclick="acceptSundayFix('${dateToStr(suggestedDate)}')"
           style="flex:2;padding:12px;background:var(--tl);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700">
           ✓ OK — ${dayName.split(',')[0]}
         </button>
@@ -1577,7 +1588,7 @@ async function suggestNextAvailable(fromDate, limit, newQty, input){
     const dow = check.getDay();
     if(dow===0) continue; // Yalnız Bazar çıxılır
     
-    const checkStr = check.toISOString().split('T')[0];
+    const checkStr = dateToStr(check);
     const {data} = await sb.from('orders')
       .select('qty')
       .eq('deadline', checkStr)
@@ -1735,6 +1746,12 @@ async function cachedModels(){
   appModels = _cache.models.filter(m=>m.show_in_catalog!==false);
   window._allModelsCache = _cache.models;
   return _cache.models;
+}
+
+// Şöbə ekranı üçün — img_url olmadan (sürətli, şəkil lazım deyil)
+async function cachedModelsLight(){
+  const {data} = await sb.from('models').select('id,name,emoji,stages,category,is_active').order('name');
+  return data||[];
 }
 
 function invalidateCache(...keys){
@@ -2208,16 +2225,16 @@ async function openKioskDept(dept){
 
   showDV('dept-tasks');
   pinDept = dept;
-  pinUnlocked[dept]=true;
-  if(!currentUser) currentUser={id:'kiosk-'+dept, name:DEPT_INFO[dept]?.name||dept, role:'dept', username:dept};
+  pinUnlocked[dept] = true;
+  if(!currentUser) currentUser = {id:'kiosk-'+dept, name:DEPT_INFO[dept]?.name||dept, role:'dept', username:dept};
   await renderDeptTasks(dept);
-  
-  // 30 saniyədə sessiz yeniləmə — loader yox, timer davam edir
+
+  // 30 saniyədə sessiz yeniləmə
   clearInterval(window._kioskRefresh);
   window._kioskRefresh = setInterval(async()=>{
     if(!pinDept) return;
     await renderDeptTasks(pinDept, true);
-    initTimers();
+    setTimeout(()=>initTimers(), 50);
   }, 30000);
 }
 
@@ -2241,7 +2258,7 @@ async function initApp(){
   
   // Data arxa planda yüklə (parallel)
   const dataPromise = Promise.all([
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+    sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
     sb.from('workers').select('*').eq('status','active'),
     sb.from('clients').select('*').order('name'),
     getForwardingConfig(),
@@ -2788,9 +2805,9 @@ function renderOrderForm(){
   renderProductGrid(appModels);
   const deadInput = document.getElementById('o-dead');
   const minDate = getMinDeadlineDate();
-  deadInput.min = minDate.toISOString().split('T')[0];
+  deadInput.min = dateToStr(minDate);
   if(!deadInput.value){
-    deadInput.value = minDate.toISOString().split('T')[0];
+    deadInput.value = dateToStr(minDate);
   }
   // Mobile: stack layout
   if(window.innerWidth<=768){
@@ -2971,7 +2988,7 @@ function updateEta(m){
   if(dl){const ok2=new Date(dl)>=d;ok=ok2?' · <span style="color:var(--tl)">✓ Vaxt var</span>':' · <span style="color:#E24B4A">⚠ Risk</span>';}
   document.getElementById('eta-txt').innerHTML=`${h} saat · ${days} iş günü · ETA: ${eta}${ok}`;
   // Auto-set deadline
-  if(!dl) document.getElementById('o-dead').value=d.toISOString().split('T')[0];
+  if(!dl) document.getElementById('o-dead').value=dateToStr(d);
 }
 
 function renderPipePrev(m){
@@ -3050,7 +3067,7 @@ async function renderDeptPick(){
       .not('completed_at','is',null)
       .order('completed_at', {ascending:false})
       .limit(200),
-    cachedModels(),
+    cachedModelsLight(),
     sb.from('dept_pins').select('dept_key,pin_code'),
   ]);
   hideLoader();
@@ -3221,7 +3238,6 @@ async function renderDeptTasks(dept, silent){
     if(curDeptTab === 'done') return renderLogisticsDone();
     return renderLogisticsDept();
   }
-  
   if(!silent) showLoader();
   
   // Hamısı paralel — eyni vaxtda
@@ -3231,7 +3247,7 @@ async function renderDeptTasks(dept, silent){
       .in('status', ['in_progress','created','late','ready'])
       .gt('current_stage', 0)
       .order('created_at', {ascending: true}),
-    cachedModels(),
+    cachedModelsLight(),
     sb.from('task_logs')
       .select('id,order_id,stage_index,dept_key,started_at,completed_at,worker_name,action')
       .order('started_at', {ascending: false})
@@ -3880,11 +3896,10 @@ function startTimerFromElapsed(oid, elapsedMs){
   if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
   
   const t0 = Date.now() - elapsedMs;
-  timerEl.dataset.elapsedMs = elapsedMs;
+  timerEl.dataset.elapsedMs = elapsedMs; // başlanğıc dəyəri saxla
   const WEND = WORK_END_H*60 + WORK_END_M;
   
-  let intv; // let — update içindən görünür
-  
+  let intv;
   const update = ()=>{
     const el2 = document.getElementById('timer-'+oid);
     if(!el2){ clearInterval(intv); return; }
@@ -3892,7 +3907,6 @@ function startTimerFromElapsed(oid, elapsedMs){
     const m = Math.floor(elapsed/60000);
     const s = Math.floor((elapsed%60000)/1000);
     el2.dataset.elapsedMs = elapsed;
-    
     const nowMins = new Date().getHours()*60 + new Date().getMinutes();
     if(nowMins >= WEND){
       el2.textContent = `⏸ Pauza — ${m} dəq ${s} san`;
@@ -3900,12 +3914,7 @@ function startTimerFromElapsed(oid, elapsedMs){
       clearInterval(intv);
       el2.dataset.intervalId = '';
       const startBtn = document.getElementById('start-btn-'+oid);
-      if(startBtn){ 
-        startBtn.textContent='⏸ Pauza — davam et'; 
-        startBtn.disabled=false; 
-        startBtn.style.opacity='1'; 
-        startBtn.onclick=()=>resumeTimer(oid); 
-      }
+      if(startBtn){ startBtn.textContent='⏸ Pauza — davam et'; startBtn.disabled=false; startBtn.style.opacity='1'; startBtn.onclick=()=>resumeTimer(oid); }
       return;
     }
     el2.textContent = `⏱ ${m} dəq ${s} san`;
@@ -3942,20 +3951,20 @@ function resumeTimer(oid){
   
   if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
   
-  let intv;
-  const update = ()=>{
-    const el2 = document.getElementById('timer-'+oid);
-    if(!el2){ clearInterval(intv); return; }
+  let intv2;
+  const update2 = ()=>{
+    const el3 = document.getElementById('timer-'+oid);
+    if(!el3){ clearInterval(intv2); return; }
     const elapsed = Date.now() - t0;
     const m = Math.floor(elapsed/60000);
     const s = Math.floor((elapsed%60000)/1000);
-    el2.textContent = `⏱ ${m} dəq ${s} san`;
-    el2.style.color = 'var(--or)';
-    el2.dataset.elapsedMs = elapsed;
+    el3.textContent = `⏱ ${m} dəq ${s} san`;
+    el3.style.color = 'var(--or)';
+    el3.dataset.elapsedMs = elapsed;
   };
-  update();
-  intv = setInterval(update, 1000);
-  timerEl.dataset.intervalId = intv;
+  update2();
+  intv2 = setInterval(update2, 1000);
+  timerEl.dataset.intervalId = intv2;
   
   toast('▶ Timer davam edir');
 }
@@ -4137,7 +4146,7 @@ async function renderLogisticsDone(){
   showLoader();
   const [{data:orders, error:oErr},{data:models}] = await Promise.all([
     sb.from('orders').select('*').eq('status','delivered'),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+    sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
   ]);
   hideLoader();
   
@@ -4207,7 +4216,7 @@ async function renderLogisticsDept(){
   showLoader();
   const [{data:orders},{data:models},{data:drivers},{data:users}] = await Promise.all([
     sb.from('orders').select('*').not('status', 'eq', 'delivered').order('created_at',{ascending:true}),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+    sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
     sb.from('workers').select('*').eq('dept_key','logistics').eq('status','active'),
     sb.from('users').select('id,name'),
   ]);
@@ -4455,64 +4464,60 @@ async function sharedReceive(oid, dept){
 }
 
 async function dDone(oid, si, key, dept, totalStages){
-  // Çoxlu klik qarşısı — eyni vaxtda 2 dDone işləməsin
-  if(window._dDoneInProgress && window._dDoneInProgress[oid]){
-    console.log('dDone artıq işləyir:', oid);
-    return;
-  }
+  if(window._dDoneInProgress && window._dDoneInProgress[oid]) return;
   if(!window._dDoneInProgress) window._dDoneInProgress = {};
   window._dDoneInProgress[oid] = true;
-  
-  // 5 saniyəden sonra avtomatik açıl (xətaa qarşısı)
-  setTimeout(()=>{ if(window._dDoneInProgress) delete window._dDoneInProgress[oid]; }, 5000);
+  setTimeout(()=>{ if(window._dDoneInProgress) delete window._dDoneInProgress[oid]; }, 8000);
   
   const doneBtn = document.getElementById('td-'+oid);
   if(doneBtn) doneBtn.disabled = true;
   
+  // DƏRHAL kart gizlət — istifadəçi görür ki işlənir
+  const card = document.getElementById('tcard-'+oid);
+  if(card){ card.style.opacity='0.4'; card.style.pointerEvents='none'; }
+  
   const now = new Date().toISOString();
   const stageIndex = parseInt(si) - 1;
   
-  // startTime əvvəl localStorage-dan, sonra Supabase-dən
   let startTime = localStorage.getItem(key+'_'+dept+'_t') || localStorage.getItem(key+'_t');
   
-  // === Sifariş və model yüklə ===
-  let model = null;
-  let order = null;
+  // Order + model paralel yüklə (cache istifadə et)
+  let order = null, model = null;
   try{
-    const orderRes = await sb.from('orders').select('*').eq('id', oid).single();
+    const allModels = window._allModelsCache || [];
+    const [orderRes, logRes] = await Promise.all([
+      sb.from('orders').select('id,model_id,current_stage,status,parallel_done_depts').eq('id',oid).single(),
+      !startTime ? sb.from('task_logs').select('started_at').eq('order_id',oid).eq('stage_index',stageIndex).eq('dept_key',dept).maybeSingle() : Promise.resolve({data:null}),
+    ]);
     order = orderRes.data;
-    if(order?.model_id){
-      const mr = await sb.from('models').select('stages').eq('id', order.model_id).single();
+    if(logRes.data?.started_at) startTime = logRes.data.started_at;
+    
+    // Model cache-dən tap
+    model = allModels.find(m=>m.id===order?.model_id);
+    if(!model && order?.model_id){
+      const mr = await sb.from('models').select('stages').eq('id',order.model_id).single();
       model = mr.data;
     }
-    // localStorage-da yoxdursa Supabase log-dan oxu
-    if(!startTime){
-      const {data:existingLog} = await sb.from('task_logs')
-        .select('started_at')
-        .eq('order_id', oid)
-        .eq('stage_index', stageIndex)
-        .eq('dept_key', dept)
-        .maybeSingle();
-      if(existingLog?.started_at) startTime = existingLog.started_at;
-    }
   }catch(e){
-    console.error('[dDone] yükləmə xətası:', e);
+    console.error('[dDone] yükləmə xətası:',e);
+    if(card){ card.style.opacity='1'; card.style.pointerEvents='auto'; }
+    if(doneBtn) doneBtn.disabled=false;
+    return;
   }
   
-  const durMin = startTime ? Math.max(0, Math.round((new Date(now) - new Date(startTime))/60000)) : null;
+  const durMin = startTime ? Math.max(0,Math.round((new Date(now)-new Date(startTime))/60000)) : null;
   
   if(!order || !model){
     toast('⚠ Sifariş tapılmadı');
-    if(doneBtn) doneBtn.disabled = false;
+    if(card){ card.style.opacity='1'; card.style.pointerEvents='auto'; }
+    if(doneBtn) doneBtn.disabled=false;
     return;
   }
   
   const stages = model.stages || [];
   const currentStage = stages[stageIndex];
   const isParallel = currentStage?.dept?.includes('||');
-  const parallelMode = isParallel ? (currentStage.mode || 'all') : null;
-  
-  console.log('[dDone] başlayır:', {oid, si, dept, isParallel, parallelMode, current_stage: order.current_stage});
+  const parallelMode = isParallel ? (currentStage.mode||'all') : null;
   
   // === Log yaz (statistika üçün) ===
   try{
@@ -4676,13 +4681,13 @@ async function dDone(oid, si, key, dept, totalStages){
   toast('✅ Tamamlandı!');
   
   const timerEl = document.getElementById('timer-'+oid);
-  if(timerEl?.dataset.intervalId){
-    clearInterval(parseInt(timerEl.dataset.intervalId));
-  }
+  if(timerEl?.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
   
-  await renderDeptTasks(dept);
-  setTimeout(()=>initTimers(), 100);
+  // Ekranı yenilə
+  if(pinDept) await renderDeptTasks(pinDept);
 }
+
+// Köməkçi funksiya — card-ı DOM-dan tamamilə sil
 // ═══════════ BÜTÜN SİFARİŞLƏR SƏHİFƏSİ ═══════════
 function resetAllOrdersFilters(){
   const s = document.getElementById('ao-search'); if(s) s.value = '';
@@ -4898,7 +4903,7 @@ async function showCustomerOrders(client){
   showLoader();
   const [{data:orders},{data:models}] = await Promise.all([
     sb.from('orders').select('*').eq('client', client.name).order('created_at',{ascending:false}),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+    sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
   ]);
   hideLoader();
   const allOrders = orders||[];
@@ -5249,8 +5254,8 @@ async function openCustomerOrderForm(modelId){
   // Minimum tarix = bu gün + 7 iş günü (bazar sayılmasın)
   const minDate = getMinDeadlineDate();
   const dlInput = document.getElementById('cof-deadline');
-  dlInput.min = minDate.toISOString().split('T')[0];
-  dlInput.value = minDate.toISOString().split('T')[0];
+  dlInput.min = dateToStr(minDate);
+  dlInput.value = dateToStr(minDate);
   // Validasiya — bazar seçiləndə avto düzəlt
   dlInput.onchange = function(){ validateCustomerDeadline(this); };
   
@@ -5296,7 +5301,7 @@ function validateCustomerDeadline(input){
     toast('⚠ Minimum 7 iş günü sonraya sifariş verilə bilər. Ən tez: '+minStr, 5000);
   }
   
-  input.value = d.toISOString().split('T')[0];
+  input.value = dateToStr(d);
 }
 
 function closeCustomerOrderForm(){
@@ -6170,7 +6175,7 @@ async function sendAI(){
   const [{data:orders},{data:logs},{data:models},{data:workers},{data:users}] = await Promise.all([
     sb.from('orders').select('*'),
     sb.from('task_logs').select('*'),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+    sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
     sb.from('workers').select('*'),
     sb.from('users').select('*'),
   ]);
@@ -6344,7 +6349,7 @@ async function runAutoAnalysis(){
   const [{data:orders},{data:logs},{data:models},{data:workers}] = await Promise.all([
     sb.from('orders').select('*'),
     sb.from('task_logs').select('*'),
-    sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+    sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
     sb.from('workers').select('*'),
   ]);
   
@@ -6393,7 +6398,7 @@ async function renderAdmin(){
     showLoader();
     const [{data:users},{data:models},{data:workers},{data:clients}] = await Promise.all([
       sb.from('users').select('*'),
-      sb.from('models').select('id,name,description,emoji,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+      sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
       sb.from('workers').select('*'),
       sb.from('clients').select('*'),
     ]);
