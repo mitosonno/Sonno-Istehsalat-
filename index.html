@@ -2224,8 +2224,11 @@ async function openKioskDept(dept){
   pinUnlocked[dept] = true;
   if(!currentUser) currentUser = {id:null, name:DEPT_INFO[dept]?.name||dept, role:'dept', username:dept};
   
-  // İcazə sistemini yüklə — link ilə açılanda da işləsin
-  await loadOvertimeSetting();
+  // İcazə sistemini və ötürmə konfiqini yüklə
+  await Promise.all([
+    loadOvertimeSetting(),
+    getForwardingConfig().then(cfg=>{ window.forwardingConfig = cfg || {}; }),
+  ]);
   
   await renderDeptTasks(dept);
 
@@ -4485,6 +4488,8 @@ async function sharedReceive(oid, dept){
     
     hideLoader();
     toast('✓ Alındı qeydə alındı');
+    // Shared tab-da olduğumuzdan əmin ol, sonra yenilə
+    curDeptTab = 'shared';
     setTimeout(()=>renderDeptTasks(dept), 300);
   }catch(e){
     hideLoader();
