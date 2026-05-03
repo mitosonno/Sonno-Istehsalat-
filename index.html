@@ -1207,11 +1207,7 @@ document.addEventListener('keydown', e=>{
 // Model thumbnail HTML yaradan universal funksiya (şəkil klik → lightbox)
 function getModelThumbHtml(m, size){
   size = size || 48;
-  const imgs = getModelImages(m);
-  if(imgs.length){
-    const urlsJson = JSON.stringify(imgs).replace(/"/g,'&quot;');
-    return `<img src="${imgs[0]}" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:8px;border:1px solid var(--bd);cursor:zoom-in;flex-shrink:0" onclick="event.stopPropagation();showLightbox(${urlsJson},0)" title="Böyük görmək üçün basın">`;
-  }
+  // Şöbə kartlarında yalnız emoji — şəkil yükləmə yoxdur
   return `<div style="width:${size}px;height:${size}px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:${Math.round(size/2)}px;border:1px solid var(--bd);flex-shrink:0">${m.emoji||'🛋️'}</div>`;
 }
 
@@ -4044,13 +4040,18 @@ async function dStart(oid,si,key,dept){
   if(el){el.className='ts-box ts-go';el.textContent='⏱ Başladılır...';}
   document.querySelectorAll(`[onclick*="dStart('${oid}"]`).forEach(b=>b.disabled=true);
   
+  // currentUser yoxdursa kiosk user yarat
+  if(!currentUser) currentUser={id:null, name:dept, role:'dept', username:dept};
+  
   try{
     await sb.from('task_logs').delete().eq('order_id',oid).eq('stage_index',parseInt(si)-1).eq('dept_key',dept);
-    await sb.from('task_logs').insert({
+    const logPayload = {
       order_id:oid, stage_index:parseInt(si)-1,
-      worker_id:currentUser?.id, worker_name:currentUser?.name,
+      worker_name:currentUser?.name || dept,
       dept_key:dept, action:'started', started_at:now
-    });
+    };
+    if(currentUser?.id) logPayload.worker_id = currentUser.id;
+    await sb.from('task_logs').insert(logPayload);
   }catch(e){
     console.error('[dStart] Supabase xətası:', e);
     if(el){el.className='ts-box ts-idle';el.textContent='❌ Xəta, yenidən cəhd edin';}
