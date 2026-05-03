@@ -3269,7 +3269,7 @@ async function renderDeptTasks(dept, silent){
   // Hamısı paralel — eyni vaxtda
   const [ordersRes, allModels, logsRes] = await Promise.all([
     sb.from('orders')
-      .select('id,order_number,model_id,client,qty,status,current_stage,parallel_done_depts,deadline,order_date,created_at,fabric,color,legs,notes,final_price,sale_type,shared_with')
+      .select('*')
       .in('status', ['in_progress','created','late','ready'])
       .gt('current_stage', 0)
       .order('created_at', {ascending: true}),
