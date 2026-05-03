@@ -3880,8 +3880,10 @@ function startTimerFromElapsed(oid, elapsedMs){
   if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
   
   const t0 = Date.now() - elapsedMs;
-  timerEl.dataset.elapsedMs = elapsedMs; // başlanğıc dəyəri saxla
+  timerEl.dataset.elapsedMs = elapsedMs;
   const WEND = WORK_END_H*60 + WORK_END_M;
+  
+  let intv; // let — update içindən görünür
   
   const update = ()=>{
     const el2 = document.getElementById('timer-'+oid);
@@ -3896,6 +3898,7 @@ function startTimerFromElapsed(oid, elapsedMs){
       el2.textContent = `⏸ Pauza — ${m} dəq ${s} san`;
       el2.style.color = 'var(--or)';
       clearInterval(intv);
+      el2.dataset.intervalId = '';
       const startBtn = document.getElementById('start-btn-'+oid);
       if(startBtn){ 
         startBtn.textContent='⏸ Pauza — davam et'; 
@@ -3909,7 +3912,7 @@ function startTimerFromElapsed(oid, elapsedMs){
     el2.style.color = 'var(--or)';
   };
   update();
-  const intv = setInterval(update, 1000);
+  intv = setInterval(update, 1000);
   timerEl.dataset.intervalId = intv;
 }
 
@@ -3939,6 +3942,7 @@ function resumeTimer(oid){
   
   if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
   
+  let intv;
   const update = ()=>{
     const el2 = document.getElementById('timer-'+oid);
     if(!el2){ clearInterval(intv); return; }
@@ -3950,7 +3954,7 @@ function resumeTimer(oid){
     el2.dataset.elapsedMs = elapsed;
   };
   update();
-  const intv = setInterval(update, 1000);
+  intv = setInterval(update, 1000);
   timerEl.dataset.intervalId = intv;
   
   toast('▶ Timer davam edir');
