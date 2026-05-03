@@ -3900,22 +3900,24 @@ function startTimerFromElapsed(oid, elapsedMs){
   if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
   
   const t0 = Date.now() - elapsedMs;
-  timerEl.dataset.elapsedMs = elapsedMs; // başlanğıc dəyəri saxla
+  timerEl.dataset.elapsedMs = elapsedMs;
   const WEND = WORK_END_H*60 + WORK_END_M;
   
-  const update = ()=>{
-    if(!timerEl.isConnected){ clearInterval(parseInt(timerEl.dataset.intervalId||0)); return; }
+  const intv = setInterval(()=>{
+    const el = document.getElementById('timer-'+oid);
+    if(!el){ clearInterval(intv); return; } // element yoxdursa sil
+    
     const elapsed = Date.now() - t0;
     const m = Math.floor(elapsed/60000);
     const s = Math.floor((elapsed%60000)/1000);
-    timerEl.dataset.elapsedMs = elapsed; // hər saniyə yenilə
+    el.dataset.elapsedMs = elapsed;
     
     const nowMins = new Date().getHours()*60 + new Date().getMinutes();
     if(nowMins >= WEND){
-      timerEl.textContent = `⏸ Pauza — ${m} dəq ${s} san`;
-      timerEl.style.color = 'var(--or)';
-      clearInterval(parseInt(timerEl.dataset.intervalId||0));
-      timerEl.dataset.intervalId = '';
+      el.textContent = `⏸ Pauza — ${m} dəq ${s} san`;
+      el.style.color = 'var(--or)';
+      clearInterval(intv);
+      el.dataset.intervalId = '';
       const startBtn = document.getElementById('start-btn-'+oid);
       if(startBtn){ 
         startBtn.textContent='⏸ Pauza — davam et'; 
@@ -3925,12 +3927,17 @@ function startTimerFromElapsed(oid, elapsedMs){
       }
       return;
     }
-    timerEl.textContent = `⏱ ${m} dəq ${s} san`;
-    timerEl.style.color = 'var(--or)';
-  };
-  update();
-  const intv = setInterval(update, 1000);
+    el.textContent = `⏱ ${m} dəq ${s} san`;
+    el.style.color = 'var(--or)';
+  }, 1000);
+  
   timerEl.dataset.intervalId = intv;
+  // İlk dəfə göstər
+  const nowMins = new Date().getHours()*60 + new Date().getMinutes();
+  if(nowMins < WEND){
+    const m0=Math.floor(elapsedMs/60000), s0=Math.floor((elapsedMs%60000)/1000);
+    timerEl.textContent = `⏱ ${m0} dəq ${s0} san`;
+  }
 }
 
 // Render sonrası bütün timerları başlat
