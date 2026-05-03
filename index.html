@@ -3060,6 +3060,7 @@ async function renderDeptPick(){
       .order('completed_at', {ascending:false})
       .limit(200),
     cachedModelsLight(),
+    sb.from('dept_pins').select('dept_key,pin_code'),
   ]);
   hideLoader();
   
