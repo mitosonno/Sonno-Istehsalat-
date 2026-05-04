@@ -3093,7 +3093,7 @@ async function renderDeptPick(){
       .not('completed_at','is',null)
       .order('completed_at', {ascending:false})
       .limit(200),
-    sb.from('models').select('id,name,emoji,stages,category,is_active').order('name'),
+    cachedModelsLight(),
     sb.from('dept_pins').select('dept_key,pin_code'),
   ]);
   hideLoader();
@@ -3273,7 +3273,7 @@ async function renderDeptTasks(dept, silent){
       .in('status', ['in_progress','created','late','ready','delivered','completed'])
       .gt('current_stage', 0)
       .order('created_at', {ascending: true}),
-    sb.from('models').select('id,name,emoji,stages,category,is_active').order('name'),
+    cachedModelsLight(),
     sb.from('task_logs')
       .select('id,order_id,stage_index,dept_key,started_at,completed_at,worker_name,action')
       .order('started_at', {ascending: false})
@@ -3321,7 +3321,7 @@ async function renderDeptTasks(dept, silent){
     orders.forEach(o=>{
       const m=models.find(x=>x.id===o.model_id);
       if(!m){
-        console.warn('[ŞÖBƏ] Model tapılmadı:', o.order_number, o.model_id, 'Mövcud modellər:', models.length, models.slice(0,3).map(x=>x.id));
+        console.warn('[ŞÖBƏ] Model tapılmadı:', {dept, order: o.order_number, model_id: o.model_id, total_models: models.length});
         return;
       }
       const stages=m.stages||[];
@@ -3397,8 +3397,8 @@ async function renderDeptTasks(dept, silent){
       return new Date(a.o.created_at||0)-new Date(b.o.created_at||0);
     });
     
-    const vis = tasks.slice(0,5);
-    const hidden = tasks.length - vis.length;
+    // Bütün tapşırıqları göstər
+    const vis = tasks;
     document.getElementById('dt-cnt').textContent=tasks.length;
     const tl=document.getElementById('dept-task-list');
 
@@ -3645,7 +3645,7 @@ async function renderDeptTasks(dept, silent){
           })()}
         </div>
       </div>`;
-    }).join('')+(hidden>0?`<div style="text-align:center;padding:18px;background:var(--lo);border-radius:var(--rl);border:2px dashed rgba(247,137,48,.3);margin-top:8px"><div style="font-size:28px;font-weight:700;color:var(--or)">${hidden}</div><div style="font-size:13px;color:#854F0B;margin-top:2px">sifariş növbədə gözləyir</div></div>`:'');
+    }).join('');
 
     // Timer-ları başlat
     setTimeout(()=>initTimers(), 50);
@@ -8594,9 +8594,50 @@ async function saveModel(){
   
   showLoader();
   if(editingModelId){
+    // Bu modelin aktiv sifarişlərini yoxla
+    const {data:activeOrders} = await sb.from('orders').select('id, order_number, current_stage, status')
+      .eq('model_id', editingModelId)
+      .in('status', ['in_progress','created','late','ready'])
+      .gt('current_stage', 0);
+    
+    // Köhnə model stages-i yüklə müqayisə üçün
+    const {data:oldModel} = await sb.from('models').select('stages').eq('id', editingModelId).single();
+    const oldStages = oldModel?.stages || [];
+    const newStages = stages;
+    
+    // Stage strukturu dəyişibsə xəbərdar et
+    const stagesChanged = oldStages.length !== newStages.length || 
+      oldStages.some((s,i)=>newStages[i] && (s.dept !== newStages[i].dept));
+    
+    if(stagesChanged && activeOrders && activeOrders.length > 0){
+      hideLoader();
+      const confirmMsg = `⚠️ XƏBƏRDARLIQ!\n\nBu modelin ${activeOrders.length} aktiv sifarişi var.\n\nMərhələləri (stage) dəyişsəniz:\n• Bu sifarişlərin mövqeyi pozula bilər\n• Sifarişlər səhv şöbədə görünə bilər\n• Aktiv tab boş ola bilər\n\nSifarişlər: ${activeOrders.slice(0,5).map(o=>o.order_number).join(', ')}${activeOrders.length>5?'...':''}\n\nDavam edək?`;
+      
+      if(!confirm(confirmMsg)){
+        return;
+      }
+      showLoader();
+    }
+    
     const upd={name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,show_in_catalog:showInCatalog,show_price:showPrice,price_variants:priceVariants};
     if(imgUrlValue) upd.img_url = imgUrlValue;
     await sb.from('models').update(upd).eq('id',editingModelId);
+    
+    // Aktiv sifarişləri current_stage = 1-ə qaytar (təhlükəsizlik üçün admin seçə bilər)
+    if(stagesChanged && activeOrders && activeOrders.length > 0){
+      const resetConfirm = confirm('Aktiv sifarişlərin mərhələ nömrəsini 1-ə qaytarım? (Tövsiyə olunur)');
+      if(resetConfirm){
+        for(const o of activeOrders){
+          await sb.from('orders').update({
+            current_stage: 1,
+            status: 'in_progress',
+            parallel_done_depts: ''
+          }).eq('id', o.id);
+        }
+        toast('✓ '+activeOrders.length+' sifariş 1-ci mərhələyə qaytarıldı');
+      }
+    }
+    
     toast('✓ Model yeniləndi: '+name); invalidateAdminCache();
   }else{
     await sb.from('models').insert({name,description:document.getElementById('am-desc').value.trim(),emoji:modelEmoji,img_url:imgUrlValue,stages,total_hours:totalHours,sale_price:salePrice,cost_price:costPrice,category,is_active:true,show_in_catalog:showInCatalog,show_price:showPrice,price_variants:priceVariants});
