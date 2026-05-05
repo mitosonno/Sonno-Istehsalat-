@@ -3086,13 +3086,13 @@ async function createOrder(){
 async function renderDeptPick(){
   showLoader();
   const [ordersRes, completedLogsRes, modelsData, pinsRes] = await Promise.all([
-    sb.from('orders').select('id,model_id,status,current_stage,parallel_done_depts')
+    sb.from('orders').select('*')
       .in('status', ['in_progress','created','late','ready'])
       .gt('current_stage', 0),
-    sb.from('task_logs').select('order_id,stage_index,dept_key')
+    sb.from('task_logs').select('*')
       .not('completed_at','is',null)
       .order('completed_at', {ascending:false})
-      .limit(200),
+      .limit(500),
     cachedModelsLight(),
     sb.from('dept_pins').select('dept_key,pin_code'),
   ]);
