@@ -3916,49 +3916,63 @@ function isWorkTime(){
   return mins >= WORK_START_H*60+WORK_START_M && mins < WORK_END_H*60+WORK_END_M;
 }
 
+// Bütün aktiv timer ID-lərini saxla
+window._activeTimers = window._activeTimers || {};
+
+function clearAllTimers(){
+  Object.keys(window._activeTimers).forEach(oid=>{
+    clearInterval(window._activeTimers[oid]);
+  });
+  window._activeTimers = {};
+}
+
 // Timer başlat — elapsed millisaniyədən davam et
 function startTimerFromElapsed(oid, elapsedMs){
   const timerEl = document.getElementById('timer-'+oid);
   if(!timerEl) return;
-  if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
+  
+  // Köhnə interval varsa sil
+  if(window._activeTimers[oid]){
+    clearInterval(window._activeTimers[oid]);
+    delete window._activeTimers[oid];
+  }
   
   const t0 = Date.now() - elapsedMs;
-  timerEl.dataset.elapsedMs = elapsedMs; // başlanğıc dəyəri saxla
-  const WEND = WORK_END_H*60 + WORK_END_M;
   
-  let intv;
   const update = ()=>{
     const el2 = document.getElementById('timer-'+oid);
-    if(!el2) return; // Element yoxdur — amma timeri dayandırma, növbəti saniyə yoxla
+    if(!el2){
+      // Element yoxdur — timer sil
+      if(window._activeTimers[oid]){
+        clearInterval(window._activeTimers[oid]);
+        delete window._activeTimers[oid];
+      }
+      return;
+    }
     const elapsed = Date.now() - t0;
     const m = Math.floor(elapsed/60000);
     const s = Math.floor((elapsed%60000)/1000);
-    el2.dataset.elapsedMs = elapsed;
-    const nowMins = new Date().getHours()*60 + new Date().getMinutes();
-    if(nowMins >= WEND){
-      el2.textContent = `⏸ Pauza — ${m} dəq ${s} san`;
-      el2.style.color = 'var(--or)';
-      clearInterval(intv);
-      el2.dataset.intervalId = '';
-      const startBtn = document.getElementById('start-btn-'+oid);
-      if(startBtn){ startBtn.textContent='⏸ Pauza — davam et'; startBtn.disabled=false; startBtn.style.opacity='1'; startBtn.onclick=()=>resumeTimer(oid); }
-      return;
-    }
-    el2.textContent = `⏱ ${m} dəq ${s} san`;
+    // Sadə format: 00:00
+    const mm = String(m).padStart(2,'0');
+    const ss = String(s).padStart(2,'0');
+    el2.textContent = `⏱ ${mm}:${ss}`;
     el2.style.color = 'var(--or)';
   };
-  update();
-  intv = setInterval(update, 1000);
-  timerEl.dataset.intervalId = intv;
+  
+  update(); // Dərhal göstər
+  const intv = setInterval(update, 1000);
+  window._activeTimers[oid] = intv;
 }
 
-// Render sonrası bütün timerları başlat
 function initTimers(){
+  // Əvvəlcə hamısını sil
+  clearAllTimers();
+  
   document.querySelectorAll('[data-start-time]').forEach(el=>{
     const oid = el.dataset.oid;
     const startTime = el.dataset.startTime;
     if(!startTime || !oid) return;
-    const elapsedMs = Date.now() - new Date(startTime).getTime();
+    const elapsedMs = Math.max(0, Date.now() - new Date(startTime).getTime());
     startTimerFromElapsed(oid, elapsedMs);
   });
 }
@@ -3968,30 +3982,36 @@ function resumeTimer(oid){
   const timerEl = document.getElementById('timer-'+oid);
   if(!timerEl) return;
   
-  const elapsedMs = parseInt(timerEl.dataset.elapsedMs || '0');
+  // Köhnə timer sil
+  if(window._activeTimers[oid]){
+    clearInterval(window._activeTimers[oid]);
+    delete window._activeTimers[oid];
+  }
   
-  // Başla düyməsini gizlət
+  const elapsedMs = parseInt(timerEl.dataset.elapsedMs || '0');
+  const t0 = Date.now() - elapsedMs;
+  
   const startBtn = document.getElementById('start-btn-'+oid);
   if(startBtn){ startBtn.textContent='⏱ Davam edir...'; startBtn.disabled=true; }
   
-  const t0 = Date.now() - elapsedMs;
-  
-  if(timerEl.dataset.intervalId) clearInterval(parseInt(timerEl.dataset.intervalId));
-  
-  let intv2;
   const update2 = ()=>{
     const el3 = document.getElementById('timer-'+oid);
-    if(!el3){ clearInterval(intv2); return; }
+    if(!el3){
+      if(window._activeTimers[oid]){ clearInterval(window._activeTimers[oid]); delete window._activeTimers[oid]; }
+      return;
+    }
     const elapsed = Date.now() - t0;
     const m = Math.floor(elapsed/60000);
     const s = Math.floor((elapsed%60000)/1000);
-    el3.textContent = `⏱ ${m} dəq ${s} san`;
+    const mm = String(m).padStart(2,'0');
+    const ss = String(s).padStart(2,'0');
+    el3.textContent = `⏱ ${mm}:${ss}`;
     el3.style.color = 'var(--or)';
     el3.dataset.elapsedMs = elapsed;
   };
   update2();
-  intv2 = setInterval(update2, 1000);
-  timerEl.dataset.intervalId = intv2;
+  const intv2 = setInterval(update2, 1000);
+  window._activeTimers[oid] = intv2;
   
   toast('▶ Timer davam edir');
 }
