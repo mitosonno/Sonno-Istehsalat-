@@ -3581,10 +3581,18 @@ async function renderDeptTasks(dept, silent){
         </div>`;
       }
 
-      // Bu sifariş təmirə göndərilib və bu şöbəyə gəlib?
-      const normDeptForLog = dept === 'tikiş' ? 'tikis' : dept;
-      const isRework = !!(o.repair_dept && 
-        (o.repair_dept === normDeptForLog || o.repair_dept === dept));
+      // Bu şöbə əvvəl bu sifarişi tamamlayıbmı? (yenidən gəlib)
+      const normDept = dept === 'tikiş' ? 'tikis' : dept;
+      const normDeptAlt = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : null);
+      const currentStageIdx = si - 1; // cari stage indeksi (0-based)
+      
+      // Task logs-da bu şöbənin əvvəlki stage-lərini axtar
+      const isRework = logs.some(l => 
+        l.order_id === o.id &&
+        l.completed_at &&
+        l.stage_index < currentStageIdx && // Cari stage-dən əvvəl
+        (l.dept_key === normDept || l.dept_key === dept || l.dept_key === normDeptAlt)
+      );
       
       const cardStyle = isRework 
         ? 'border:2px solid #E24B4A;background:#FFF8F8' 
