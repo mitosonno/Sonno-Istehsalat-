@@ -520,6 +520,7 @@ textarea{resize:vertical;min-height:80px}
           <div class="kpi kR" onclick="showOrderSheet('late')" style="cursor:pointer"><div class="kl">GECİKƏN</div><div class="kv" id="k-lat" style="color:#E24B4A">—</div><div class="ks">təcili</div></div>
           <div class="kpi kO" onclick="showOrderSheet('ready')" style="cursor:pointer"><div class="kl">HAZIR</div><div class="kv" id="k-rdy" style="color:var(--or)">—</div><div class="ks">çatdırılma</div></div>
           <div class="kpi kD" onclick="showOrderSheet('delivered')" style="cursor:pointer"><div class="kl">TƏSLİM</div><div class="kv" id="k-don">—</div><div class="ks">bu həftə</div></div>
+          <div class="kpi" style="background:#FFF8F8;border:1px solid #FFCDD2;cursor:pointer" onclick="showRepairStats()"><div class="kl" style="color:#E24B4A">🔧 TƏMİR</div><div class="kv" id="k-rep" style="color:#E24B4A">—</div><div class="ks" style="color:#E24B4A">ümumi</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
           <div style="background:var(--lt);padding:10px 14px;border-radius:10px">
@@ -2412,6 +2413,12 @@ async function renderDash(){
     document.getElementById('k-lat').textContent=all.filter(o=>o.status==='late' && !isPendingCustomerOrder(o)).length;
     document.getElementById('k-rdy').textContent=all.filter(o=>o.status==='ready' && !isPendingCustomerOrder(o)).length;
     document.getElementById('k-don').textContent=all.filter(o=>o.status==='delivered').length;
+    
+    // Təmir sayı
+    const repairOrders = all.filter(o=>(o.repair_count||0) > 0);
+    const kRep = document.getElementById('k-rep');
+    if(kRep) kRep.textContent = repairOrders.length;
+    window._dashRepairOrders = repairOrders;
 
     const late=all.filter(o=>o.status==='late' && !isPendingCustomerOrder(o));
     // Today card — pending müştəri sifarişləri çıxarılsın (banner-də göstərilir)
@@ -4754,6 +4761,15 @@ async function dDone(oid, si, key, dept, totalStages){
   localStorage.removeItem(key+'_'+dept+'_dt');
   
   invalidateCache('logs','orders');
+  
+  // Təmir şöbəsindən QA-ya avtomatik qayıdış
+  const returnedToQA = await checkAndReturnToQA(oid, dept);
+  if(returnedToQA){
+    hideTaskCard(oid);
+    if(pinDept) await renderDeptTasks(pinDept);
+    return;
+  }
+  
   hideTaskCard(oid);
   toast('✅ Tamamlandı!');
   
@@ -4764,7 +4780,84 @@ async function dDone(oid, si, key, dept, totalStages){
   if(pinDept) await renderDeptTasks(pinDept);
 }
 
-// Köməkçi funksiya — card-ı DOM-dan tamamilə sil
+function showRepairStats(){
+  const orders = window._dashRepairOrders || (window._dashAllOrders||[]).filter(o=>(o.repair_count||0)>0);
+  const today = new Date().toISOString().split('T')[0];
+  const monthAgo = new Date(Date.now()-30*86400000).toISOString().split('T')[0];
+  
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9990;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;max-width:700px;width:100%;overflow:hidden;margin-top:20px">
+      <div style="padding:16px 20px;background:linear-gradient(135deg,#E24B4A,#C62828);color:#fff;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:18px;font-weight:700">🔧 Təmir statistikası</div>
+          <div id="rep-count" style="font-size:12px;opacity:0.8;margin-top:2px">${orders.length} sifariş</div>
+        </div>
+        <button onclick="this.closest('[style*=fixed]').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:20px">✕</button>
+      </div>
+      <div style="padding:14px 20px;border-bottom:1px solid #eee;background:#FFF8F8;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+        <div><div style="font-size:11px;color:#888;margin-bottom:4px">Başlanğıc</div>
+        <input type="date" id="rep-from" value="${monthAgo}" style="padding:8px;border:1px solid #ddd;border-radius:8px;font-family:inherit" onchange="filterRepairStats()"></div>
+        <div><div style="font-size:11px;color:#888;margin-bottom:4px">Son</div>
+        <input type="date" id="rep-to" value="${today}" style="padding:8px;border:1px solid #ddd;border-radius:8px;font-family:inherit" onchange="filterRepairStats()"></div>
+      </div>
+      <div id="rep-list" style="padding:16px;max-height:60vh;overflow-y:auto"></div>
+    </div>`;
+  document.body.appendChild(modal);
+  window._repairOrders = orders;
+  filterRepairStats();
+}
+
+function filterRepairStats(){
+  const orders = window._repairOrders || [];
+  const from = document.getElementById('rep-from')?.value || '';
+  const to = document.getElementById('rep-to')?.value || '';
+  const filtered = orders.filter(o=>{
+    const d = (o.order_date||o.created_at||'').split('T')[0];
+    if(from && d < from) return false;
+    if(to && d > to) return false;
+    return true;
+  });
+  const countEl = document.getElementById('rep-count');
+  if(countEl) countEl.textContent = filtered.length+' sifariş';
+  const list = document.getElementById('rep-list');
+  if(!list) return;
+  if(!filtered.length){ list.innerHTML='<div style="text-align:center;padding:40px;color:#aaa">Bu tarix aralığında təmir yoxdur</div>'; return; }
+  const byModel = {};
+  filtered.forEach(o=>{
+    const m = appModels.find(x=>x.id===o.model_id);
+    const mName = m ? m.name.split('—')[0].trim() : '?';
+    if(!byModel[mName]) byModel[mName]=[];
+    byModel[mName].push(o);
+  });
+  list.innerHTML = Object.entries(byModel).sort((a,b)=>b[1].length-a[1].length).map(([mName,ords])=>`
+    <div style="border:1px solid #FFCDD2;border-radius:10px;padding:14px;margin-bottom:10px;background:#FFF8F8">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:15px;font-weight:700;color:#C62828">🔧 ${mName}</div>
+        <div style="background:#E24B4A;color:#fff;border-radius:20px;padding:3px 12px;font-size:13px;font-weight:700">${ords.length} təmir</div>
+      </div>
+      ${ords.map(o=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#fff;border-radius:8px;margin-bottom:4px;font-size:13px">
+        <span style="font-family:'DM Mono',monospace;color:#888">${o.order_number}</span>
+        <span style="font-weight:600">${o.client}</span>
+        <span style="color:#E24B4A;font-weight:600">${o.repair_count}x</span>
+        <span style="color:#888">${(o.order_date||o.created_at||'').split('T')[0]}</span>
+      </div>`).join('')}
+    </div>`).join('');
+}
+
+// ═══════════ CARD HELPERS ═══════════
+function hideTaskCard(oid){
+  const card = document.getElementById('tcard-'+oid);
+  if(card){
+    card.style.transition = 'all .3s';
+    card.style.opacity = '0';
+    card.style.transform = 'translateX(20px)';
+    card.style.pointerEvents = 'none';
+    setTimeout(()=>{ if(card && card.parentNode) card.parentNode.removeChild(card); }, 350);
+  }
+}
+
 // ═══════════ BÜTÜN SİFARİŞLƏR SƏHİFƏSİ ═══════════
 function resetAllOrdersFilters(){
   const s = document.getElementById('ao-search'); if(s) s.value = '';
@@ -5684,7 +5777,7 @@ async function qaDecision(oid, action){
     return;
   }
   
-  // TƏMİR OLUNSUN — Rəngləməyə qayıt
+  // TƏMİRƏ GÖNDƏR — şöbə seçim modalı aç
   if(action === 'repair'){
     if(!notes){
       toast('⚠ Problemin səbəbini "Əlavə qeyd" sahəsinə yazın');
@@ -5692,37 +5785,40 @@ async function qaDecision(oid, action){
       return;
     }
     
-    if(!confirm('Sifariş Rəngləməyə qaytarılacaq (qırmızı problemli).\n\nƏmin sin?')) return;
+    // Modelin stage-lərini göstər — hansı şöbəyə göndərmək olar
+    const repairDepts = [];
+    stages.forEach((s,i)=>{
+      const depts = s.dept.split('||');
+      depts.forEach(d=>{
+        if(d !== 'qa' && d !== 'logistics'){
+          const info = DEPT_INFO[d];
+          if(info && !repairDepts.find(x=>x.key===d)){
+            repairDepts.push({key:d, name:info.name, icon:info.icon, stageIdx:i});
+          }
+        }
+      });
+    });
     
-    showLoader();
-    // Rəngləmə stage-ni tap
-    const renglemeIdx = stages.findIndex(s=>s.dept==='rengleme' || (s.dept.includes('||') && s.dept.split('||').includes('rengleme')));
-    
-    if(renglemeIdx < 0){
-      hideLoader();
-      toast('⚠ Modeldə Rəngləmə şöbəsi tapılmadı');
-      return;
-    }
-    
-    // Sifarişi Rəngləməyə qaytar
-    await sb.from('orders').update({
-      current_stage: renglemeIdx + 1,
-      status: 'in_progress',
-      rework_status: 'pending',
-      rework_reason: notes,
-      rework_by: inspectorName,
-      // Rəngləmə loglarını sil ki təzədən Başla/Tamamla basa bilsin
-      parallel_done_depts: ''
-    }).eq('id', oid);
-    
-    // Rəngləmə log-unu sil
-    await sb.from('task_logs').delete()
-      .eq('order_id', oid).eq('stage_index', renglemeIdx);
-    
-    hideLoader();
-    toast('🔧 Sifariş Rəngləməyə qaytarıldı');
-    hideTaskCard(oid);
-    setTimeout(()=>renderDeptTasks('qa'), 500);
+    // Modal göstər
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:16px;padding:20px;max-width:400px;width:100%">
+        <div style="font-size:17px;font-weight:700;margin-bottom:6px;color:#E24B4A">🔧 Hansı şöbəyə göndərilsin?</div>
+        <div style="font-size:13px;color:var(--t2);margin-bottom:16px">Problem: ${notes}</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${repairDepts.map(d=>`
+            <button onclick="sendToRepair('${oid}','${d.key}',${d.stageIdx},'${notes}','${inspectorName}',this)" 
+              style="display:flex;align-items:center;gap:12px;padding:14px;border:2px solid #E24B4A;background:#FFF8F8;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:#C62828;text-align:left;width:100%">
+              <span style="font-size:22px">${d.icon}</span>
+              <span>${d.name}</span>
+            </button>
+          `).join('')}
+        </div>
+        <button onclick="this.closest('[style*=fixed]').remove()" 
+          style="margin-top:12px;width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:#fff;cursor:pointer;font-family:inherit">Ləğv et</button>
+      </div>`;
+    document.body.appendChild(modal);
     return;
   }
   
@@ -5749,19 +5845,73 @@ async function qaDecision(oid, action){
   }
 }
 
-function hideTaskCard(oid){
-  const card = document.getElementById('tcard-'+oid);
-  if(card){
-    card.style.transition = 'all .3s';
-    card.style.opacity = '0';
-    card.style.transform = 'translateX(20px)';
-    card.style.pointerEvents = 'none';
-    // DOM-dan 350ms sonra tamamilə sil
-    setTimeout(()=>{
-      if(card && card.parentNode) card.parentNode.removeChild(card);
-    }, 350);
+// ═══════════ TƏMİRƏ GÖNDƏR ═══════════
+async function sendToRepair(oid, targetDept, targetStageIdx, notes, inspectorName, btn){
+  const modal = btn.closest('[style*="position:fixed"]');
+  if(modal) modal.remove();
+  
+  showLoader();
+  try{
+    // QA stage-ini tap
+    const {data:order} = await sb.from('orders').select('*').eq('id',oid).single();
+    const {data:model} = await sb.from('models').select('stages').eq('id',order.model_id).single();
+    const stages = model?.stages || [];
+    const qaStageIdx = stages.findIndex(s=>s.dept==='qa');
+    
+    // Sifarişi təmir şöbəsinə göndər
+    await sb.from('orders').update({
+      current_stage: targetStageIdx + 1,
+      status: 'in_progress',
+      repair_dept: targetDept,
+      repair_stage: qaStageIdx,
+      repair_count: (order.repair_count || 0) + 1,
+      rework_status: 'pending',
+      rework_reason: notes,
+      rework_by: inspectorName,
+      parallel_done_depts: ''
+    }).eq('id', oid);
+    
+    // Həmin stage-in köhnə log-unu sil (yenidən başlasın)
+    await sb.from('task_logs').delete()
+      .eq('order_id', oid).eq('stage_index', targetStageIdx);
+    
+    invalidateCache('orders','logs');
+    hideLoader();
+    toast('🔧 Sifariş '+( DEPT_INFO[targetDept]?.name||targetDept)+' şöbəsinə göndərildi');
+    setTimeout(()=>renderDeptTasks('qa'), 400);
+    
+  }catch(e){
+    hideLoader();
+    toast('⚠ Xəta: '+e.message);
   }
 }
+
+// Təmir şöbəsindən dDone tamamlandıqda QA-ya avtomatik qayıdış
+// Bu dDone-dan çağrılır — əgər order.repair_dept === dept isə QA-ya qayıt
+async function checkAndReturnToQA(oid, dept){
+  try{
+    const {data:o} = await sb.from('orders').select('repair_dept,repair_stage,status').eq('id',oid).single();
+    if(!o || !o.repair_dept) return false;
+    if(o.repair_dept !== dept) return false;
+    
+    // Bu sifariş bu şöbədən təmir üçün gəlmişdi — QA-ya qayıt
+    const qaStageIdx = o.repair_stage || 0;
+    await sb.from('orders').update({
+      current_stage: qaStageIdx + 1,
+      status: 'in_progress',
+      repair_dept: null,  // Təmizlə
+    }).eq('id', oid);
+    
+    invalidateCache('orders','logs');
+    toast('✅ Tamamlandı — Yoxlama şöbəsinə qayıdır');
+    return true;
+  }catch(e){
+    console.error('[checkAndReturnToQA]', e);
+    return false;
+  }
+}
+
+// ═══════════ LOGISTICS ═══════════
 
 // ═══════════ LOGISTICS ═══════════
 let _logiTab = 'active'; // 'active' | 'done'
