@@ -5846,19 +5846,25 @@ async function qaDecision(oid, action){
 
 // ═══════════ TƏMİRƏ GÖNDƏR ═══════════
 async function sendToRepair(oid, targetDept, targetStageIdx, notes, inspectorName, btn){
-  // Modalı tap və bağla
   const modal = btn ? btn.closest('div[style*="position:fixed"]') || btn.closest('div[style*="fixed"]') : null;
   if(modal) modal.remove();
-  
-  // Toast dərhal göstər
   toast('⏳ Göndərilir...');
-  
   showLoader();
   try{
     const {data:order} = await sb.from('orders').select('*').eq('id',oid).single();
     const {data:model} = await sb.from('models').select('stages').eq('id',order.model_id).single();
     const stages = model?.stages || [];
     const qaStageIdx = stages.findIndex(s=>s.dept==='qa');
+    
+    // Paralel stage-dirsə — yalnız seçilən şöbə aktiv olsun
+    // Digər paralel şöbələri "tamamlanmış" kimi işarələ ki görünməsin
+    const targetStage = stages[targetStageIdx];
+    let parallelDoneDepts = '';
+    if(targetStage && targetStage.dept.includes('||')){
+      const allDepts = targetStage.dept.split('||');
+      const otherDepts = allDepts.filter(d => d !== targetDept);
+      parallelDoneDepts = otherDepts.join(',');
+    }
     
     await sb.from('orders').update({
       current_stage: targetStageIdx + 1,
@@ -5869,18 +5875,19 @@ async function sendToRepair(oid, targetDept, targetStageIdx, notes, inspectorNam
       rework_status: 'pending',
       rework_reason: notes,
       rework_by: inspectorName,
-      parallel_done_depts: ''
+      parallel_done_depts: parallelDoneDepts
     }).eq('id', oid);
     
-    // Həmin stage-in köhnə log-unu sil
+    // Yalnız seçilən şöbənin log-unu sil
     await sb.from('task_logs').delete()
-      .eq('order_id', oid).eq('stage_index', targetStageIdx);
+      .eq('order_id', oid)
+      .eq('stage_index', targetStageIdx)
+      .eq('dept_key', targetDept);
     
     invalidateCache('orders','logs');
     hideLoader();
-    toast('🔧 Sifariş '+(DEPT_INFO[targetDept]?.name||targetDept)+' şöbəsinə göndərildi');
+    toast('🔧 '+(DEPT_INFO[targetDept]?.name||targetDept)+' şöbəsinə göndərildi');
     setTimeout(()=>renderDeptTasks('qa'), 400);
-    
   }catch(e){
     hideLoader();
     toast('⚠ Xəta: '+e.message);
