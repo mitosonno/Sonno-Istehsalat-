@@ -8398,12 +8398,35 @@ function updateStageOrder(keys){
 }
 
 function duplicateStage(idx, key){
+  // Şöbə seçim modalı aç
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+  
+  const deptButtons = Object.entries(DEPT_INFO).map(([k,info])=>`
+    <button onclick="insertStageAt(${idx+1},'${k}',this.closest('[data-modal]'))" 
+      style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--bd);border-radius:10px;background:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;text-align:left;width:100%">
+      <span style="font-size:18px">${info.icon}</span>
+      <span style="flex:1">${info.name}</span>
+      <span style="font-size:11px;color:var(--t3)">${info.hours}s</span>
+    </button>`).join('');
+  
+  modal.innerHTML = `
+    <div data-modal style="background:#fff;border-radius:16px;padding:20px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto">
+      <div style="font-size:16px;font-weight:700;margin-bottom:14px">Şöbə seç — ${idx+2}-ci stage</div>
+      <div style="display:flex;flex-direction:column;gap:6px">${deptButtons}</div>
+      <button onclick="this.closest('[style*=fixed]').remove()" 
+        style="margin-top:12px;width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:#fff;cursor:pointer;font-family:inherit">Ləğv et</button>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function insertStageAt(idx, key, modal){
   const keys = (window._currentStageOrder||[]).slice();
-  // Eyni şöbəni bir sonraya əlavə et
-  keys.splice(idx+1, 0, key);
+  keys.splice(idx, 0, key);
   window._currentStageOrder = keys;
+  if(modal) modal.closest('[style*=fixed]').remove();
   updateStageOrder(keys);
-  toast('✓ '+( DEPT_INFO[key]?.name||key)+' yenidən əlavə edildi ('+(idx+2)+'-ci stage)');
+  toast('✓ '+(DEPT_INFO[key]?.name||key)+' '+idx+'-ci stage kimi əlavə edildi');
 }
 
 function removeStageAt(idx){
