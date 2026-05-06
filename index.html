@@ -8482,60 +8482,80 @@ function renderImagesPreview(){
 function renderDeptChecklist(selectedKeys){
   const cl=document.getElementById('dept-check-list');
   if(!cl)return;
-  // Paralel açarları açın — bütün seçilmiş şöbələri tap
-  const flatSelected = {};
-  selectedKeys.forEach((k, i)=>{
+  
+  // Hər şöbənin neçə dəfə seçildiyini say
+  const deptCount = {};
+  selectedKeys.forEach(k=>{
     if(k.includes('||')){
       k.split('||').forEach(part=>{
-        flatSelected[part] = i+1;
+        deptCount[part] = (deptCount[part]||0) + 1;
       });
     } else {
-      flatSelected[k] = i+1;
+      deptCount[k] = (deptCount[k]||0) + 1;
+    }
+  });
+  
+  // İlk görünüş stage nömrəsi
+  const flatSelected = {};
+  selectedKeys.forEach((k,i)=>{
+    if(k.includes('||')){
+      k.split('||').forEach(part=>{
+        if(!flatSelected[part]) flatSelected[part] = i+1;
+      });
+    } else {
+      if(!flatSelected[k]) flatSelected[k] = i+1;
     }
   });
   
   cl.innerHTML=Object.entries(DEPT_INFO).map(([key,info])=>{
     const checked = flatSelected.hasOwnProperty(key);
     const order = flatSelected[key];
-    return`<label class="dept-check-item${checked?' checked':''}" id="dci-${key}">
-      <input type="checkbox" data-key="${key}" ${checked?'checked':''} onchange="onDeptChk(this)">
+    const count = deptCount[key] || 0;
+    return`<label class="dept-check-item${checked?' checked':''}" id="dci-${key}" onclick="onDeptLabelClick(event,'${key}')">
+      <input type="checkbox" data-key="${key}" ${checked?'checked':''} style="pointer-events:none">
       <span style="font-size:16px">${info.icon}</span>
       <span style="flex:1;font-size:13px;font-weight:${checked?'500':'400'}">${info.name}</span>
       <span style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${info.hours}s</span>
+      ${count > 1 ? `<span style="background:#E24B4A;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700">${count}x</span>` : ''}
       <span class="dept-check-num">${checked?order:''}</span>
     </label>`;
   }).join('');
   updateStageOrder(selectedKeys);
 }
 
-function onDeptChk(cb){
-  // Əgər paralel mövcud siyahıda varsa — onu qoruyub yalnız yeni dəyişiklikləri tət
-  const currentKeys = window._currentStageOrder || [];
-  const dept = cb.dataset.key;
+function onDeptLabelClick(event, dept){
+  event.preventDefault();
+  const currentKeys = (window._currentStageOrder || []).slice();
   
-  if(cb.checked){
-    // Əlavə et (əgər yoxdursa)
-    const exists = currentKeys.some(k=>k===dept || (k.includes('||') && k.split('||').includes(dept)));
-    if(!exists){
-      currentKeys.push(dept);
-    }
-  } else {
-    // Sil - paralel daxilindən də
-    for(let i=currentKeys.length-1; i>=0; i--){
+  // Bu şöbə seçilidirmi?
+  const exists = currentKeys.some(k => k === dept || (k.includes('||') && k.split('||').includes(dept)));
+  
+  if(exists){
+    // Sil — yalnız ilk tapılanı sil
+    for(let i=0; i<currentKeys.length; i++){
       const k = currentKeys[i];
-      if(k===dept){
+      if(k === dept){
         currentKeys.splice(i,1);
+        break;
       } else if(k.includes('||')){
         const parts = k.split('||').filter(p=>p!==dept);
-        if(parts.length===0) currentKeys.splice(i,1);
-        else if(parts.length===1) currentKeys[i] = parts[0];
-        else currentKeys[i] = parts.join('||');
+        if(parts.length===0){ currentKeys.splice(i,1); break; }
+        else if(parts.length===1){ currentKeys[i]=parts[0]; break; }
+        else { currentKeys[i]=parts.join('||'); break; }
       }
     }
+  } else {
+    // Əlavə et
+    currentKeys.push(dept);
   }
   
   window._currentStageOrder = currentKeys;
   renderDeptChecklist(currentKeys);
+}
+
+function onDeptChk(cb){
+  // Köhnə funksiya — indi onDeptLabelClick işləyir
+  // Amma bəzi yerlərdə hələ çağrılır — saxla
 }
 
 function getSelDeptKeys(){
