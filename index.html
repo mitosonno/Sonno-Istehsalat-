@@ -4713,6 +4713,15 @@ async function dDone(oid, si, key, dept, totalStages){
     localStorage.removeItem(key+'_'+dept+'_dt');
     
     invalidateCache('logs','orders');
+    
+    // Təmir şöbəsindən QA-ya avtomatik qayıdış
+    const retToQA = await checkAndReturnToQA(oid, dept);
+    if(retToQA){
+      hideTaskCard(oid);
+      await renderDeptTasks(dept);
+      return;
+    }
+    
     hideTaskCard(oid);
     toast('✅ Paralel bitdi — növbəti mərhələyə keçdi!');
     await renderDeptTasks(dept);
