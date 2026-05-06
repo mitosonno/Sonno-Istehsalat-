@@ -8388,11 +8388,32 @@ function updateStageOrder(keys){
       <span style="font-size:14px">${d.icon}</span>
       <span style="flex:1;font-size:13px;font-weight:500">${d.name}</span>
       <span style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${d.hours}s</span>
+      <button type="button" class="so-move" style="padding:8px 10px;font-size:11px;background:#E8F5E9;color:#2E7D32;font-weight:600;min-height:36px;cursor:pointer" onclick="event.stopPropagation();duplicateStage(${i},'${k}')" title="Eyni şöbəni yenidən əlavə et">+1</button>
       <button type="button" class="so-move" style="padding:8px 14px;font-size:12px;background:var(--lo);color:var(--or);font-weight:600;min-height:36px;min-width:80px;cursor:pointer" onclick="event.stopPropagation();mergeStages(${i})">+ Paralel</button>
       <button type="button" class="so-move" style="min-height:36px" onclick="event.stopPropagation();moveStage('${k}',-1)" ${i===0?'disabled':''}>↑</button>
       <button type="button" class="so-move" style="min-height:36px" onclick="event.stopPropagation();moveStage('${k}',1)" ${i===keys.length-1?'disabled':''}>↓</button>
+      <button type="button" class="so-move" style="min-height:36px;color:#E24B4A" onclick="event.stopPropagation();removeStageAt(${i})">✕</button>
     </div>`;
   }).join('');
+}
+
+function duplicateStage(idx, key){
+  const keys = (window._currentStageOrder||[]).slice();
+  // Eyni şöbəni bir sonraya əlavə et
+  keys.splice(idx+1, 0, key);
+  window._currentStageOrder = keys;
+  updateStageOrder(keys);
+  toast('✓ '+( DEPT_INFO[key]?.name||key)+' yenidən əlavə edildi ('+(idx+2)+'-ci stage)');
+}
+
+function removeStageAt(idx){
+  const keys = (window._currentStageOrder||[]).slice();
+  if(keys.length <= 1){ toast('⚠ Ən azı 1 mərhələ olmalıdır'); return; }
+  keys.splice(idx, 1);
+  window._currentStageOrder = keys;
+  // Checkbox-ları yenilə
+  renderDeptChecklist(keys);
+  toast('✓ Mərhələ silindi');
 }
 
 function moveStage(key,dir){
