@@ -3574,8 +3574,19 @@ async function renderDeptTasks(dept, silent){
         </div>`;
       }
 
-      return`<div class="task-card" id="tcard-${o.id}" style="${isLate?'border:2px solid #E24B4A;background:#FFF5F5':''}">
-        <div class="task-card-top${isLate?' late':''}">
+      // Bu şöbədə əvvəl tamamlanmış log var mı? (yenidən gəlib)
+      const stageIdx = si - 1;
+      const reworkLogKey = o.id + '_' + stageIdx + '_' + dept;
+      const reworkLogKeyAlt = o.id + '_' + stageIdx + '_' + (dept==='tikis'?'tikiş':(dept==='tikiş'?'tikis':dept));
+      const prevLog = logMap[reworkLogKey] || logMap[reworkLogKeyAlt];
+      const isRework = !!(prevLog && prevLog.completed_at);
+      
+      const cardStyle = isRework 
+        ? 'border:2px solid #E24B4A;background:#FFF8F8' 
+        : (isLate ? 'border:2px solid #E24B4A;background:#FFF5F5' : '');
+
+      return`<div class="task-card" id="tcard-${o.id}" style="${cardStyle}">
+        <div class="task-card-top${isLate?' late':''}" style="${isRework?'background:#FFEBEE':''}">
           <div style="display:flex;align-items:center;gap:10px;flex:1">
             ${modelImg}
             <div style="flex:1">
@@ -3584,10 +3595,11 @@ async function renderDeptTasks(dept, silent){
               ${(o.order_date||o.created_at)?`<div style="font-size:11px;color:var(--t3);margin-top:1px">📅 ${new Date(o.order_date||o.created_at).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`:''}
             </div>
           </div>
-          <span class="badge ${isLate?'bR':'bO'}" style="${isLate?'background:#E24B4A;animation:pulse 1.5s infinite':''}">
-            ${isLate?'⚠ GECİKMİŞ':'• Aktiv'}
+          <span class="badge ${isRework?'bR':(isLate?'bR':'bO')}">
+            ${isRework?'🔄 Qayıdıb':(isLate?'⚠ GECİKMİŞ':'• Aktiv')}
           </span>
         </div>
+        ${isRework?`<div style="background:#FFEBEE;border-left:4px solid #E24B4A;padding:10px 14px;font-size:12px;color:#C62828;font-weight:600">🔄 Bu sifariş bu şöbədə əvvəl görülüb — qalan işi tamamla. Yenidən iş görmə lazım deyil.</div>`:''}
         <div class="task-card-body">
           <div class="stage-dots">${dots}</div>
           <div style="font-size:11px;color:var(--t2);margin-bottom:8px">${si}/${total} mərhələ</div>
