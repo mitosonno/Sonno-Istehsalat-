@@ -3575,11 +3575,19 @@ async function renderDeptTasks(dept, silent){
       }
 
       // Bu şöbədə əvvəl tamamlanmış log var mı? (yenidən gəlib)
-      const stageIdx = si - 1;
-      const reworkLogKey = o.id + '_' + stageIdx + '_' + dept;
-      const reworkLogKeyAlt = o.id + '_' + stageIdx + '_' + (dept==='tikis'?'tikiş':(dept==='tikiş'?'tikis':dept));
-      const prevLog = logMap[reworkLogKey] || logMap[reworkLogKeyAlt];
-      const isRework = !!(prevLog && prevLog.completed_at);
+      // Cari stage-dən əvvəlki stage-lərdə bu şöbənin completed log-unu axtar
+      const normDeptForLog = dept === 'tikiş' ? 'tikis' : dept;
+      const normDeptAltForLog = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : null);
+      let isRework = false;
+      logs.forEach(l=>{
+        if(l.order_id !== o.id) return;
+        if(l.stage_index >= si - 1) return; // Cari və ya sonrakı stage — skip
+        if(!l.completed_at) return;
+        const ld = l.dept_key;
+        if(ld === normDeptForLog || ld === normDeptAltForLog || ld === dept){
+          isRework = true;
+        }
+      });
       
       const cardStyle = isRework 
         ? 'border:2px solid #E24B4A;background:#FFF8F8' 
