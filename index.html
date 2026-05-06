@@ -3581,20 +3581,10 @@ async function renderDeptTasks(dept, silent){
         </div>`;
       }
 
-      // Bu şöbədə əvvəl tamamlanmış log var mı? (yenidən gəlib)
-      // Cari stage-dən əvvəlki stage-lərdə bu şöbənin completed log-unu axtar
+      // Bu sifariş təmirə göndərilib və bu şöbəyə gəlib?
       const normDeptForLog = dept === 'tikiş' ? 'tikis' : dept;
-      const normDeptAltForLog = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : null);
-      let isRework = false;
-      logs.forEach(l=>{
-        if(l.order_id !== o.id) return;
-        if(l.stage_index >= si - 1) return; // Cari və ya sonrakı stage — skip
-        if(!l.completed_at) return;
-        const ld = l.dept_key;
-        if(ld === normDeptForLog || ld === normDeptAltForLog || ld === dept){
-          isRework = true;
-        }
-      });
+      const isRework = !!(o.repair_dept && 
+        (o.repair_dept === normDeptForLog || o.repair_dept === dept));
       
       const cardStyle = isRework 
         ? 'border:2px solid #E24B4A;background:#FFF8F8' 
@@ -5847,18 +5837,20 @@ async function qaDecision(oid, action){
 
 // ═══════════ TƏMİRƏ GÖNDƏR ═══════════
 async function sendToRepair(oid, targetDept, targetStageIdx, notes, inspectorName, btn){
-  const modal = btn.closest('[style*="position:fixed"]');
+  // Modalı tap və bağla
+  const modal = btn ? btn.closest('div[style*="position:fixed"]') || btn.closest('div[style*="fixed"]') : null;
   if(modal) modal.remove();
+  
+  // Toast dərhal göstər
+  toast('⏳ Göndərilir...');
   
   showLoader();
   try{
-    // QA stage-ini tap
     const {data:order} = await sb.from('orders').select('*').eq('id',oid).single();
     const {data:model} = await sb.from('models').select('stages').eq('id',order.model_id).single();
     const stages = model?.stages || [];
     const qaStageIdx = stages.findIndex(s=>s.dept==='qa');
     
-    // Sifarişi təmir şöbəsinə göndər
     await sb.from('orders').update({
       current_stage: targetStageIdx + 1,
       status: 'in_progress',
@@ -5871,13 +5863,13 @@ async function sendToRepair(oid, targetDept, targetStageIdx, notes, inspectorNam
       parallel_done_depts: ''
     }).eq('id', oid);
     
-    // Həmin stage-in köhnə log-unu sil (yenidən başlasın)
+    // Həmin stage-in köhnə log-unu sil
     await sb.from('task_logs').delete()
       .eq('order_id', oid).eq('stage_index', targetStageIdx);
     
     invalidateCache('orders','logs');
     hideLoader();
-    toast('🔧 Sifariş '+( DEPT_INFO[targetDept]?.name||targetDept)+' şöbəsinə göndərildi');
+    toast('🔧 Sifariş '+(DEPT_INFO[targetDept]?.name||targetDept)+' şöbəsinə göndərildi');
     setTimeout(()=>renderDeptTasks('qa'), 400);
     
   }catch(e){
