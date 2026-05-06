@@ -8595,7 +8595,7 @@ function updateStageOrder(keys){
       </div>`;
     }
     const d=DEPT_INFO[k];if(!d)return'';
-    return`<div class="stage-order-item">
+    return`<div class="stage-order-item" data-stage-key="${k}">
       <span class="so-num">${i+1}</span>
       <span style="font-size:14px">${d.icon}</span>
       <span style="flex:1;font-size:13px;font-weight:500">${d.name}</span>
@@ -8827,8 +8827,21 @@ function unmergeStages(idx){
 async function saveModel(){
   const name=document.getElementById('am-name').value.trim();
   if(!name){toast('⚠ Model adını yazın');return;}
-  const keys=getSelDeptKeys();
+  
+  // _currentStageOrder-dən al, boşdursa stage-order-list-dən oxu
+  let keys = (window._currentStageOrder || []).slice();
+  
+  // Əgər boşdursa — stage-order-list-dən oxumağa çalış
+  if(!keys.length){
+    const listEl = document.getElementById('stage-order-list');
+    if(listEl){
+      const items = listEl.querySelectorAll('[data-stage-key]');
+      items.forEach(item => keys.push(item.dataset.stageKey));
+    }
+  }
+  
   if(!keys.length){toast('⚠ Ən azı bir şöbə seçin');return;}
+  
   const salePrice=parseFloat(document.getElementById('am-sale-price').value)||0;
   if(!salePrice){toast('⚠ Satış qiymətini yazın');return;}
   const costPrice=parseFloat(document.getElementById('am-cost-price').value)||0;
