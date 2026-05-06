@@ -3582,17 +3582,23 @@ async function renderDeptTasks(dept, silent){
       }
 
       // Bu şöbə əvvəl bu sifarişi tamamlayıbmı? (yenidən gəlib)
+      // 1) QA-dan təmirə göndərilib (repair_dept)
+      // 2) Sıralamanın özündə eyni şöbə iki dəfədir (task_logs)
       const normDept = dept === 'tikiş' ? 'tikis' : dept;
       const normDeptAlt = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : null);
-      const currentStageIdx = si - 1; // cari stage indeksi (0-based)
+      const currentStageIdx = si - 1;
       
-      // Task logs-da bu şöbənin əvvəlki stage-lərini axtar
-      const isRework = logs.some(l => 
+      const isReworkFromRepair = !!(o.repair_dept && 
+        (o.repair_dept === normDept || o.repair_dept === dept || o.repair_dept === normDeptAlt));
+      
+      const isReworkFromLogs = logs.some(l => 
         l.order_id === o.id &&
         l.completed_at &&
-        l.stage_index < currentStageIdx && // Cari stage-dən əvvəl
+        l.stage_index < currentStageIdx &&
         (l.dept_key === normDept || l.dept_key === dept || l.dept_key === normDeptAlt)
       );
+      
+      const isRework = isReworkFromRepair || isReworkFromLogs;
       
       const cardStyle = isRework 
         ? 'border:2px solid #E24B4A;background:#FFF8F8' 
