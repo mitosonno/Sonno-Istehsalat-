@@ -3423,9 +3423,9 @@ async function renderDeptTasks(dept, silent){
       !(t.o.repair_dept && (t.o.repair_dept === normDeptForSort || t.o.repair_dept === dept))
     );
     
-    // Normal kartlar: yalnız 5
-    // Qırmızı kartlar: hamısı (üstdə)
+    // Normal kartlar: yalnız 5, Qırmızı kartlar: hamısı (üstdə)
     const vis = [...reworkTasks, ...normalTasks.slice(0, 5)];
+    const waiting = normalTasks.length > 5 ? normalTasks.length - 5 : 0;
     
     document.getElementById('dt-cnt').textContent=tasks.length;
     const tl=document.getElementById('dept-task-list');
@@ -3697,7 +3697,11 @@ async function renderDeptTasks(dept, silent){
           })()}
         </div>
       </div>`;
-    }).join('');
+    }).join('') + (waiting > 0 ? `
+      <div style="text-align:center;padding:18px;background:var(--sf);border-radius:var(--rl);border:2px dashed var(--bd);margin-top:8px">
+        <div style="font-size:28px;font-weight:700;color:var(--or)">${waiting}</div>
+        <div style="font-size:13px;color:var(--t2);margin-top:2px">sifariş növbədə gözləyir</div>
+      </div>` : '');
 
     // Timer-ları başlat
     setTimeout(()=>initTimers(), 50);
