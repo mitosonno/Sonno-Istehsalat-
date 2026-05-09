@@ -3398,10 +3398,17 @@ async function renderDeptTasks(dept, silent){
     console.log('['+dept+'] tasks:',tasks.length);
 
     tasks.sort((a,b)=>{
+      // Qırmızı (qayıdan) kartlar HƏMİŞƏ ÖNƏ GƏLSİN
+      const aRework = !!(a.o.repair_dept && (a.o.repair_dept === dept || a.o.repair_dept === (dept==='tikiş'?'tikis':dept)));
+      const bRework = !!(b.o.repair_dept && (b.o.repair_dept === dept || b.o.repair_dept === (dept==='tikiş'?'tikis':dept)));
+      if(aRework && !bRework) return -1;
+      if(!aRework && bRework) return 1;
+      
       // Fon (background) olanlar sona gəlsin
       if(a.isBackground && !b.isBackground) return 1;
       if(!a.isBackground && b.isBackground) return -1;
       
+      // Deadline-a görə sırala
       if(a.o.deadline&&b.o.deadline)return new Date(a.o.deadline)-new Date(b.o.deadline);
       if(a.o.deadline)return -1;if(b.o.deadline)return 1;
       return new Date(a.o.created_at||0)-new Date(b.o.created_at||0);
