@@ -3414,8 +3414,19 @@ async function renderDeptTasks(dept, silent){
       return new Date(a.o.created_at||0)-new Date(b.o.created_at||0);
     });
     
-    // Bütün tapşırıqları göstər
-    const vis = tasks;
+    // Qırmızı (qayıdan) kartlar və adi kartları ayır
+    const normDeptForSort = dept === 'tikiş' ? 'tikis' : dept;
+    const reworkTasks = tasks.filter(t => 
+      t.o.repair_dept && (t.o.repair_dept === normDeptForSort || t.o.repair_dept === dept)
+    );
+    const normalTasks = tasks.filter(t => 
+      !(t.o.repair_dept && (t.o.repair_dept === normDeptForSort || t.o.repair_dept === dept))
+    );
+    
+    // Normal kartlar: yalnız 5
+    // Qırmızı kartlar: hamısı (üstdə)
+    const vis = [...reworkTasks, ...normalTasks.slice(0, 5)];
+    
     document.getElementById('dt-cnt').textContent=tasks.length;
     const tl=document.getElementById('dept-task-list');
 
