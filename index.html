@@ -3997,7 +3997,6 @@ function startTimerFromElapsed(oid, elapsedMs){
   const update = ()=>{
     const el2 = document.getElementById('timer-'+oid);
     if(!el2){
-      // Element yoxdur — timer sil
       if(window._activeTimers[oid]){
         clearInterval(window._activeTimers[oid]);
         delete window._activeTimers[oid];
@@ -4005,13 +4004,23 @@ function startTimerFromElapsed(oid, elapsedMs){
       return;
     }
     const elapsed = Date.now() - t0;
-    const m = Math.floor(elapsed/60000);
-    const s = Math.floor((elapsed%60000)/1000);
-    // Sadə format: 00:00
-    const mm = String(m).padStart(2,'0');
-    const ss = String(s).padStart(2,'0');
-    el2.textContent = `⏱ ${mm}:${ss}`;
-    el2.style.color = 'var(--or)';
+    const totalSec = Math.floor(elapsed / 1000);
+    const days = Math.floor(totalSec / 86400);
+    const hours = Math.floor((totalSec % 86400) / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    
+    let timeStr = '';
+    if(days > 0){
+      timeStr = `${days} gün ${hours} saat ${mins} dəq ${secs} san`;
+    } else if(hours > 0){
+      timeStr = `${hours} saat ${mins} dəq ${secs} san`;
+    } else {
+      timeStr = `${mins} dəq ${secs} san`;
+    }
+    
+    el2.textContent = `⏱ ${timeStr}`;
+    el2.style.color = days > 0 ? '#E24B4A' : hours > 0 ? '#E24B4A' : 'var(--or)';
   };
   
   update(); // Dərhal göstər
@@ -4056,12 +4065,23 @@ function resumeTimer(oid){
       return;
     }
     const elapsed = Date.now() - t0;
-    const m = Math.floor(elapsed/60000);
-    const s = Math.floor((elapsed%60000)/1000);
-    const mm = String(m).padStart(2,'0');
-    const ss = String(s).padStart(2,'0');
-    el3.textContent = `⏱ ${mm}:${ss}`;
-    el3.style.color = 'var(--or)';
+    const totalSec = Math.floor(elapsed / 1000);
+    const days = Math.floor(totalSec / 86400);
+    const hours = Math.floor((totalSec % 86400) / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    
+    let timeStr = '';
+    if(days > 0){
+      timeStr = `${days} gün ${hours} saat ${mins} dəq ${secs} san`;
+    } else if(hours > 0){
+      timeStr = `${hours} saat ${mins} dəq ${secs} san`;
+    } else {
+      timeStr = `${mins} dəq ${secs} san`;
+    }
+    
+    el3.textContent = `⏱ ${timeStr}`;
+    el3.style.color = days > 0 ? '#E24B4A' : hours > 0 ? '#E24B4A' : 'var(--or)';
     el3.dataset.elapsedMs = elapsed;
   };
   update2();
