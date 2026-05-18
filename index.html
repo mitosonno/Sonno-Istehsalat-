@@ -516,10 +516,10 @@ textarea{resize:vertical;min-height:80px}
           <button class="btn btn-ln" onclick="clearDashFilter()">Hamısı</button>
         </div>
         <div class="kgrid">
-          <div class="kpi kT" onclick="showOrderSheet('active')" style="cursor:pointer"><div class="kl">AKTİV SİFARİŞ</div><div class="kv" id="k-act">—</div><div class="ks">istehsalda</div></div>
-          <div class="kpi kR" onclick="showOrderSheet('late')" style="cursor:pointer"><div class="kl">GECİKƏN</div><div class="kv" id="k-lat" style="color:#E24B4A">—</div><div class="ks">təcili</div></div>
-          <div class="kpi kO" onclick="showOrderSheet('ready')" style="cursor:pointer"><div class="kl">HAZIR</div><div class="kv" id="k-rdy" style="color:var(--or)">—</div><div class="ks">çatdırılma</div></div>
-          <div class="kpi kD" onclick="showOrderSheet('delivered')" style="cursor:pointer"><div class="kl">TƏSLİM</div><div class="kv" id="k-don">—</div><div class="ks">bu həftə</div></div>
+          <div class="kpi kT" onclick="loadDashOrders('active')" style="cursor:pointer"><div class="kl">AKTİV SİFARİŞ</div><div class="kv" id="k-act">—</div><div class="ks">istehsalda</div></div>
+          <div class="kpi kR" onclick="loadDashOrders('late')" style="cursor:pointer"><div class="kl">GECİKƏN</div><div class="kv" id="k-lat" style="color:#E24B4A">—</div><div class="ks">təcili</div></div>
+          <div class="kpi kO" onclick="loadDashOrders('ready')" style="cursor:pointer"><div class="kl">HAZIR</div><div class="kv" id="k-rdy" style="color:var(--or)">—</div><div class="ks">çatdırılma</div></div>
+          <div class="kpi kD" onclick="loadDashOrders('delivered')" style="cursor:pointer"><div class="kl">TƏSLİM</div><div class="kv" id="k-don">—</div><div class="ks">bu həftə</div></div>
           <div class="kpi" style="background:#FFF8F8;border:1px solid #FFCDD2;cursor:pointer" onclick="showRepairStats()"><div class="kl" style="color:#E24B4A">🔧 TƏMİR</div><div class="kv" id="k-rep" style="color:#E24B4A">—</div><div class="ks" style="color:#E24B4A">ümumi</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
@@ -557,7 +557,7 @@ textarea{resize:vertical;min-height:80px}
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px">
-          <div class="slbl" style="margin:0">Son 10 sifariş</div>
+          <div class="slbl" style="margin:0" id="dash-orders-label">Sifarişlər</div>
           <button onclick="goTo('allorders')" style="padding:8px 16px;background:var(--tl);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600">📋 Bütün sifarişlər →</button>
         </div>
         <div class="tbl-wrap" style="margin-top:10px">
@@ -2378,122 +2378,181 @@ async function renderDash(){
   try{
     const dateFrom = document.getElementById('dash-date-from')?.value;
     const dateTo = document.getElementById('dash-date-to')?.value;
-    
-    // Filter varsa cache işlətmə, yoxsa cache istifadə et
-    let all;
+    const today = new Date().toISOString().split('T')[0];
+    const thisMonth = new Date().toISOString().slice(0,7);
+
     if(dateFrom || dateTo){
+      // Filtr rejimi: yalnız filtrlənmiş sifarişləri çək
       let query = sb.from('orders').select('*').order('created_at',{ascending:false});
       if(dateFrom) query = query.gte('created_at', dateFrom+'T00:00:00');
       if(dateTo) query = query.lte('created_at', dateTo+'T23:59:59');
       const {data} = await query;
-      all = data||[];
-    } else {
-      all = await cachedOrders();
-    }
-    
-    // Pending sifariş bildirişi — müştəri sifarişləri (CUS-) current_stage=0
-    const pending = all.filter(o=>{
-      const isCustomerOrder = (o.order_number||'').startsWith('CUS-') || (o.notes||'').includes('[📱 MÜŞTƏRİ');
-      const isNotApproved = o.current_stage === 0 || o.current_stage === null || o.status === 'pending_approval';
-      const notDelivered = o.status !== 'delivered' && o.status !== 'cancelled';
-      return isCustomerOrder && isNotApproved && notDelivered;
-    });
-    const banner = document.getElementById('pending-banner');
-    const bannerTitle = document.getElementById('pending-banner-title');
-    if(banner && pending.length && ['admin','manager'].includes(currentUser?.role)){
-      banner.style.display = 'flex';
-      if(bannerTitle) bannerTitle.textContent = `${pending.length} yeni müştəri sifarişi gözləyir`;
-    } else if(banner){
-      banner.style.display = 'none';
-    }
-    
-    // Aktiv sifarişdə müştəri pending-ləri SAYMA (current_stage=0 olanlar təsdiq gözləyir)
-    document.getElementById('k-act').textContent=all.filter(o=>{
-      if(isPendingCustomerOrder(o)) return false;
-      return ['in_progress','created','late'].includes(o.status);
-    }).length;
-    document.getElementById('k-lat').textContent=all.filter(o=>o.status==='late' && !isPendingCustomerOrder(o)).length;
-    document.getElementById('k-rdy').textContent=all.filter(o=>o.status==='ready' && !isPendingCustomerOrder(o)).length;
-    document.getElementById('k-don').textContent=all.filter(o=>o.status==='delivered').length;
-    
-    // Təmir sayı
-    const repairOrders = all.filter(o=>(o.repair_count||0) > 0);
-    const kRep = document.getElementById('k-rep');
-    if(kRep) kRep.textContent = repairOrders.length;
-    window._dashRepairOrders = repairOrders;
+      const all = data||[];
 
-    const late=all.filter(o=>o.status==='late' && !isPendingCustomerOrder(o));
-    // Today card — pending müştəri sifarişləri çıxarılsın (banner-də göstərilir)
-    const today = new Date().toISOString().split('T')[0];
-    const thisMonth = new Date().toISOString().slice(0,7); // YYYY-MM
-    const todayOrders = all.filter(o=>o.created_at && o.created_at.startsWith(today) && !isPendingCustomerOrder(o));
-    const monthOrders = all.filter(o=>o.created_at && o.created_at.startsWith(thisMonth) && !isPendingCustomerOrder(o));
-    
-    // Bu gün sayğacları
-    const todayRev = todayOrders.reduce((s,o)=>s+(o.final_price||0),0);
-    const monthRev = monthOrders.reduce((s,o)=>s+(o.final_price||0),0);
-    const todayQty = todayOrders.reduce((s,o)=>s+(o.qty||0),0);
-    const monthQty = monthOrders.reduce((s,o)=>s+(o.qty||0),0);
-    
-    const kTodayCount = document.getElementById('k-today-count');
-    const kTodayRev = document.getElementById('k-today-rev');
-    const kTodayQty = document.getElementById('k-today-qty');
-    const kMonthCount = document.getElementById('k-month-count');
-    const kMonthRev = document.getElementById('k-month-rev');
-    const kMonthQty = document.getElementById('k-month-qty');
-    if(kTodayCount) kTodayCount.textContent = todayOrders.length;
-    if(kTodayRev) kTodayRev.textContent = todayRev.toFixed(0)+' ₼';
-    if(kTodayQty) kTodayQty.textContent = todayQty;
-    if(kMonthCount) kMonthCount.textContent = monthOrders.length;
-    if(kMonthRev) kMonthRev.textContent = monthRev.toFixed(0)+' ₼';
-    if(kMonthQty) kMonthQty.textContent = monthQty;
-    
+      document.getElementById('k-act').textContent = all.filter(o=>!isPendingCustomerOrder(o)&&['in_progress','created','late'].includes(o.status)).length;
+      document.getElementById('k-lat').textContent = all.filter(o=>o.status==='late'&&!isPendingCustomerOrder(o)).length;
+      document.getElementById('k-rdy').textContent = all.filter(o=>o.status==='ready'&&!isPendingCustomerOrder(o)).length;
+      document.getElementById('k-don').textContent = all.filter(o=>o.status==='delivered').length;
+      const kRep = document.getElementById('k-rep');
+      if(kRep) kRep.textContent = all.filter(o=>(o.repair_count||0)>0).length;
+      window._dashRepairOrders = all.filter(o=>(o.repair_count||0)>0);
+
+      const todayF = all.filter(o=>o.created_at&&o.created_at.startsWith(today));
+      const monthF = all.filter(o=>o.created_at&&o.created_at.startsWith(thisMonth));
+      document.getElementById('k-today-count').textContent = todayF.length;
+      document.getElementById('k-today-rev').textContent = todayF.reduce((s,o)=>s+(o.final_price||0),0).toFixed(0)+' ₼';
+      document.getElementById('k-today-qty').textContent = todayF.reduce((s,o)=>s+(o.qty||0),0);
+      document.getElementById('k-month-count').textContent = monthF.length;
+      document.getElementById('k-month-rev').textContent = monthF.reduce((s,o)=>s+(o.final_price||0),0).toFixed(0)+' ₼';
+      document.getElementById('k-month-qty').textContent = monthF.reduce((s,o)=>s+(o.qty||0),0);
+
+      const lateF = all.filter(o=>o.status==='late'&&!isPendingCustomerOrder(o));
+      document.getElementById('today-card').innerHTML = todayF.length ? todayF.map(o=>orderListItem(o)).join('') : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Bu gün sifariş yoxdur</div>';
+      document.getElementById('late-card').innerHTML = lateF.length ? lateF.map(o=>orderListItem(o)).join('') : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Gecikən sifariş yoxdur ✓</div>';
+
+      window._dashAllOrders = all;
+      const lbl = document.getElementById('dash-orders-label');
+      if(lbl) lbl.textContent = `Filtr nəticəsi: ${all.length} sifariş`;
+      document.getElementById('orders-tbody').innerHTML = all.slice(0,20).map(o=>_renderOrderRow(o,{})).join('');
+      _checkPendingBanner(all);
+      hideLoader(); return;
+    }
+
+    // FİLTR YOXDUR: COUNT sorğuları — bütün sifarişlər çəkilmir, yalnız saylar!
+    const [actRes, latRes, rdyRes, donRes, repRes, todayRes, monthRes, pendingRes, lateOrdRes] = await Promise.all([
+      sb.from('orders').select('id',{count:'exact',head:true}).in('status',['in_progress','created','late']).neq('current_stage',0).neq('status','pending_approval'),
+      sb.from('orders').select('id',{count:'exact',head:true}).eq('status','late').neq('current_stage',0),
+      sb.from('orders').select('id',{count:'exact',head:true}).eq('status','ready'),
+      sb.from('orders').select('id',{count:'exact',head:true}).eq('status','delivered'),
+      sb.from('orders').select('id',{count:'exact',head:true}).gt('repair_count',0),
+      sb.from('orders').select('*').gte('created_at',today+'T00:00:00').lte('created_at',today+'T23:59:59').order('created_at',{ascending:false}),
+      sb.from('orders').select('final_price,qty').gte('created_at',thisMonth+'-01T00:00:00'),
+      sb.from('orders').select('id,order_number,current_stage,status,notes').or('current_stage.eq.0,status.eq.pending_approval').not('status','in','("delivered","cancelled")').limit(30),
+      sb.from('orders').select('*').eq('status','late').order('deadline'),
+    ]);
+
+    // KPI kartlar
+    document.getElementById('k-act').textContent = actRes.count||0;
+    document.getElementById('k-lat').textContent = latRes.count||0;
+    document.getElementById('k-rdy').textContent = rdyRes.count||0;
+    document.getElementById('k-don').textContent = donRes.count||0;
+    const kRep = document.getElementById('k-rep');
+    if(kRep) kRep.textContent = repRes.count||0;
+    window._dashRepairOrders = [];
+
+    // Bu gün statistikası
+    const todayOrders = todayRes.data||[];
+    document.getElementById('k-today-count').textContent = todayOrders.length;
+    document.getElementById('k-today-rev').textContent = todayOrders.reduce((s,o)=>s+(o.final_price||0),0).toFixed(0)+' ₼';
+    document.getElementById('k-today-qty').textContent = todayOrders.reduce((s,o)=>s+(o.qty||0),0);
+
+    // Bu ay statistikası
+    const monthData = monthRes.data||[];
+    document.getElementById('k-month-count').textContent = monthData.length;
+    document.getElementById('k-month-rev').textContent = monthData.reduce((s,o)=>s+(o.final_price||0),0).toFixed(0)+' ₼';
+    document.getElementById('k-month-qty').textContent = monthData.reduce((s,o)=>s+(o.qty||0),0);
+
+    // Bu gün kartı
     document.getElementById('today-card').innerHTML = todayOrders.length
       ? todayOrders.map(o=>orderListItem(o)).join('')
       : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Bu gün sifariş yoxdur</div>';
 
-    document.getElementById('late-card').innerHTML=late.length
-      ?late.map(o=>orderListItem(o)).join('')
-      :'<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Gecikən sifariş yoxdur ✓</div>';
+    // Gecikən kartı
+    const lateOrders = lateOrdRes.data||[];
+    document.getElementById('late-card').innerHTML = lateOrders.length
+      ? lateOrders.map(o=>orderListItem(o)).join('')
+      : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Gecikən sifariş yoxdur ✓</div>';
 
-    // Users-ləri yüklə (menecer adları üçün)
-    const {data:users} = await sb.from('users').select('id,name');
-    const userMap = {};
-    (users||[]).forEach(u=>userMap[u.id]=u.name);
-    
-    // Bütün sifarişləri yaddaşda saxla (Bütün sifarişlər modalı üçün)
-    window._dashAllOrders = all;
-    window._dashUserMap = userMap;
-    
-    // Yalnız ilk 10-u göstər
-    const displayed = all.slice(0, 10);
-    
-    document.getElementById('orders-tbody').innerHTML=displayed.map(o=>{
-      const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦',stages:[]};
-      const st=ST[o.status]||ST.created;
-      const stageName=m.stages&&m.stages[o.current_stage-1]?m.stages[o.current_stage-1].name:'—';
-      const managerName = userMap[o.created_by] || '—';
-      const createdDate = o.created_at ? new Date(o.created_at).toLocaleDateString('az-AZ',{day:'2-digit',month:'short'}) : '—';
-      const modelImg = (() => {
-  const _u = getFirstImage(m);
-  return _u ? `<img src="${_u}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;flex-shrink:0">` : `<div style="width:32px;height:32px;border-radius:6px;background:var(--lt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${m.emoji}</div>`;
-})();
-      
-      const rowBg = o.status === 'late' ? '#FEEEED' : o.status === 'delivered' ? '#E8F5E9' : 'transparent';
-      
-      return`<tr onclick="showOD('${o.id}')" style="background:${rowBg}">
-        <td><span class="mono">${o.order_number}</span><div style="font-size:10px;color:var(--t3);margin-top:2px">${createdDate}</div></td>
-        <td>${o.client}<div style="font-size:10px;color:var(--t3);margin-top:2px">👤 ${managerName}</div></td>
-        <td><div style="display:flex;align-items:center;gap:8px">${modelImg}<span>${m.name.split('—')[0].trim()}</span></div></td>
-        <td style="font-weight:600">${o.qty}</td>
-        <td><span style="font-size:12px;color:var(--t2)">${stageName}</span></td>
-        <td style="font-weight:600;color:var(--tl)">${o.final_price?o.final_price+' ₼':'—'}${o.discount>0?`<span style="font-size:10px;color:var(--or);margin-left:4px">-${o.discount}%</span>`:''}</td>
-        <td style="${o.status==='late'?'color:#E24B4A;font-weight:600':''}">${o.deadline||'—'}</td>
-        <td><span class="badge ${st.c}">${st.t}</span></td>
-      </tr>`;
-    }).join('');
+    // Pending banner
+    const pendingOrders = (pendingRes.data||[]).filter(o=>{
+      const isCus = (o.order_number||'').startsWith('CUS-')||(o.notes||'').includes('[📱 MÜŞTƏRİ');
+      return isCus;
+    });
+    const banner = document.getElementById('pending-banner');
+    const bannerTitle = document.getElementById('pending-banner-title');
+    if(banner && pendingOrders.length && ['admin','manager'].includes(currentUser?.role)){
+      banner.style.display='flex';
+      if(bannerTitle) bannerTitle.textContent=`${pendingOrders.length} yeni müştəri sifarişi gözləyir`;
+    } else if(banner){ banner.style.display='none'; }
+
+    // Sifarişlər cədvəli — kart seçilənə qədər boş
+    window._dashAllOrders = [];
+    window._dashUserMap = null;
+    const lbl = document.getElementById('dash-orders-label');
+    if(lbl) lbl.textContent = 'Sifarişlər';
+    document.getElementById('orders-tbody').innerHTML = `
+      <tr><td colspan="8" style="text-align:center;padding:36px;color:var(--t3)">
+        <div style="font-size:28px;margin-bottom:10px">☝️</div>
+        <div style="font-size:13px;font-weight:500">Sifarişləri görmək üçün yuxarıdakı kartlardan birini seçin</div>
+      </td></tr>`;
   }catch(e){toast('Xəta: '+e.message);}
   hideLoader();
+}
+
+// Kart klik edəndə sifarişləri yüklə
+async function loadDashOrders(type){
+  const labels = {active:'Aktiv sifarişlər',late:'Gecikən sifarişlər',ready:'Hazır sifarişlər',delivered:'Təslim edilənlər'};
+  const lbl = document.getElementById('dash-orders-label');
+  if(lbl) lbl.textContent = labels[type]||'Sifarişlər';
+  document.getElementById('orders-tbody').innerHTML = '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Yüklənir...</td></tr>';
+
+  let query = sb.from('orders').select('*').order('created_at',{ascending:false});
+  if(type==='active') query = query.in('status',['in_progress','created','late']).neq('current_stage',0).neq('status','pending_approval');
+  else if(type==='late') query = query.eq('status','late');
+  else if(type==='ready') query = query.eq('status','ready');
+  else if(type==='delivered') query = query.eq('status','delivered');
+
+  const [{data:orders},{data:users}] = await Promise.all([
+    query,
+    window._dashUserMap ? Promise.resolve({data:null}) : sb.from('users').select('id,name'),
+  ]);
+
+  if(users) {
+    window._dashUserMap = {};
+    users.forEach(u=>window._dashUserMap[u.id]=u.name);
+  }
+  const userMap = window._dashUserMap||{};
+  window._dashAllOrders = orders||[];
+
+  if(!(orders&&orders.length)){
+    document.getElementById('orders-tbody').innerHTML = `<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--t3)">${labels[type]||''} yoxdur</td></tr>`;
+    return;
+  }
+  document.getElementById('orders-tbody').innerHTML = orders.map(o=>_renderOrderRow(o,userMap)).join('');
+}
+
+function _renderOrderRow(o, userMap){
+  const m=appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦',stages:[]};
+  const st=ST[o.status]||ST.created;
+  const stageName=m.stages&&m.stages[o.current_stage-1]?m.stages[o.current_stage-1].name:'—';
+  const managerName=(userMap||{})[o.created_by]||'—';
+  const createdDate=o.created_at?new Date(o.created_at).toLocaleDateString('az-AZ',{day:'2-digit',month:'short'}):'—';
+  const modelImg=(()=>{const _u=getFirstImage(m);return _u?`<img src="${_u}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;flex-shrink:0">`:`<div style="width:32px;height:32px;border-radius:6px;background:var(--lt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${m.emoji}</div>`;})();
+  const rowBg=o.status==='late'?'#FEEEED':o.status==='delivered'?'#E8F5E9':'transparent';
+  return`<tr onclick="showOD('${o.id}')" style="background:${rowBg}">
+    <td><span class="mono">${o.order_number}</span><div style="font-size:10px;color:var(--t3);margin-top:2px">${createdDate}</div></td>
+    <td>${o.client}<div style="font-size:10px;color:var(--t3);margin-top:2px">👤 ${managerName}</div></td>
+    <td><div style="display:flex;align-items:center;gap:8px">${modelImg}<span>${m.name.split('—')[0].trim()}</span></div></td>
+    <td style="font-weight:600">${o.qty}</td>
+    <td><span style="font-size:12px;color:var(--t2)">${stageName}</span></td>
+    <td style="font-weight:600;color:var(--tl)">${o.final_price?o.final_price+' ₼':'—'}${o.discount>0?`<span style="font-size:10px;color:var(--or);margin-left:4px">-${o.discount}%</span>`:''}</td>
+    <td style="${o.status==='late'?'color:#E24B4A;font-weight:600':''}">${o.deadline||'—'}</td>
+    <td><span class="badge ${st.c}">${st.t}</span></td>
+  </tr>`;
+}
+
+function _checkPendingBanner(all){
+  const pending = all.filter(o=>{
+    const isCus=(o.order_number||'').startsWith('CUS-')||(o.notes||'').includes('[📱 MÜŞTƏRİ');
+    const notApproved=o.current_stage===0||o.current_stage===null||o.status==='pending_approval';
+    return isCus&&notApproved&&o.status!=='delivered'&&o.status!=='cancelled';
+  });
+  const banner=document.getElementById('pending-banner');
+  const bannerTitle=document.getElementById('pending-banner-title');
+  if(banner&&pending.length&&['admin','manager'].includes(currentUser?.role)){
+    banner.style.display='flex';
+    if(bannerTitle) bannerTitle.textContent=`${pending.length} yeni müştəri sifarişi gözləyir`;
+  } else if(banner){ banner.style.display='none'; }
 }
 
 function orderListItem(o){
@@ -4275,7 +4334,7 @@ async function renderLogisticsDone(){
   showLoader();
   const [{data:orders, error:oErr},{data:models}] = await Promise.all([
     sb.from('orders').select('*').eq('status','delivered'),
-    sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+    sb.from('models').select('id,name,emoji,is_active'),
   ]);
   hideLoader();
   
@@ -4304,10 +4363,7 @@ async function renderLogisticsDone(){
   
   tl.innerHTML = all.map(o=>{
     const m = allModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
-    const modelImg = (() => {
-  const _u = getFirstImage(m);
-  return _u ? `<img src="${_u}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">` : `<div style="width:40px;height:40px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
-})();
+    const modelImg = `<div style="width:40px;height:40px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
     
     const deliveryDate = o.delivered_at || o.updated_at;
     const delStr = deliveryDate ? new Date(deliveryDate).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
@@ -4345,7 +4401,7 @@ async function renderLogisticsDept(){
   showLoader();
   const [{data:orders},{data:models},{data:drivers},{data:users}] = await Promise.all([
     sb.from('orders').select('*').not('status', 'eq', 'delivered').order('created_at',{ascending:true}),
-    sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
+    sb.from('models').select('id,name,emoji,stages,category,is_active'),
     sb.from('workers').select('*').eq('dept_key','logistics').eq('status','active'),
     sb.from('users').select('id,name'),
   ]);
@@ -4402,10 +4458,7 @@ async function renderLogisticsDept(){
   
   tl.innerHTML = all.map(o=>{
     const m = allModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦'};
-    const modelImg = (() => {
-  const _u = getFirstImage(m);
-  return _u ? `<img src="${_u}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)">` : `<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
-})();
+    const modelImg = `<div style="width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#f0f9f6,#e1f5ee);display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--bd)">${m.emoji||'🛋️'}</div>`;
     
     const managerName = userMap[o.created_by] || '—';
     const driverOptions = allDrivers.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
