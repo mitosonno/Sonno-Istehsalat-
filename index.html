@@ -2494,10 +2494,10 @@ async function renderDash(){
     window._dashAllOrders = [];
     window._dashUserMap = null;
     // dash-orders-label removed
-    // orders-tbody removedpadding:36px;color:var(--t3)">
-        <div style="font-size:28px;margin-bottom:10px">☝️</div>
-        <div style="font-size:13px;font-weight:500">Sifarişləri görmək üçün yuxarıdakı kartlardan birini seçin</div>
-      </td></tr>`;
+    // orders-tbody removed
+
+
+
   }catch(e){toast('Xəta: '+e.message);}
   hideLoader();
 }
@@ -2573,7 +2573,7 @@ function closeDashModal(){
 async function loadDashOrders(type){
   const labels = {active:'Aktiv sifarişlər',late:'Gecikən sifarişlər',ready:'Hazır sifarişlər',delivered:'Təslim edilənlər'};
   // dash-orders-label removed
-  // orders-tbody removedtext-align:center;color:var(--t3);font-size:13px">Yüklənir...</td></tr>';
+  // orders-tbody removed
 
   let query = sb.from('orders').select('*').order('created_at',{ascending:false});
   if(type==='active') query = query.in('status',['in_progress','created','late']).neq('current_stage',0).neq('status','pending_approval');
@@ -2594,7 +2594,7 @@ async function loadDashOrders(type){
   window._dashAllOrders = orders||[];
 
   if(!(orders&&orders.length)){
-    // orders-tbody removedtext-align:center;color:var(--t3)">${labels[type]||''} yoxdur</td></tr>`;
+    // orders-tbody removed
     return;
   }
   // orders-tbody removed
