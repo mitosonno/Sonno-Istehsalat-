@@ -2300,7 +2300,8 @@ async function initApp(){
   document.getElementById('topbar-av').textContent=ini;
   const rL={admin:'Admin',manager:'Manager',logistics:'Logistika',dept:'Şöbə müdiri'};
   document.getElementById('topbar-role').textContent=rL[u.role]||u.role;
-  document.getElementById('dash-date').textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
+  const dashDate = document.getElementById('dash-date');
+  if(dashDate) dashDate.textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
   
   // Əlavə iş icazəsini yüklə
   loadOvertimeSetting();
