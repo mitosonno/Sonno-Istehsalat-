@@ -500,6 +500,7 @@ textarea{resize:vertical;min-height:80px}
 
       <!-- DASHBOARD -->
       <div id="sc-dash" class="sc on">
+
         <!-- Pending banner -->
         <div id="pending-banner" style="display:none;background:linear-gradient(135deg,#F78930,#E2742C);color:#fff;border-radius:14px;padding:14px 18px;margin-bottom:16px;box-shadow:0 4px 16px rgba(247,137,48,.25);cursor:pointer;align-items:center;gap:12px" onclick="goTo('admin');setTimeout(()=>adminSec('pending'),150)">
           <div style="font-size:24px">🔔</div>
@@ -510,67 +511,70 @@ textarea{resize:vertical;min-height:80px}
           <div style="font-size:20px;opacity:0.8">›</div>
         </div>
 
-        <!-- Filtr -->
-        <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;flex-wrap:wrap">
-          <div style="position:relative;flex:1;min-width:130px">
-            <input type="date" id="dash-date-from" onchange="renderDash()"
-              style="width:100%;padding:10px 12px;border:1.5px solid var(--bd);border-radius:10px;font-family:inherit;font-size:13px;color:var(--t1);background:var(--sf);box-sizing:border-box">
-          </div>
+        <!-- Tarix filtri -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+          <input type="date" id="dash-date-from" onchange="renderDash()"
+            style="flex:1;min-width:130px;padding:10px 12px;border:1.5px solid var(--bd);border-radius:10px;font-family:inherit;font-size:13px;color:var(--t1);background:var(--sf)">
           <div style="color:var(--t3);font-size:13px;flex-shrink:0">—</div>
-          <div style="position:relative;flex:1;min-width:130px">
-            <input type="date" id="dash-date-to" onchange="renderDash()"
-              style="width:100%;padding:10px 12px;border:1.5px solid var(--bd);border-radius:10px;font-family:inherit;font-size:13px;color:var(--t1);background:var(--sf);box-sizing:border-box">
-          </div>
-          <button onclick="clearDashFilter()" style="padding:10px 16px;background:var(--sf);border:1.5px solid var(--bd);border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;color:var(--t2);cursor:pointer;flex-shrink:0;white-space:nowrap">Sıfırla</button>
+          <input type="date" id="dash-date-to" onchange="renderDash()"
+            style="flex:1;min-width:130px;padding:10px 12px;border:1.5px solid var(--bd);border-radius:10px;font-family:inherit;font-size:13px;color:var(--t1);background:var(--sf)">
+        </div>
+
+        <!-- Dövr düymələri -->
+        <div style="display:flex;gap:6px;margin-bottom:20px">
+          <button id="dp-all"  onclick="setDashPeriod('all')"   style="flex:1;padding:9px 6px;border-radius:10px;border:1.5px solid var(--tl);background:var(--tl);color:#fff;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">Hamısı</button>
+          <button id="dp-today" onclick="setDashPeriod('today')" style="flex:1;padding:9px 6px;border-radius:10px;border:1.5px solid var(--bd);background:var(--sf);color:var(--t2);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">Bu gün</button>
+          <button id="dp-week"  onclick="setDashPeriod('week')"  style="flex:1;padding:9px 6px;border-radius:10px;border:1.5px solid var(--bd);background:var(--sf);color:var(--t2);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">Bu həftə</button>
+          <button id="dp-month" onclick="setDashPeriod('month')" style="flex:1;padding:9px 6px;border-radius:10px;border:1.5px solid var(--bd);background:var(--sf);color:var(--t2);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">Bu ay</button>
         </div>
 
         <!-- Status kartları -->
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px">
-          <div onclick="openDashModal('active')" style="background:var(--sf);border:1.5px solid var(--bd);border-radius:14px;padding:16px 12px;cursor:pointer;transition:box-shadow .15s;position:relative;overflow:hidden" onmouseover="this.style.boxShadow='0 4px 16px rgba(17,100,60,.12)'" onmouseout="this.style.boxShadow=''">
-            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--tl);border-radius:14px 14px 0 0"></div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--t3);text-transform:uppercase;margin-bottom:8px">Aktiv</div>
-            <div style="font-size:32px;font-weight:800;color:var(--tl);line-height:1" id="k-act">—</div>
-            <div style="font-size:11px;color:var(--t3);margin-top:4px">istehsalda</div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:10px">
+          <div onclick="openDashModal('active')" style="background:var(--sf);border:1.5px solid var(--bd);border-radius:14px;padding:14px 10px;cursor:pointer;position:relative;overflow:hidden">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--tl)"></div>
+            <div style="font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--t3);text-transform:uppercase;margin-bottom:6px">Aktiv</div>
+            <div style="font-size:28px;font-weight:800;color:var(--tl);line-height:1" id="k-act">—</div>
+            <div style="font-size:10px;color:var(--t3);margin-top:3px">istehsal</div>
           </div>
-          <div onclick="openDashModal('late')" style="background:#FFF8F8;border:1.5px solid #FFCDD2;border-radius:14px;padding:16px 12px;cursor:pointer;transition:box-shadow .15s;position:relative;overflow:hidden" onmouseover="this.style.boxShadow='0 4px 16px rgba(226,75,74,.15)'" onmouseout="this.style.boxShadow=''">
-            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#E24B4A;border-radius:14px 14px 0 0"></div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:.05em;color:#E24B4A;text-transform:uppercase;margin-bottom:8px">Gecikən</div>
-            <div style="font-size:32px;font-weight:800;color:#E24B4A;line-height:1" id="k-lat">—</div>
-            <div style="font-size:11px;color:#E24B4A;opacity:.7;margin-top:4px">təcili</div>
+          <div onclick="openDashModal('late')" style="background:#FFF8F8;border:1.5px solid #FFCDD2;border-radius:14px;padding:14px 10px;cursor:pointer;position:relative;overflow:hidden">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#E24B4A"></div>
+            <div style="font-size:9px;font-weight:700;letter-spacing:.05em;color:#E24B4A;text-transform:uppercase;margin-bottom:6px">Gecikən</div>
+            <div style="font-size:28px;font-weight:800;color:#E24B4A;line-height:1" id="k-lat">—</div>
+            <div style="font-size:10px;color:#E24B4A;opacity:.7;margin-top:3px">təcili</div>
           </div>
-          <div onclick="openDashModal('ready')" style="background:#FFFBF5;border:1.5px solid #FFE0B2;border-radius:14px;padding:16px 12px;cursor:pointer;transition:box-shadow .15s;position:relative;overflow:hidden" onmouseover="this.style.boxShadow='0 4px 16px rgba(247,137,48,.15)'" onmouseout="this.style.boxShadow=''">
-            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--or);border-radius:14px 14px 0 0"></div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--or);text-transform:uppercase;margin-bottom:8px">Hazır</div>
-            <div style="font-size:32px;font-weight:800;color:var(--or);line-height:1" id="k-rdy">—</div>
-            <div style="font-size:11px;color:var(--or);opacity:.7;margin-top:4px">çatdırılma</div>
+          <div onclick="openDashModal('ready')" style="background:#FFFBF5;border:1.5px solid #FFE0B2;border-radius:14px;padding:14px 10px;cursor:pointer;position:relative;overflow:hidden">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--or)"></div>
+            <div style="font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--or);text-transform:uppercase;margin-bottom:6px">Hazır</div>
+            <div style="font-size:28px;font-weight:800;color:var(--or);line-height:1" id="k-rdy">—</div>
+            <div style="font-size:10px;color:var(--or);opacity:.7;margin-top:3px">çatdırılma</div>
           </div>
-          <div onclick="openDashModal('delivered')" style="background:var(--sf);border:1.5px solid var(--bd);border-radius:14px;padding:16px 12px;cursor:pointer;transition:box-shadow .15s;position:relative;overflow:hidden" onmouseover="this.style.boxShadow='0 4px 16px rgba(17,24,32,.1)'" onmouseout="this.style.boxShadow=''">
-            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--dk);border-radius:14px 14px 0 0"></div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--t3);text-transform:uppercase;margin-bottom:8px">Təslim</div>
-            <div style="font-size:32px;font-weight:800;color:var(--dk);line-height:1" id="k-don">—</div>
-            <div style="font-size:11px;color:var(--t3);margin-top:4px">bu həftə</div>
+          <div onclick="openDashModal('delivered')" style="background:var(--sf);border:1.5px solid var(--bd);border-radius:14px;padding:14px 10px;cursor:pointer;position:relative;overflow:hidden">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--dk)"></div>
+            <div style="font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--t3);text-transform:uppercase;margin-bottom:6px">Təslim</div>
+            <div style="font-size:28px;font-weight:800;color:var(--dk);line-height:1" id="k-don">—</div>
+            <div style="font-size:10px;color:var(--t3);margin-top:3px">dövr</div>
           </div>
-          <div onclick="showRepairStats()" style="background:#FFF8F8;border:1.5px solid #FFCDD2;border-radius:14px;padding:16px 12px;cursor:pointer;transition:box-shadow .15s;position:relative;overflow:hidden" onmouseover="this.style.boxShadow='0 4px 16px rgba(226,75,74,.15)'" onmouseout="this.style.boxShadow=''">
-            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#E24B4A;border-radius:14px 14px 0 0"></div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:.05em;color:#E24B4A;text-transform:uppercase;margin-bottom:8px">🔧 Təmir</div>
-            <div style="font-size:32px;font-weight:800;color:#E24B4A;line-height:1" id="k-rep">—</div>
-            <div style="font-size:11px;color:#E24B4A;opacity:.7;margin-top:4px">ümumi</div>
+          <div onclick="showRepairStats()" style="background:#FFF8F8;border:1.5px solid #FFCDD2;border-radius:14px;padding:14px 10px;cursor:pointer;position:relative;overflow:hidden">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#E24B4A"></div>
+            <div style="font-size:9px;font-weight:700;letter-spacing:.05em;color:#E24B4A;text-transform:uppercase;margin-bottom:6px">🔧 Təmir</div>
+            <div style="font-size:28px;font-weight:800;color:#E24B4A;line-height:1" id="k-rep">—</div>
+            <div style="font-size:10px;color:#E24B4A;opacity:.7;margin-top:3px">ümumi</div>
           </div>
         </div>
 
-        <!-- Bu gün / Bu ay kartları -->
+        <!-- Bu gün / Bu ay məlumat kartları -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div onclick="openDashModal('today')" style="background:linear-gradient(135deg,#F0FDF6,#E6FAF0);border:1.5px solid #B2DFCC;border-radius:14px;padding:18px;cursor:pointer;transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 4px 16px rgba(17,100,60,.12)'" onmouseout="this.style.boxShadow=''">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--tl);text-transform:uppercase;margin-bottom:10px">📅 Bu gün</div>
-            <div style="font-size:36px;font-weight:800;color:var(--tl);line-height:1;margin-bottom:6px" id="k-today-count">—</div>
-            <div style="font-size:12px;color:var(--tl);opacity:.8;margin-bottom:4px"><span id="k-today-qty">—</span> məhsul</div>
-            <div style="font-size:15px;font-weight:700;color:var(--tl)" id="k-today-rev">—</div>
+          <div onclick="openDashModal('period_today')" style="background:linear-gradient(135deg,#F0FDF6,#E6FAF0);border:1.5px solid #B2DFCC;border-radius:14px;padding:16px;cursor:pointer">
+            <div style="font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--tl);text-transform:uppercase;margin-bottom:8px">📅 Bu gün</div>
+            <div style="font-size:34px;font-weight:800;color:var(--tl);line-height:1;margin-bottom:4px" id="k-today-count">—</div>
+            <div style="font-size:11px;color:var(--tl);opacity:.8;margin-bottom:2px"><span id="k-today-qty">—</span> məhsul</div>
+            <div style="font-size:14px;font-weight:700;color:var(--tl)" id="k-today-rev">—</div>
           </div>
-          <div onclick="openDashModal('month')" style="background:linear-gradient(135deg,#FFFBF2,#FFF4E0);border:1.5px solid #FFE0B2;border-radius:14px;padding:18px;cursor:pointer;transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 4px 16px rgba(247,137,48,.15)'" onmouseout="this.style.boxShadow=''">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--or);text-transform:uppercase;margin-bottom:10px">📆 Bu ay</div>
-            <div style="font-size:36px;font-weight:800;color:var(--or);line-height:1;margin-bottom:6px" id="k-month-count">—</div>
-            <div style="font-size:12px;color:var(--or);opacity:.8;margin-bottom:4px"><span id="k-month-qty">—</span> məhsul</div>
-            <div style="font-size:15px;font-weight:700;color:var(--or)" id="k-month-rev">—</div>
+          <div onclick="openDashModal('period_month')" style="background:linear-gradient(135deg,#FFFBF2,#FFF4E0);border:1.5px solid #FFE0B2;border-radius:14px;padding:16px;cursor:pointer">
+            <div style="font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--or);text-transform:uppercase;margin-bottom:8px">📆 Bu ay</div>
+            <div style="font-size:34px;font-weight:800;color:var(--or);line-height:1;margin-bottom:4px" id="k-month-count">—</div>
+            <div style="font-size:11px;color:var(--or);opacity:.8;margin-bottom:2px"><span id="k-month-qty">—</span> məhsul</div>
+            <div style="font-size:14px;font-weight:700;color:var(--or)" id="k-month-rev">—</div>
           </div>
         </div>
       </div>
@@ -2401,17 +2405,23 @@ async function renderDash(){
     const dateTo = document.getElementById('dash-date-to')?.value;
     const today = new Date().toISOString().split('T')[0];
     const thisMonth = new Date().toISOString().slice(0,7);
+    const period = _getPeriodRange();
 
-    if(dateFrom || dateTo){
-      // Filtr rejimi: yalnız filtrlənmiş sifarişləri çək
+    // Effektiv tarix aralığı: manual tarix > dövr düyməsi
+    const effFrom = dateFrom ? dateFrom+'T00:00:00' : period.from;
+    const effTo   = dateTo   ? dateTo+'T23:59:59'   : period.to;
+    const hasPeriod = effFrom || effTo;
+
+    if(hasPeriod){
+      // Dövr/tarix rejimi — o dövrün bütün sifarişlərini çək, sonra saylar JS-də hesablanır
       let query = sb.from('orders').select('*').order('created_at',{ascending:false});
-      if(dateFrom) query = query.gte('created_at', dateFrom+'T00:00:00');
-      if(dateTo) query = query.lte('created_at', dateTo+'T23:59:59');
+      if(effFrom) query = query.gte('created_at', effFrom);
+      if(effTo)   query = query.lte('created_at', effTo);
       const {data} = await query;
       const all = data||[];
 
       document.getElementById('k-act').textContent = all.filter(o=>!isPendingCustomerOrder(o)&&['in_progress','created','late'].includes(o.status)).length;
-      document.getElementById('k-lat').textContent = all.filter(o=>o.status==='late'&&!isPendingCustomerOrder(o)).length;
+      document.getElementById('k-lat').textContent = all.filter(o=>(o.status==='late'||(o.deadline&&o.deadline<=today&&!['delivered','cancelled'].includes(o.status)))&&!isPendingCustomerOrder(o)).length;
       document.getElementById('k-rdy').textContent = all.filter(o=>o.status==='ready'&&!isPendingCustomerOrder(o)).length;
       document.getElementById('k-don').textContent = all.filter(o=>o.status==='delivered').length;
       const kRep = document.getElementById('k-rep');
@@ -2426,20 +2436,13 @@ async function renderDash(){
       document.getElementById('k-month-count').textContent = monthF.length;
       document.getElementById('k-month-rev').textContent = monthF.reduce((s,o)=>s+(o.final_price||0),0).toFixed(0)+' ₼';
       document.getElementById('k-month-qty').textContent = monthF.reduce((s,o)=>s+(o.qty||0),0);
-
-      const lateF = all.filter(o=>o.status==='late'&&!isPendingCustomerOrder(o));
-      // today-card removed
-      // late-card removed
-
       window._dashAllOrders = all;
-      // dash-orders-label removed
-      // orders-tbody removed
       _checkPendingBanner(all);
       hideLoader(); return;
     }
 
-    // FİLTR YOXDUR: COUNT sorğuları — bütün sifarişlər çəkilmir, yalnız saylar!
-    const [actRes, latRes, rdyRes, donRes, repRes, todayRes, monthRes, pendingRes, lateOrdRes] = await Promise.all([
+    // HAMISI rejimi: COUNT sorğuları
+    const [actRes, latRes, rdyRes, donRes, repRes, todayRes, monthRes, pendingRes] = await Promise.all([
       sb.from('orders').select('id',{count:'exact',head:true}).in('status',['in_progress','created','late']).neq('current_stage',0).neq('status','pending_approval'),
       sb.from('orders').select('id',{count:'exact',head:true}).or(`status.eq.late,and(deadline.lte.${today},status.not.in.(delivered,cancelled,pending_approval))`).neq('current_stage',0),
       sb.from('orders').select('id',{count:'exact',head:true}).eq('status','ready'),
@@ -2448,10 +2451,8 @@ async function renderDash(){
       sb.from('orders').select('*').gte('created_at',today+'T00:00:00').lte('created_at',today+'T23:59:59').order('created_at',{ascending:false}),
       sb.from('orders').select('final_price,qty').gte('created_at',thisMonth+'-01T00:00:00'),
       sb.from('orders').select('id,order_number,current_stage,status,notes').or('current_stage.eq.0,status.eq.pending_approval').not('status','in','("delivered","cancelled")').limit(30),
-      sb.from('orders').select('*').or(`status.eq.late,and(deadline.lte.${today},status.not.in.(delivered,cancelled,pending_approval))`).order('deadline'),
     ]);
 
-    // KPI kartlar
     document.getElementById('k-act').textContent = actRes.count||0;
     document.getElementById('k-lat').textContent = latRes.count||0;
     document.getElementById('k-rdy').textContent = rdyRes.count||0;
@@ -2460,30 +2461,17 @@ async function renderDash(){
     if(kRep) kRep.textContent = repRes.count||0;
     window._dashRepairOrders = [];
 
-    // Bu gün statistikası
     const todayOrders = todayRes.data||[];
     document.getElementById('k-today-count').textContent = todayOrders.length;
     document.getElementById('k-today-rev').textContent = todayOrders.reduce((s,o)=>s+(o.final_price||0),0).toFixed(0)+' ₼';
     document.getElementById('k-today-qty').textContent = todayOrders.reduce((s,o)=>s+(o.qty||0),0);
 
-    // Bu ay statistikası
     const monthData = monthRes.data||[];
     document.getElementById('k-month-count').textContent = monthData.length;
     document.getElementById('k-month-rev').textContent = monthData.reduce((s,o)=>s+(o.final_price||0),0).toFixed(0)+' ₼';
     document.getElementById('k-month-qty').textContent = monthData.reduce((s,o)=>s+(o.qty||0),0);
 
-    // Bu gün kartı
-    // today-card removed from dashboard
-
-    // Gecikən kartı
-    const lateOrders = lateOrdRes.data||[];
-    // late-card removed from dashboard
-
-    // Pending banner
-    const pendingOrders = (pendingRes.data||[]).filter(o=>{
-      const isCus = (o.order_number||'').startsWith('CUS-')||(o.notes||'').includes('[📱 MÜŞTƏRİ');
-      return isCus;
-    });
+    const pendingOrders = (pendingRes.data||[]).filter(o=>(o.order_number||'').startsWith('CUS-')||(o.notes||'').includes('[📱 MÜŞTƏRİ'));
     const banner = document.getElementById('pending-banner');
     const bannerTitle = document.getElementById('pending-banner-title');
     if(banner && pendingOrders.length && ['admin','manager'].includes(currentUser?.role)){
@@ -2491,16 +2479,50 @@ async function renderDash(){
       if(bannerTitle) bannerTitle.textContent=`${pendingOrders.length} yeni müştəri sifarişi gözləyir`;
     } else if(banner){ banner.style.display='none'; }
 
-    // Sifarişlər cədvəli — kart seçilənə qədər boş
     window._dashAllOrders = [];
     window._dashUserMap = null;
-    // dash-orders-label removed
-    // orders-tbody removed
-
-
 
   }catch(e){toast('Xəta: '+e.message);}
   hideLoader();
+}
+
+// Aktiv dövr (hamısı/bu gün/bu həftə/bu ay)
+window._dashPeriod = 'all';
+
+function setDashPeriod(period){
+  window._dashPeriod = period;
+  // Düymə görünüşü
+  ['all','today','week','month'].forEach(p=>{
+    const btn = document.getElementById('dp-'+p);
+    if(!btn) return;
+    if(p === period){
+      btn.style.background = 'var(--tl)';
+      btn.style.color = '#fff';
+      btn.style.borderColor = 'var(--tl)';
+    } else {
+      btn.style.background = 'var(--sf)';
+      btn.style.color = 'var(--t2)';
+      btn.style.borderColor = 'var(--bd)';
+    }
+  });
+  renderDash();
+}
+
+function _getPeriodRange(){
+  const period = window._dashPeriod || 'all';
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  if(period === 'today'){
+    return {from: today+'T00:00:00', to: today+'T23:59:59', label:'Bu gün'};
+  } else if(period === 'week'){
+    const day = now.getDay() === 0 ? 6 : now.getDay()-1;
+    const weekStart = new Date(now); weekStart.setDate(now.getDate()-day); weekStart.setHours(0,0,0,0);
+    return {from: weekStart.toISOString(), to: now.toISOString(), label:'Bu həftə'};
+  } else if(period === 'month'){
+    const thisMonth = now.toISOString().slice(0,7);
+    return {from: thisMonth+'-01T00:00:00', to: today+'T23:59:59', label:'Bu ay'};
+  }
+  return {from: null, to: null, label:'Hamısı'};
 }
 
 // Dashboard modal aç
@@ -2510,29 +2532,42 @@ async function openDashModal(type){
   const body = document.getElementById('dash-modal-body');
   if(!modal) return;
 
-  const labels = {
+  const period = _getPeriodRange();
+  const statusLabels = {
     active:'🟢 Aktiv sifarişlər',
     late:'🔴 Gecikən sifarişlər',
     ready:'🟠 Hazır sifarişlər',
     delivered:'✅ Təslim edilənlər',
-    today:'📅 Bu gün gələn sifarişlər',
-    month:'📆 Bu ay gələn sifarişlər'
+    period_today:'📅 Bu gün gələn sifarişlər',
+    period_month:'📆 Bu ay gələn sifarişlər'
   };
-  if(title) title.textContent = labels[type]||'Sifarişlər';
+  const periodSuffix = period.label !== 'Hamısı' ? ` · ${period.label}` : '';
+  if(title) title.textContent = (statusLabels[type]||'Sifarişlər') + periodSuffix;
+
   body.innerHTML = '<div style="padding:32px;text-align:center;color:var(--t3)">Yüklənir...</div>';
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
-  const today = new Date().toISOString().split('T')[0];
-  const thisMonth = new Date().toISOString().slice(0,7);
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Tarix filtri (manual tarix varsa onu istifadə et, yoxsa dövr)
+  const manualFrom = document.getElementById('dash-date-from')?.value;
+  const manualTo = document.getElementById('dash-date-to')?.value;
+  const useFrom = manualFrom || period.from;
+  const useTo = manualTo ? manualTo+'T23:59:59' : period.to;
 
   let query = sb.from('orders').select('*').order('created_at',{ascending:false});
+  
+  // Dövr filtri
+  if(useFrom) query = query.gte('created_at', useFrom);
+  if(useTo) query = query.lte('created_at', useTo);
+
+  // Status filtri
   if(type==='active') query = query.in('status',['in_progress','created','late']).neq('status','pending_approval');
-  else if(type==='late') query = query.or(`status.eq.late,and(deadline.lte.${today},status.not.in.(delivered,cancelled,pending_approval))`);
+  else if(type==='late') query = query.or(`status.eq.late,and(deadline.lte.${todayStr},status.not.in.(delivered,cancelled,pending_approval))`);
   else if(type==='ready') query = query.eq('status','ready');
   else if(type==='delivered') query = query.eq('status','delivered');
-  else if(type==='today') query = query.gte('created_at',today+'T00:00:00').lte('created_at',today+'T23:59:59');
-  else if(type==='month') query = query.gte('created_at',thisMonth+'-01T00:00:00');
+  // period_today, period_month — yalnız tarix filtri, status yox
 
   const {data:orders} = await query;
   const all = orders||[];
@@ -2545,8 +2580,7 @@ async function openDashModal(type){
   body.innerHTML = all.map(o=>{
     const m = appModels.find(x=>x.id===o.model_id)||{name:'?',emoji:'📦',stages:[]};
     const st = ST[o.status]||ST.created;
-    const today2 = new Date().toISOString().split('T')[0];
-    const isLate = o.deadline && o.deadline <= today2 && o.status!=='delivered';
+    const isLate = o.deadline && o.deadline <= todayStr && o.status!=='delivered';
     const createdDate = o.created_at ? new Date(o.created_at).toLocaleDateString('az-AZ',{day:'2-digit',month:'short'}) : '—';
     const rowBg = isLate ? '#FFF8F8' : o.status==='delivered' ? '#F6FBF8' : 'transparent';
     return `<div onclick="closeDashModal();setTimeout(()=>showOD('${o.id}'),200)" style="display:flex;align-items:center;gap:12px;padding:12px 8px;border-bottom:1px solid var(--bd);cursor:pointer;background:${rowBg};border-radius:8px;margin-bottom:2px">
