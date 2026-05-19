@@ -2427,13 +2427,12 @@ async function renderDash(){
       document.getElementById('k-month-qty').textContent = monthF.reduce((s,o)=>s+(o.qty||0),0);
 
       const lateF = all.filter(o=>o.status==='late'&&!isPendingCustomerOrder(o));
-      document.getElementById('today-card').innerHTML = todayF.length ? todayF.map(o=>orderListItem(o)).join('') : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Bu gün sifariş yoxdur</div>';
-      document.getElementById('late-card').innerHTML = lateF.length ? lateF.map(o=>orderListItem(o)).join('') : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Gecikən sifariş yoxdur ✓</div>';
+      // today-card removed
+      // late-card removed
 
       window._dashAllOrders = all;
-      const lbl = document.getElementById('dash-orders-label');
-      if(lbl) lbl.textContent = `Filtr nəticəsi: ${all.length} sifariş`;
-      document.getElementById('orders-tbody').innerHTML = all.slice(0,20).map(o=>_renderOrderRow(o,{})).join('');
+      // dash-orders-label removed
+      // orders-tbody removed
       _checkPendingBanner(all);
       hideLoader(); return;
     }
@@ -2473,15 +2472,11 @@ async function renderDash(){
     document.getElementById('k-month-qty').textContent = monthData.reduce((s,o)=>s+(o.qty||0),0);
 
     // Bu gün kartı
-    document.getElementById('today-card').innerHTML = todayOrders.length
-      ? todayOrders.map(o=>orderListItem(o)).join('')
-      : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Bu gün sifariş yoxdur</div>';
+    // today-card removed from dashboard
 
     // Gecikən kartı
     const lateOrders = lateOrdRes.data||[];
-    document.getElementById('late-card').innerHTML = lateOrders.length
-      ? lateOrders.map(o=>orderListItem(o)).join('')
-      : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Gecikən sifariş yoxdur ✓</div>';
+    // late-card removed from dashboard
 
     // Pending banner
     const pendingOrders = (pendingRes.data||[]).filter(o=>{
@@ -2498,10 +2493,8 @@ async function renderDash(){
     // Sifarişlər cədvəli — kart seçilənə qədər boş
     window._dashAllOrders = [];
     window._dashUserMap = null;
-    const lbl = document.getElementById('dash-orders-label');
-    if(lbl) lbl.textContent = 'Sifarişlər';
-    document.getElementById('orders-tbody').innerHTML = `
-      <tr><td colspan="8" style="text-align:center;padding:36px;color:var(--t3)">
+    // dash-orders-label removed
+    // orders-tbody removedpadding:36px;color:var(--t3)">
         <div style="font-size:28px;margin-bottom:10px">☝️</div>
         <div style="font-size:13px;font-weight:500">Sifarişləri görmək üçün yuxarıdakı kartlardan birini seçin</div>
       </td></tr>`;
@@ -2579,9 +2572,8 @@ function closeDashModal(){
 // Kart klik edəndə sifarişləri yüklə
 async function loadDashOrders(type){
   const labels = {active:'Aktiv sifarişlər',late:'Gecikən sifarişlər',ready:'Hazır sifarişlər',delivered:'Təslim edilənlər'};
-  const lbl = document.getElementById('dash-orders-label');
-  if(lbl) lbl.textContent = labels[type]||'Sifarişlər';
-  document.getElementById('orders-tbody').innerHTML = '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--t3);font-size:13px">Yüklənir...</td></tr>';
+  // dash-orders-label removed
+  // orders-tbody removedtext-align:center;color:var(--t3);font-size:13px">Yüklənir...</td></tr>';
 
   let query = sb.from('orders').select('*').order('created_at',{ascending:false});
   if(type==='active') query = query.in('status',['in_progress','created','late']).neq('current_stage',0).neq('status','pending_approval');
@@ -2602,10 +2594,10 @@ async function loadDashOrders(type){
   window._dashAllOrders = orders||[];
 
   if(!(orders&&orders.length)){
-    document.getElementById('orders-tbody').innerHTML = `<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--t3)">${labels[type]||''} yoxdur</td></tr>`;
+    // orders-tbody removedtext-align:center;color:var(--t3)">${labels[type]||''} yoxdur</td></tr>`;
     return;
   }
-  document.getElementById('orders-tbody').innerHTML = orders.map(o=>_renderOrderRow(o,userMap)).join('');
+  // orders-tbody removed
 }
 
 function _renderOrderRow(o, userMap){
