@@ -672,13 +672,16 @@ textarea{resize:vertical;min-height:80px}
       <div id="sc-allorders" class="sc">
         <div class="pg-hd">📋 Bütün sifarişlər</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px">
-          <input type="text" id="ao-search" placeholder="🔍 Sifariş, müştəri, model..." style="padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;grid-column:span 2">
+          <input type="text" id="ao-search" placeholder="🔍 Sifariş, müştəri..." style="padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;grid-column:span 2">
           <input type="date" id="ao-from" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px">
           <input type="date" id="ao-to" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px">
-          <select id="ao-manager" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:#fff">
+          <select id="ao-model" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:var(--sf);color:var(--t1)">
+            <option value="">📦 Bütün məhsullar</option>
+          </select>
+          <select id="ao-manager" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:var(--sf);color:var(--t1)">
             <option value="">👤 Bütün menecerlər</option>
           </select>
-          <select id="ao-status" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:#fff">
+          <select id="ao-status" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:var(--sf);color:var(--t1)">
             <option value="">Bütün statuslar</option>
             <option value="created">Yaradıldı</option>
             <option value="in_progress">İstehsalda</option>
@@ -692,7 +695,7 @@ textarea{resize:vertical;min-height:80px}
         </div>
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
           <button onclick="filterAllOrdersPage()" style="flex:1;min-width:130px;padding:11px 16px;background:var(--tl);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700">🔎 Axtar</button>
-          <button onclick="resetAllOrdersFilters()" style="flex:1;min-width:130px;padding:11px 16px;background:#fff;color:var(--t1);border:1px solid var(--bd);border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600">↺ Təmizlə</button>
+          <button onclick="resetAllOrdersFilters()" style="flex:1;min-width:130px;padding:11px 16px;background:var(--sf);color:var(--t1);border:1px solid var(--bd);border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600">↺ Təmizlə</button>
         </div>
         <div id="ao-count" style="font-size:13px;color:var(--t2);margin-bottom:10px">—</div>
         <div class="tbl-wrap">
@@ -5089,6 +5092,7 @@ function resetAllOrdersFilters(){
   const t = document.getElementById('ao-to'); if(t) t.value = '';
   const m = document.getElementById('ao-manager'); if(m) m.value = '';
   const st = document.getElementById('ao-status'); if(st) st.value = '';
+  const md = document.getElementById('ao-model'); if(md) md.value = '';
   filterAllOrdersPage();
 }
 
@@ -5117,6 +5121,14 @@ async function renderAllOrdersPage(){
       '<option value="__customer__">&#128722; Musteri sifarisleri</option>';
   }
 
+  // Model dropdown-u doldur
+  const modelSelect = document.getElementById('ao-model');
+  if(modelSelect && appModels && appModels.length){
+    const sorted = [...appModels].filter(m=>m.is_active!==false).sort((a,b)=>a.name.localeCompare(b.name,'az'));
+    modelSelect.innerHTML = '<option value="">📦 Bütün məhsullar</option>' +
+      sorted.map(m=>`<option value="${m.id}">${m.emoji||''} ${m.name.split('—')[0].trim()}</option>`).join('');
+  }
+
   const tbody = document.getElementById('ao-tbody');
   if(tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--t3)"><div style="font-size:28px;margin-bottom:10px">&#128269;</div><div style="font-size:13px;font-weight:500">Filtr secin ve sifarisleri tapin</div></td></tr>';
   const countEl = document.getElementById('ao-count');
@@ -5130,8 +5142,9 @@ async function filterAllOrdersPage(){
   const toDate = document.getElementById('ao-to')?.value || '';
   const statusFilter = document.getElementById('ao-status')?.value || '';
   const managerFilter = document.getElementById('ao-manager')?.value || '';
+  const modelFilter = document.getElementById('ao-model')?.value || '';
 
-  const hasFilter = search || fromDate || toDate || statusFilter || managerFilter;
+  const hasFilter = search || fromDate || toDate || statusFilter || managerFilter || modelFilter;
 
   const tbody = document.getElementById('ao-tbody');
   const countEl = document.getElementById('ao-count');
@@ -5149,6 +5162,7 @@ async function filterAllOrdersPage(){
   if(fromDate) query = query.gte('created_at', fromDate+'T00:00:00');
   if(toDate) query = query.lte('created_at', toDate+'T23:59:59');
   if(statusFilter) query = query.eq('status', statusFilter);
+  if(modelFilter) query = query.eq('model_id', modelFilter);
 
   const {data:orders} = await query;
   let filtered = orders || [];
