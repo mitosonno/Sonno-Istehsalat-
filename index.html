@@ -671,17 +671,41 @@ textarea{resize:vertical;min-height:80px}
       <!-- BÜTÜN SİFARİŞLƏR -->
       <div id="sc-allorders" class="sc">
         <div class="pg-hd">📋 Bütün sifarişlər</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px">
-          <input type="text" id="ao-search" placeholder="🔍 Sifariş, müştəri..." style="padding:12px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;grid-column:span 2">
-          <input type="date" id="ao-from" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px">
-          <input type="date" id="ao-to" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px">
-          <select id="ao-model" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:var(--sf);color:var(--t1)">
-            <option value="">📦 Bütün məhsullar</option>
+        <!-- Axtarış -->
+        <div style="margin-bottom:10px">
+          <input type="text" id="ao-search" placeholder="🔍 Sifariş №, müştəri adı..." style="width:100%;padding:12px 14px;border:1.5px solid var(--bd);border-radius:10px;font-family:inherit;font-size:14px;background:var(--sf);color:var(--t1);box-sizing:border-box">
+        </div>
+
+        <!-- Kateqoriya -->
+        <div style="margin-bottom:10px">
+          <select id="ao-category" style="width:100%;padding:12px;border:1.5px solid var(--bd);border-radius:10px;font-family:inherit;font-size:14px;background:var(--sf);color:var(--t1)">
+            <option value="">📦 Bütün qruplar</option>
+            <option value="divan">🛋️ Divan</option>
+            <option value="kunc_divan">↩️ Künc Divan</option>
+            <option value="oturacaq">🪑 Oturacaq</option>
+            <option value="masa">🪞 Masa</option>
+            <option value="diger">📦 Digər</option>
           </select>
-          <select id="ao-manager" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:var(--sf);color:var(--t1)">
-            <option value="">👤 Bütün menecerlər</option>
-          </select>
-          <select id="ao-status" style="padding:12px;border:1px solid var(--bd);border-radius:var(--r);font-family:inherit;font-size:14px;background:var(--sf);color:var(--t1)">
+        </div>
+
+        <!-- Tarix + dövr düymələri -->
+        <div style="margin-bottom:10px">
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <button onclick="setAoPeriod('today')" style="flex:1;padding:8px 4px;border-radius:8px;border:1.5px solid var(--bd);background:var(--sf);color:var(--t2);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer" id="aop-today">Bu gün</button>
+            <button onclick="setAoPeriod('week')"  style="flex:1;padding:8px 4px;border-radius:8px;border:1.5px solid var(--bd);background:var(--sf);color:var(--t2);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer" id="aop-week">Bu həftə</button>
+            <button onclick="setAoPeriod('month')" style="flex:1;padding:8px 4px;border-radius:8px;border:1.5px solid var(--bd);background:var(--sf);color:var(--t2);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer" id="aop-month">Bu ay</button>
+            <button onclick="setAoPeriod('clear')" style="flex:1;padding:8px 4px;border-radius:8px;border:1.5px solid var(--bd);background:var(--sf);color:var(--t2);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer" id="aop-clear">Hamısı</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="date" id="ao-from" style="flex:1;padding:10px;border:1.5px solid var(--bd);border-radius:10px;font-family:inherit;font-size:13px;background:var(--sf);color:var(--t1)">
+            <span style="color:var(--t3)">—</span>
+            <input type="date" id="ao-to" style="flex:1;padding:10px;border:1.5px solid var(--bd);border-radius:10px;font-family:inherit;font-size:13px;background:var(--sf);color:var(--t1)">
+          </div>
+        </div>
+
+        <!-- Status + Menecer -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+          <select id="ao-status" style="padding:11px;border:1.5px solid var(--bd);border-radius:10px;font-family:inherit;font-size:13px;background:var(--sf);color:var(--t1)">
             <option value="">Bütün statuslar</option>
             <option value="created">Yaradıldı</option>
             <option value="in_progress">İstehsalda</option>
@@ -692,10 +716,15 @@ textarea{resize:vertical;min-height:80px}
             <option value="late">Gecikmiş</option>
             <option value="pending_approval">Təsdiq gözləyir</option>
           </select>
+          <select id="ao-manager" style="padding:11px;border:1.5px solid var(--bd);border-radius:10px;font-family:inherit;font-size:13px;background:var(--sf);color:var(--t1)">
+            <option value="">👤 Bütün menecerlər</option>
+          </select>
         </div>
-        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-          <button onclick="filterAllOrdersPage()" style="flex:1;min-width:130px;padding:11px 16px;background:var(--tl);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700">🔎 Axtar</button>
-          <button onclick="resetAllOrdersFilters()" style="flex:1;min-width:130px;padding:11px 16px;background:var(--sf);color:var(--t1);border:1px solid var(--bd);border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600">↺ Təmizlə</button>
+
+        <!-- Axtar / Təmizlə -->
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button onclick="filterAllOrdersPage()" style="flex:2;padding:12px;background:var(--tl);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700">🔎 Axtar</button>
+          <button onclick="resetAllOrdersFilters()" style="flex:1;padding:12px;background:var(--sf);color:var(--t1);border:1.5px solid var(--bd);border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600">↺ Sıfırla</button>
         </div>
         <div id="ao-count" style="font-size:13px;color:var(--t2);margin-bottom:10px">—</div>
         <div class="tbl-wrap">
@@ -5092,7 +5121,8 @@ function resetAllOrdersFilters(){
   const t = document.getElementById('ao-to'); if(t) t.value = '';
   const m = document.getElementById('ao-manager'); if(m) m.value = '';
   const st = document.getElementById('ao-status'); if(st) st.value = '';
-  const md = document.getElementById('ao-model'); if(md) md.value = '';
+  const cat = document.getElementById('ao-category'); if(cat) cat.value = '';
+  ['today','week','month','clear'].forEach(p=>{const b=document.getElementById('aop-'+p);if(b){b.style.background='var(--sf)';b.style.color='var(--t2)';b.style.borderColor='var(--bd)';}});
   filterAllOrdersPage();
 }
 
@@ -5136,15 +5166,48 @@ async function renderAllOrdersPage(){
 }
 
 
+function setAoPeriod(period){
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  const fromEl = document.getElementById('ao-from');
+  const toEl = document.getElementById('ao-to');
+
+  // Düymə görünüşü
+  ['today','week','month','clear'].forEach(p=>{
+    const b = document.getElementById('aop-'+p);
+    if(!b) return;
+    const active = p === period;
+    b.style.background = active ? 'var(--tl)' : 'var(--sf)';
+    b.style.color = active ? '#fff' : 'var(--t2)';
+    b.style.borderColor = active ? 'var(--tl)' : 'var(--bd)';
+  });
+
+  if(period === 'today'){
+    if(fromEl) fromEl.value = today;
+    if(toEl) toEl.value = today;
+  } else if(period === 'week'){
+    const day = now.getDay() === 0 ? 6 : now.getDay()-1;
+    const weekStart = new Date(now); weekStart.setDate(now.getDate()-day);
+    if(fromEl) fromEl.value = weekStart.toISOString().split('T')[0];
+    if(toEl) toEl.value = today;
+  } else if(period === 'month'){
+    if(fromEl) fromEl.value = now.toISOString().slice(0,7)+'-01';
+    if(toEl) toEl.value = today;
+  } else {
+    if(fromEl) fromEl.value = '';
+    if(toEl) toEl.value = '';
+  }
+}
+
 async function filterAllOrdersPage(){
   const search = (document.getElementById('ao-search')?.value || '').toLowerCase().trim();
   const fromDate = document.getElementById('ao-from')?.value || '';
   const toDate = document.getElementById('ao-to')?.value || '';
   const statusFilter = document.getElementById('ao-status')?.value || '';
   const managerFilter = document.getElementById('ao-manager')?.value || '';
-  const modelFilter = document.getElementById('ao-model')?.value || '';
+  const categoryFilter = document.getElementById('ao-category')?.value || '';
 
-  const hasFilter = search || fromDate || toDate || statusFilter || managerFilter || modelFilter;
+  const hasFilter = search || fromDate || toDate || statusFilter || managerFilter || categoryFilter;
 
   const tbody = document.getElementById('ao-tbody');
   const countEl = document.getElementById('ao-count');
@@ -5162,12 +5225,17 @@ async function filterAllOrdersPage(){
   if(fromDate) query = query.gte('created_at', fromDate+'T00:00:00');
   if(toDate) query = query.lte('created_at', toDate+'T23:59:59');
   if(statusFilter) query = query.eq('status', statusFilter);
-  if(modelFilter) query = query.eq('model_id', modelFilter);
 
   const {data:orders} = await query;
   let filtered = orders || [];
 
   // JS terefdeki filtrler
+  // Kateqoriya filtri — JS tərəfdə (model.category)  
+  if(categoryFilter){
+    const catModelIds = new Set((appModels||[]).filter(m=>(m.category||'diger')===categoryFilter).map(m=>m.id));
+    filtered = filtered.filter(o=>catModelIds.has(o.model_id));
+  }
+
   if(search){
     filtered = filtered.filter(o=>{
       const m = appModels.find(x=>x.id===o.model_id);
