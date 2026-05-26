@@ -1346,23 +1346,66 @@ function selectClientFromSuggest(clientId){
   if(!c) return;
   document.getElementById('o-client-search').value = c.name;
   document.getElementById('o-client').value = c.name;
-  document.getElementById('o-client-phone-display').textContent = c.phone ? '📞 '+c.phone : '';
+  const phoneDisp2 = document.getElementById('o-client-phone-display');
+  if(phoneDisp2){ phoneDisp2.textContent = c.phone ? '📞 '+c.phone : ''; phoneDisp2.dataset.phone = c.phone||''; }
   document.getElementById('client-suggestions').style.display = 'none';
 }
 
-async function addNewClientQuick(name){
-  const phone = prompt('Müştərinin telefonu (istəyə bağlı):', '');
+function addNewClientQuick(name){
+  // Modal aç
+  const modal = document.getElementById('new-client-modal');
+  if(!modal) return;
+  document.getElementById('nc-name').value = name || '';
+  document.getElementById('nc-phone').value = '';
+  document.getElementById('nc-name-err').style.display = 'none';
+  document.getElementById('nc-phone-err').style.display = 'none';
+  modal.dataset.mode = 'order';
+  modal.style.display = 'flex';
+  setTimeout(()=>{ document.getElementById('nc-phone').focus(); }, 200);
+}
+
+function closeNewClientModal(){
+  document.getElementById('new-client-modal').style.display = 'none';
+}
+
+async function submitNewClient(){
+  const name  = document.getElementById('nc-name').value.trim();
+  const phone = document.getElementById('nc-phone').value.trim();
   
+  let valid = true;
+  
+  if(!name){
+    document.getElementById('nc-name-err').style.display = 'block';
+    valid = false;
+  } else {
+    document.getElementById('nc-name-err').style.display = 'none';
+  }
+  
+  if(!phone){
+    document.getElementById('nc-phone-err').style.display = 'block';
+    valid = false;
+  } else {
+    document.getElementById('nc-phone-err').style.display = 'none';
+  }
+  
+  if(!valid) return;
+  
+  const mode = document.getElementById('new-client-modal').dataset.mode || 'order';
+  closeNewClientModal();
   showLoader();
   try{
-    const {data, error} = await sb.from('clients').insert({name, phone: phone||null}).select().single();
+    const {data, error} = await sb.from('clients').insert({name, phone}).select().single();
     hideLoader();
     if(error){toast('Xəta: '+error.message);return;}
-    appClients.push(data);
-    appClients.sort((a,b)=>a.name.localeCompare(b.name));
-    updateClientSelect();
-    // Yeni müştərini avtomatik seç
-    selectClientFromSuggest(data.id);
+    if(mode === 'admin'){
+      await loadClients();
+      adminSec('clients');
+    } else {
+      appClients.push(data);
+      appClients.sort((a,b)=>a.name.localeCompare(b.name));
+      updateClientSelect();
+      selectClientFromSuggest(data.id);
+    }
     toast('✓ '+name+' əlavə edildi');
   }catch(e){
     hideLoader();
@@ -3277,6 +3320,7 @@ async function createOrder(){
     sale_type:document.getElementById('o-sale-type')?.value||'cash',
     status:'created', current_stage:1,
     sale_price:price, discount:disc, final_price:total,
+    client_phone:(()=>{const d=document.getElementById('o-client-phone-display');return d&&d.dataset.phone?d.dataset.phone:null;})(),
   });
   hideLoader();
   if(error){toast('Xəta: '+error.message);return;}
@@ -7260,19 +7304,15 @@ function copyClientCode(code, name, phone){
 }
 
 function openAddClientFromAdmin(){
-  const name = prompt('Müştərinin adı:');
-  if(!name || !name.trim()) return;
-  const phone = prompt('Telefon (istəyə bağlı):') || '';
-  
-  (async()=>{
-    showLoader();
-    const {error} = await sb.from('clients').insert({name:name.trim(), phone:phone.trim()||null});
-    hideLoader();
-    if(error){toast('Xəta: '+error.message);return;}
-    toast('✓ Müştəri əlavə edildi');
-    await loadClients();
-    adminSec('clients');
-  })();
+  const modal = document.getElementById('new-client-modal');
+  if(!modal) return;
+  document.getElementById('nc-name').value = '';
+  document.getElementById('nc-phone').value = '';
+  document.getElementById('nc-name-err').style.display = 'none';
+  document.getElementById('nc-phone-err').style.display = 'none';
+  modal.dataset.mode = 'admin';
+  modal.style.display = 'flex';
+  setTimeout(()=>{ document.getElementById('nc-name').focus(); }, 200);
 }
 
 async function editClientAdmin(id){
@@ -9326,5 +9366,29 @@ function openUserSheet(){
   openSheet('user-sheet');
 }
 </script>
+
+  <!-- Yeni müştəri modal -->
+  <div id="new-client-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center" onclick="if(event.target===this)closeNewClientModal()">
+    <div style="background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:24px 20px 32px;box-shadow:0 -8px 32px rgba(0,0,0,.15)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div style="font-size:17px;font-weight:700;color:var(--t1)">Yeni müştəri</div>
+        <button onclick="closeNewClientModal()" style="background:var(--lt);border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;color:var(--t2)">×</button>
+      </div>
+      
+      <div style="margin-bottom:14px">
+        <label style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:6px;display:block">Müştərinin adı <span style="color:#E24B4A">*</span></label>
+        <input id="nc-name" type="text" placeholder="Ad Soyad" style="width:100%;padding:12px 14px;border:1.5px solid var(--bd);border-radius:10px;font-family:inherit;font-size:15px;background:var(--sf);color:var(--t1);box-sizing:border-box">
+        <div id="nc-name-err" style="display:none;color:#E24B4A;font-size:12px;margin-top:4px">⚠ Ad mütləq doldurulmalıdır</div>
+      </div>
+      
+      <div style="margin-bottom:24px">
+        <label style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:6px;display:block">Mobil nömrə <span style="color:#E24B4A">*</span></label>
+        <input id="nc-phone" type="tel" placeholder="050 000 00 00" style="width:100%;padding:12px 14px;border:1.5px solid var(--bd);border-radius:10px;font-family:inherit;font-size:15px;background:var(--sf);color:var(--t1);box-sizing:border-box">
+        <div id="nc-phone-err" style="display:none;color:#E24B4A;font-size:12px;margin-top:4px">⚠ Mobil nömrə mütləq doldurulmalıdır</div>
+      </div>
+      
+      <button onclick="submitNewClient()" style="width:100%;padding:14px;background:var(--tl);color:#fff;border:none;border-radius:12px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer">✓ Əlavə et</button>
+    </div>
+  </div>
 </body>
 </html>
