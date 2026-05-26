@@ -1359,6 +1359,7 @@ function addNewClientQuick(name){
   document.getElementById('nc-phone').value = '';
   document.getElementById('nc-name-err').style.display = 'none';
   document.getElementById('nc-phone-err').style.display = 'none';
+  modal.dataset.mode = 'order';
   modal.style.display = 'flex';
   setTimeout(()=>{ document.getElementById('nc-phone').focus(); }, 200);
 }
@@ -1389,16 +1390,22 @@ async function submitNewClient(){
   
   if(!valid) return;
   
+  const mode = document.getElementById('new-client-modal').dataset.mode || 'order';
   closeNewClientModal();
   showLoader();
   try{
     const {data, error} = await sb.from('clients').insert({name, phone}).select().single();
     hideLoader();
     if(error){toast('Xəta: '+error.message);return;}
-    appClients.push(data);
-    appClients.sort((a,b)=>a.name.localeCompare(b.name));
-    updateClientSelect();
-    selectClientFromSuggest(data.id);
+    if(mode === 'admin'){
+      await loadClients();
+      adminSec('clients');
+    } else {
+      appClients.push(data);
+      appClients.sort((a,b)=>a.name.localeCompare(b.name));
+      updateClientSelect();
+      selectClientFromSuggest(data.id);
+    }
     toast('✓ '+name+' əlavə edildi');
   }catch(e){
     hideLoader();
@@ -7297,19 +7304,15 @@ function copyClientCode(code, name, phone){
 }
 
 function openAddClientFromAdmin(){
-  const name = prompt('Müştərinin adı:');
-  if(!name || !name.trim()) return;
-  const phone = prompt('Telefon (istəyə bağlı):') || '';
-  
-  (async()=>{
-    showLoader();
-    const {error} = await sb.from('clients').insert({name:name.trim(), phone:phone.trim()||null});
-    hideLoader();
-    if(error){toast('Xəta: '+error.message);return;}
-    toast('✓ Müştəri əlavə edildi');
-    await loadClients();
-    adminSec('clients');
-  })();
+  const modal = document.getElementById('new-client-modal');
+  if(!modal) return;
+  document.getElementById('nc-name').value = '';
+  document.getElementById('nc-phone').value = '';
+  document.getElementById('nc-name-err').style.display = 'none';
+  document.getElementById('nc-phone-err').style.display = 'none';
+  modal.dataset.mode = 'admin';
+  modal.style.display = 'flex';
+  setTimeout(()=>{ document.getElementById('nc-name').focus(); }, 200);
 }
 
 async function editClientAdmin(id){
