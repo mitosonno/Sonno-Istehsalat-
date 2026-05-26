@@ -1349,6 +1349,15 @@ function selectClientFromSuggest(clientId){
   const phoneDisp2 = document.getElementById('o-client-phone-display');
   if(phoneDisp2){ phoneDisp2.textContent = c.phone ? '📞 '+c.phone : ''; phoneDisp2.dataset.phone = c.phone||''; }
   document.getElementById('client-suggestions').style.display = 'none';
+  // Müştərinin menecerini yenilə (əgər hələ yoxdursa)
+  if(!c.manager && currentUser?.role === 'manager' || currentUser?.role === 'admin'){
+    const managerName = currentUser?.name || currentUser?.username || null;
+    if(managerName){
+      sb.from('clients').update({manager: managerName}).eq('id', clientId).then(()=>{
+        c.manager = managerName;
+      });
+    }
+  }
 }
 
 function addNewClientQuick(name){
@@ -1394,7 +1403,8 @@ async function submitNewClient(){
   closeNewClientModal();
   showLoader();
   try{
-    const {data, error} = await sb.from('clients').insert({name, phone}).select().single();
+    const managerName = currentUser?.name || currentUser?.username || null;
+    const {data, error} = await sb.from('clients').insert({name, phone, manager: managerName}).select().single();
     hideLoader();
     if(error){toast('Xəta: '+error.message);return;}
     if(mode === 'admin'){
