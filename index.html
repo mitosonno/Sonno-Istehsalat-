@@ -3141,7 +3141,9 @@ function renderProductGrid(models){
         <div class="pcard-name">${m.name.split('—')[0].trim()}</div>
         <div class="pcard-info">${m.description||''}</div>
         <div class="pcard-h">${(m.stages||[]).length} mərhələ · ${m.total_hours}s</div>
-        ${m.sale_price?`<div style="font-size:13px;font-weight:700;color:var(--tl);margin-top:4px">${m.sale_price} ₼</div>`:''}
+        ${m.price_variants&&m.price_variants.length
+          ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${m.price_variants.map(v=>`<span style="font-size:10px;font-weight:700;color:var(--tl);background:rgba(0,117,101,.08);padding:2px 7px;border-radius:6px;white-space:nowrap">${v.label} · ${v.price}₼</span>`).join('')}</div>`
+          : m.sale_price?`<div style="font-size:13px;font-weight:700;color:var(--tl);margin-top:4px">${m.sale_price} ₼</div>`:''}
       </div>
       <button onclick="selProd('${m.id}');scrollToOrderForm()" style="width:100%;padding:10px;background:var(--tl);color:#fff;border:none;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-top:-1px">🛒 Sifariş et</button>
     </div>`;
