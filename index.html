@@ -869,6 +869,7 @@ textarea{resize:vertical;min-height:80px}
           <div class="ami" onclick="adminSec('workers')"><div class="ami-icon">🧑‍🔧</div><div class="ami-name">İşçilər</div><div class="ami-sub" id="ami-w">—</div></div>
           <div class="ami" onclick="adminSec('clients')"><div class="ami-icon">👤</div><div class="ami-name">Müştərilər</div><div class="ami-sub" id="ami-c">—</div></div>
           <div class="ami" onclick="adminSec('deptanalytics')"><div class="ami-icon">🏭</div><div class="ami-name">Şöbə analitikası</div><div class="ami-sub">Detallı</div></div>
+          <div class="ami" onclick="adminSec('deptsettings')"><div class="ami-icon">🔢</div><div class="ami-name">Şöbə limiti</div><div class="ami-sub">Kart sayı</div></div>
           <div class="ami" onclick="adminSec('settings')"><div class="ami-icon">⚙️</div><div class="ami-name">Parametrlər</div><div class="ami-sub">Limit & ayarlar</div></div>
         </div>
         <div id="admin-sec"></div>
@@ -2382,6 +2383,15 @@ async function openKioskDept(dept){
 // Mirgildəmə qarşısı: visibilitychange tamamilə deaktiv
 // Ekran söndü-yandı çevrildikdə HEÇ NƏ etmə. İstifadəçi əl ilə yeniləsin.
 // (Əvvəllər timer dayandırırdı amma bu da problem yaradırdı)
+
+async function loadDeptSettings(){
+  try{
+    const {data} = await sb.from('dept_settings').select('dept_key,visible_count');
+    window._deptSettings = {};
+    (data||[]).forEach(d => window._deptSettings[d.dept_key] = d.visible_count || 5);
+  }catch(e){ window._deptSettings = {}; }
+}
+
 async function initApp(){
   // UI-i dərhal göstər (data gözləmədən)
   const u=currentUser;
@@ -2392,6 +2402,8 @@ async function initApp(){
   const dashDate = document.getElementById('dash-date');
   if(dashDate) dashDate.textContent=new Date().toLocaleDateString('az-AZ',{weekday:'long',day:'numeric',month:'long'});
   
+  // Şöbə görünmə sayı parametrlərini yüklə
+  loadDeptSettings();
   // Əlavə iş icazəsini yüklə
   loadOvertimeSetting();
   
@@ -3684,9 +3696,10 @@ async function renderDeptTasks(dept, silent){
       !(t.o.repair_dept && (t.o.repair_dept === normDeptForSort || t.o.repair_dept === dept))
     );
     
-    // Normal kartlar: yalnız 5, Qırmızı kartlar: hamısı (üstdə)
-    const vis = [...reworkTasks, ...normalTasks.slice(0, 5)];
-    const waiting = normalTasks.length > 5 ? normalTasks.length - 5 : 0;
+    // Normal kartlar: şöbə parametrinə görə, Qırmızı kartlar: hamısı (üstdə)
+    const deptLimit = (window._deptSettings && window._deptSettings[dept]) ? window._deptSettings[dept] : 5;
+    const vis = [...reworkTasks, ...normalTasks.slice(0, deptLimit)];
+    const waiting = normalTasks.length > deptLimit ? normalTasks.length - deptLimit : 0;
     
     document.getElementById('dt-cnt').textContent=tasks.length;
     const tl=document.getElementById('dept-task-list');
@@ -7014,6 +7027,65 @@ async function adminSec(sec){
   if(sec==='clients') await renderClientsSection(el);
   if(sec==='settings') await renderSettingsSection(el);
   if(sec==='deptanalytics') await renderDeptAnalytics(el);
+  if(sec==='deptsettings') await renderDeptSettingsSection(el);
+}
+
+// ═══════════ ŞÖBƏ LİMİT PARAMETRLƏRİ ═══════════
+async function renderDeptSettingsSection(el){
+  showLoader();
+  const [{data:pins},{data:settings}] = await Promise.all([
+    sb.from('dept_pins').select('dept_key,pin_code'),
+    sb.from('dept_settings').select('dept_key,visible_count'),
+  ]);
+  hideLoader();
+
+  const deptNames = {
+    karkaz:'Karkaz', yataq:'Yataq', qonaq:'Qonaq', mətbəx:'Mətbəx',
+    usaq:'Uşaq', ofis:'Ofis', hamam:'Hamam', diger:'Digər',
+    logistics:'Logistika'
+  };
+
+  const settingsMap = {};
+  (settings||[]).forEach(s => settingsMap[s.dept_key] = s.visible_count);
+
+  const deptList = (pins||[]).map(p=>p.dept_key);
+
+  el.innerHTML = `
+    <div class="slbl" style="margin-bottom:16px">🔢 Şöbə kart limiti</div>
+    <div style="color:var(--t2);font-size:13px;margin-bottom:16px">Hər şöbədə eyni anda neçə sifariş kartı görünsün.</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${deptList.map(dk=>{
+        const name = deptNames[dk] || dk;
+        const cur = settingsMap[dk] || 5;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--sf);border:1px solid var(--bd);border-radius:12px;gap:12px">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--t1)">${name}</div>
+            <div style="font-size:12px;color:var(--t3)">İndiki: ${cur} kart</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="number" min="1" max="50" value="${cur}" id="dlimit-${dk}"
+              style="width:70px;padding:8px;border:1.5px solid var(--bd);border-radius:8px;font-family:inherit;font-size:15px;font-weight:700;text-align:center;background:var(--bg);color:var(--t1)">
+            <button onclick="saveDeptLimit('${dk}')" style="padding:8px 14px;background:var(--tl);color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">Saxla</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+async function saveDeptLimit(deptKey){
+  const inp = document.getElementById('dlimit-'+deptKey);
+  if(!inp) return;
+  const val = parseInt(inp.value);
+  if(!val || val < 1 || val > 50){ toast('1-50 arasında daxil edin'); return; }
+
+  const {error} = await sb.from('dept_settings')
+    .upsert({dept_key: deptKey, visible_count: val}, {onConflict:'dept_key'});
+
+  if(error){ toast('Xəta: '+error.message); return; }
+
+  if(!window._deptSettings) window._deptSettings = {};
+  window._deptSettings[deptKey] = val;
+  toast('✓ '+deptKey+' şöbəsi üçün '+val+' kart saxlandı');
 }
 
 // ═══════════ PENDING MÜŞTƏRİ SİFARİŞLƏRİ ═══════════
