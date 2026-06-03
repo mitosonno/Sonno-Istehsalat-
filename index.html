@@ -2337,10 +2337,11 @@ async function openKioskDept(dept){
   pinUnlocked[dept] = true;
   if(!currentUser) currentUser = {id:null, name:DEPT_INFO[dept]?.name||dept, role:'dept', username:dept};
   
-  // İcazə sistemini və ötürmə konfiqini yüklə
+  // İcazə sistemini, ötürmə konfiqini və şöbə limitlərini yüklə
   await Promise.all([
     loadOvertimeSetting(),
     getForwardingConfig().then(cfg=>{ window.forwardingConfig = cfg || {}; }),
+    loadDeptSettings(),
   ]);
   
   await renderDeptTasks(dept);
