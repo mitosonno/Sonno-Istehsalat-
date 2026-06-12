@@ -3656,12 +3656,10 @@ async function renderDeptTasks(dept, silent){
           const existingLog = logMap[logKey] || logMap[logKeyAlt];
           if(existingLog && existingLog.completed_at) return; // Tamamlanıb, skip
           
-          // current_stage bu stage-dən əvvəldədirsə — bu şöbə gözləyir (növbəti)
           // current_stage bu stage-dədirsə — aktiv
-          // current_stage bu stage-dən sonradırsa — artıq keçib
-          if(o.current_stage >= i+1){
-            // Bu stage-ə çatıb amma tamamlanmayıb
-            tasks.push({o,m,s:stage,si:i+1,isBackground: o.current_stage !== i+1});
+          // current_stage bu stage-dən keçibsə — artıq bu şöbədə göstərmə
+          if(o.current_stage === i+1){
+            tasks.push({o,m,s:stage,si:i+1,isBackground: false});
             addedStages.add(stageKey);
           }
         });
