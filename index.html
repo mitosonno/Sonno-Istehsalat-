@@ -1511,8 +1511,9 @@ function getMinDeadlineDate(){
   let d = new Date();
   d.setHours(0,0,0,0);
   let daysAdded = 0;
+  const targetDays = window._minWorkDays || 7; // Admin panelindən tənzimlənir, default 7
   // Sifariş günündən sonra başla
-  while(daysAdded < 7){
+  while(daysAdded < targetDays){
     d.setDate(d.getDate()+1);
     // Bazar günü çıx (0 = Bazar)
     if(d.getDay() !== 0){
@@ -2070,6 +2071,8 @@ async function startCatalogMode(){
   
   // Qonaq modu
   window._catalogGuestMode = true;
+  // Minimum iş günü parametrini yüklə (deadline validasiyası üçün)
+  loadMinWorkDaysSetting();
   
   // URL parametrlərini oxu
   const urlParams = new URLSearchParams(window.location.search);
@@ -2407,6 +2410,8 @@ async function initApp(){
   loadDeptSettings();
   // Əlavə iş icazəsini yüklə
   loadOvertimeSetting();
+  // Minimum iş günü parametrini yüklə
+  loadMinWorkDaysSetting();
   
   // Data arxa planda yüklə (parallel)
   const dataPromise = Promise.all([
@@ -7617,6 +7622,7 @@ async function loadDeptAnalytics(){
 async function renderSettingsSection(el){
   const limit = await getDailyLimit();
   const forwardingConfig = await getForwardingConfig();
+  await loadMinWorkDaysSetting();
   
   el.innerHTML = `
     <div class="slbl" style="margin-top:0">⚙️ Parametrlər</div>
@@ -7628,6 +7634,17 @@ async function renderSettingsSection(el){
           <input type="number" id="daily-limit-input" value="${limit}" min="1" max="10000" style="width:150px;padding:10px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Mono',monospace;font-size:16px;font-weight:600">
           <span style="font-size:13px;color:var(--t2)">ədəd/gün</span>
           <button class="btn btn-t" style="font-size:12px;padding:10px 16px" onclick="saveDailyLimit()">💾 Yadda saxla</button>
+        </div>
+      </div>
+
+      <!-- Minimum sifariş icazəli günü -->
+      <div style="padding-top:16px;border-top:1px solid var(--bd);margin-bottom:16px">
+        <label style="font-size:13px;font-weight:600;color:var(--dp);display:block;margin-bottom:6px">Minimum icazəli sifariş tarixi (iş günü)</label>
+        <p style="font-size:12px;color:var(--t2);margin-bottom:10px">Sifariş verərkən ən tez neçə iş günü sonraya deadline qoyula bilər. Yalnız Bazar günü iş günü sayılmır, Şənbə iş günü sayılır.</p>
+        <div style="display:flex;gap:10px;align-items:center">
+          <input type="number" id="min-workdays-input" value="${window._minWorkDays||7}" min="1" max="60" style="width:150px;padding:10px 14px;border:1px solid var(--bd);border-radius:var(--r);font-family:'DM Mono',monospace;font-size:16px;font-weight:600">
+          <span style="font-size:13px;color:var(--t2)">iş günü</span>
+          <button class="btn btn-t" style="font-size:12px;padding:10px 16px" onclick="saveMinWorkDays()">💾 Yadda saxla</button>
         </div>
       </div>
       
@@ -8682,6 +8699,32 @@ async function loadCatalogLeads(){
     }).join('');
   }catch(e){
     list.innerHTML = `<div style="padding:16px;color:#E24B4A;font-size:13px">Xəta: ${e.message}</div>`;
+  }
+}
+
+window._minWorkDays = 7; // Default: 7 iş günü
+
+// App yükləndikdə Supabase-dən oxu
+async function loadMinWorkDaysSetting(){
+  try{
+    const {data} = await sb.from('app_settings').select('value').eq('key','min_work_days').maybeSingle();
+    window._minWorkDays = parseInt(data?.value) || 7;
+  }catch(e){
+    window._minWorkDays = 7;
+  }
+}
+
+async function saveMinWorkDays(){
+  const val = parseInt(document.getElementById('min-workdays-input').value) || 7;
+  showLoader();
+  try{
+    await sb.from('app_settings').upsert({key:'min_work_days', value:String(val)});
+    window._minWorkDays = val;
+    hideLoader();
+    toast('✓ Minimum iş günü yeniləndi: '+val+' gün');
+  }catch(e){
+    hideLoader();
+    toast('Xəta: '+e.message);
   }
 }
 
