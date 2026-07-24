@@ -771,6 +771,21 @@ textarea{resize:vertical;min-height:80px}
             <button id="dept-tab-shared" onclick="switchDeptTab('shared')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2);display:none">📨 Parça alış</button>
             <button id="dept-tab-done" onclick="switchDeptTab('done')" style="flex:1;padding:8px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--t2)">✓ Tamamlananlar</button>
           </div>
+          <div id="dept-stats-widget" style="display:none;background:#fff;border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px">
+            <div style="font-size:13px;font-weight:700;color:var(--dp);margin-bottom:10px">📊 Tarixə görə statistika</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+              <div>
+                <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Başlanğıc tarix</label>
+                <input type="date" id="dcs-from" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;font-family:inherit">
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--t2);font-weight:600;display:block;margin-bottom:4px">Son tarix</label>
+                <input type="date" id="dcs-to" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;font-family:inherit">
+              </div>
+            </div>
+            <button class="btn btn-t btn-full" style="font-size:13px" onclick="loadDeptCompletedStats()">🔍 Statistikanı göstər</button>
+            <div id="dcs-result" style="margin-top:12px"></div>
+          </div>
           <div id="dept-task-list"></div>
         </div>
       </div>
@@ -3485,7 +3500,67 @@ function switchDeptTab(tab){
   const active = tab==='active' ? ta : (tab==='shared' ? ts : td);
   if(active){active.style.background='var(--sf)';active.style.color='var(--tl)';active.style.boxShadow='0 1px 4px rgba(0,0,0,.08)';}
   
+  // Statistika widget-i yalnız "Tamamlananlar" tab-ında göstər
+  const statsWidget = document.getElementById('dept-stats-widget');
+  if(statsWidget) statsWidget.style.display = (tab==='done') ? 'block' : 'none';
+  
   if(pinDept) renderDeptTasks(pinDept);
+}
+
+async function loadDeptCompletedStats(){
+  const dept = pinDept;
+  if(!dept) return;
+  const fromStr = document.getElementById('dcs-from')?.value;
+  const toStr = document.getElementById('dcs-to')?.value;
+  const resultEl = document.getElementById('dcs-result');
+  if(!resultEl) return;
+  if(!fromStr || !toStr){
+    resultEl.innerHTML = '<div style="color:#E24B4A;font-size:12px">⚠ Başlanğıc və son tarixi seçin</div>';
+    return;
+  }
+  resultEl.innerHTML = '<div style="text-align:center;padding:12px;color:var(--t3);font-size:12px">⏳ Yüklənir...</div>';
+
+  // "tikis"/"tikiş" adlandırma uyğunsuzluğu — digər hissələrdə olduğu kimi
+  const altDept = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : null);
+  const fromISO = fromStr + 'T00:00:00';
+  const toISO = toStr + 'T23:59:59';
+
+  try {
+    let query = sb.from('task_logs')
+      .select('id,order_id,stage_index,completed_at,dept_key')
+      .gte('completed_at', fromISO)
+      .lte('completed_at', toISO)
+      .not('completed_at','is',null)
+      .gte('stage_index', 0);
+
+    query = altDept ? query.in('dept_key', [dept, altDept]) : query.eq('dept_key', dept);
+
+    const {data: logs, error} = await query;
+    if(error) throw error;
+
+    const taskCount = (logs||[]).length;
+    const uniqueOrderIds = [...new Set((logs||[]).map(l=>l.order_id))];
+
+    let totalQty = 0;
+    if(uniqueOrderIds.length){
+      const {data: ordersData} = await sb.from('orders').select('id,qty').in('id', uniqueOrderIds);
+      totalQty = (ordersData||[]).reduce((sum,o)=>sum+(o.qty||0),0);
+    }
+
+    resultEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--lt);padding:12px;border-radius:10px;text-align:center">
+          <div style="font-size:11px;color:var(--t2);font-weight:600">TAMAMLANMIŞ TAPŞIRIQ</div>
+          <div style="font-size:22px;font-weight:800;color:var(--tl)">${taskCount}</div>
+        </div>
+        <div style="background:var(--lt);padding:12px;border-radius:10px;text-align:center">
+          <div style="font-size:11px;color:var(--t2);font-weight:600">ÜMUMİ MƏHSUL</div>
+          <div style="font-size:22px;font-weight:800;color:var(--tl)">${totalQty} ədəd</div>
+        </div>
+      </div>`;
+  } catch(e){
+    resultEl.innerHTML = '<div style="color:#E24B4A;font-size:12px">Xəta: '+e.message+'</div>';
+  }
 }
 
 function lockDept(){
