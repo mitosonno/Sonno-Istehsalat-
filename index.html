@@ -8944,7 +8944,7 @@ function previewImg(input){
   addModelImage(input);
 }
 
-// Yeni: 3 şəkilə qədər əlavə et
+// Yeni: 3 şəkilə qədər əlavə et (avtomatik sıxılma ilə — böyük şəkillər kataloqu yavaşlatmasın)
 function addModelImage(input){
   if(!input.files[0]) return;
   if(modelImagesArr.length >= 3){
@@ -8952,15 +8952,38 @@ function addModelImage(input){
     input.value = '';
     return;
   }
+  const file = input.files[0];
   const r = new FileReader();
   r.onload = e => {
-    modelImagesArr.push(e.target.result);
-    // Köhnə single-image kodu ilə uyğunluq üçün:
-    modelImgData = modelImagesArr[0];
-    renderImagesPreview();
-    input.value = ''; // Eyni faylı yenidən yükləmək mümkün olsun
+    const img = new Image();
+    img.onload = () => {
+      const MAX_DIM = 900;
+      let w = img.width, h = img.height;
+      if(Math.max(w,h) > MAX_DIM){
+        const scale = MAX_DIM / Math.max(w,h);
+        w = Math.round(w*scale);
+        h = Math.round(h*scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', 0.8);
+      modelImagesArr.push(compressed);
+      modelImgData = modelImagesArr[0];
+      renderImagesPreview();
+      input.value = '';
+    };
+    img.onerror = () => {
+      // Sıxılma alınmasa, orijinalı istifadə et (əvvəlki davranış)
+      modelImagesArr.push(e.target.result);
+      modelImgData = modelImagesArr[0];
+      renderImagesPreview();
+      input.value = '';
+    };
+    img.src = e.target.result;
   };
-  r.readAsDataURL(input.files[0]);
+  r.readAsDataURL(file);
 }
 
 function removeModelImage(idx){
