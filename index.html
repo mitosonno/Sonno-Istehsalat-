@@ -1070,7 +1070,7 @@ textarea{resize:vertical;min-height:80px}
 <!-- Signature sheet -->
 <div class="sheet-overlay" id="signature-ov" onclick="closeSheet('signature')"></div>
 <div class="sheet" id="signature-sheet" style="max-width:600px">
-  <div class="sheet-title">Təslim imzası</div>
+  <div class="sheet-title">Təslim təsdiqi</div>
   <div class="sheet-body">
     <div style="background:var(--lt);border-radius:var(--r);padding:14px;margin-bottom:14px">
       <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center">
@@ -1087,16 +1087,15 @@ textarea{resize:vertical;min-height:80px}
         <div><div style="font-size:11px;color:var(--t2)">Məbləğ</div><div style="font-size:18px;font-weight:700;color:var(--tl)" id="sig-price">—</div></div>
       </div>
     </div>
-    
-    <div style="margin-bottom:8px;font-size:13px;font-weight:600">Müştəri imzası</div>
-    <div style="border:2px solid var(--bd);border-radius:var(--r);overflow:hidden;background:#fff">
-      <canvas id="signature-canvas" width="540" height="200" style="display:block;width:100%;touch-action:none"></canvas>
+
+    <div style="background:#F6FBF8;border:1px solid var(--bd);border-radius:var(--r);padding:14px;text-align:center">
+      <div style="font-size:11px;color:var(--t2);font-weight:600;margin-bottom:4px">SÜRÜCÜ</div>
+      <div style="font-size:17px;font-weight:700;color:var(--tl)" id="sig-driver-name">—</div>
     </div>
-    <div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:center">Barmağınızla və ya qələmlə imzalayın</div>
   </div>
   <div class="sheet-footer">
-    <button class="btn btn-ln" style="flex:1" id="sig-clear-btn">Təmizlə</button>
-    <button class="btn btn-t" style="flex:2" id="sig-confirm-btn">✓ Təsdiq et və təslim et</button>
+    <button class="btn btn-ln" style="flex:1" onclick="closeSheet('signature')">Ləğv et</button>
+    <button class="btn btn-t" style="flex:2" id="sig-confirm-btn">✓ Çatdırıldı</button>
   </div>
 </div>
 
@@ -1129,6 +1128,10 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
 });
 
 // ═══════════ CONSTANTS ═══════════
+// Siyahı sorğuları üçün sütun siyahısı — köhnə "signature" sütunu artıq istifadə olunmur
+// (imza funksiyası ləğv edilib), ona görə heç bir sorğuda çəkilmir.
+const ORDER_COLS = 'id,order_number,model_id,created_by,client,qty,fabric,legs,notes,status,current_stage,deadline,created_at,sale_price,total_amount,color,size,custom_notes,discount,final_price,fabric_company,sale_type,parallel_done_depts,shared_with,shared_done_depts,order_date,delivered_by,delivered_by_id,delivered_at,cancelled_at,cancelled_by,cancel_reason,rework_status,rework_reason,rework_by,repair_dept,repair_stage,repair_count,client_phone';
+
 const DEPT_INFO = {
   hazirlik:         {name:'Astar',                        icon:'🪣',  hours:2},
   bez_kesim:        {name:'Bel kəsim şöbəsi',            icon:'🧶',  hours:2},
@@ -1859,7 +1862,7 @@ const _cache = {
 
 async function cachedOrders(){
   if(_cache.orders && Date.now()-_cache.ordersAt < _cache.TTL) return _cache.orders;
-  const {data} = await sb.from('orders').select('*').order('created_at',{ascending:false});
+  const {data} = await sb.from('orders').select(ORDER_COLS).order('created_at',{ascending:false});
   _cache.orders = data||[]; _cache.ordersAt = Date.now();
   return _cache.orders;
 }
@@ -2532,7 +2535,7 @@ async function renderDash(){
 
     if(hasPeriod){
       // Dövr/tarix rejimi — o dövrün bütün sifarişlərini çək, sonra saylar JS-də hesablanır
-      let query = sb.from('orders').select('*').order('created_at',{ascending:false});
+      let query = sb.from('orders').select(ORDER_COLS).order('created_at',{ascending:false});
       if(effFrom) query = query.gte('created_at', effFrom);
       if(effTo)   query = query.lte('created_at', effTo);
       const {data} = await query;
@@ -2566,7 +2569,7 @@ async function renderDash(){
       sb.from('orders').select('id',{count:'exact',head:true}).eq('status','ready'),
       sb.from('orders').select('id',{count:'exact',head:true}).eq('status','delivered'),
       sb.from('orders').select('id',{count:'exact',head:true}).gt('repair_count',0),
-      sb.from('orders').select('*').gte('created_at',today+'T00:00:00').lte('created_at',today+'T23:59:59').order('created_at',{ascending:false}),
+      sb.from('orders').select(ORDER_COLS).gte('created_at',today+'T00:00:00').lte('created_at',today+'T23:59:59').order('created_at',{ascending:false}),
       sb.from('orders').select('final_price,qty').gte('created_at',thisMonth+'-01T00:00:00'),
       sb.from('orders').select('id,order_number,current_stage,status,notes').or('current_stage.eq.0,status.eq.pending_approval').not('status','in','("delivered","cancelled")').limit(30),
     ]);
@@ -2674,7 +2677,7 @@ async function openDashModal(type){
   const useFrom = manualFrom || period.from;
   const useTo = manualTo ? manualTo+'T23:59:59' : period.to;
 
-  let query = sb.from('orders').select('*').order('created_at',{ascending:false});
+  let query = sb.from('orders').select(ORDER_COLS).order('created_at',{ascending:false});
   
   // Dövr filtri
   if(useFrom) query = query.gte('created_at', useFrom);
@@ -2728,7 +2731,7 @@ async function loadDashOrders(type){
   // dash-orders-label removed
   // orders-tbody removed
 
-  let query = sb.from('orders').select('*').order('created_at',{ascending:false});
+  let query = sb.from('orders').select(ORDER_COLS).order('created_at',{ascending:false});
   if(type==='active') query = query.in('status',['in_progress','created','late']).neq('current_stage',0).neq('status','pending_approval');
   else if(type==='late') query = query.eq('status','late');
   else if(type==='ready') query = query.eq('status','ready');
@@ -2806,7 +2809,7 @@ function orderListItem(o){
 
 async function showOrderSheet(type){
   showLoader();
-  let query = sb.from('orders').select('*').order('created_at',{ascending:false});
+  let query = sb.from('orders').select(ORDER_COLS).order('created_at',{ascending:false});
     const dateFrom = document.getElementById('dash-date-from')?.value;
     const dateTo = document.getElementById('dash-date-to')?.value;
     if(dateFrom) query = query.gte('created_at', dateFrom+'T00:00:00');
@@ -2862,8 +2865,7 @@ async function showOrderSheet(type){
     const stageColor = stageColors[deptKey]||'rgba(17,24,32,.04)';
     const deptInfo = DEPT_INFO[deptKey]||{name:stageName,icon:'🏭'};
 
-    // Signature for delivered
-    const hasSig = o.signature ? `<div style="font-size:11px;color:var(--tl);margin-top:4px">✍ İmza var</div>` : '';
+    const hasSig = '';
 
     return`<div class="list-item" onclick="closeSheet('order-list');${type==='delivered'?`showDeliveredDetail('${o.id}')`:`showOD('${o.id}')`}" style="border-bottom:1px solid var(--bd)">
       <div class="li-icon" style="background:${o.status==='late'?'#FCEBEB':o.status==='delivered'?'#E8F5E9':stageColor}">
@@ -2907,27 +2909,14 @@ async function showDeliveredDetail(id){
           <div><div style="font-size:11px;color:var(--t2)">Təslim tarixi</div><div style="font-weight:600">${fmtDate(o.updated_at||o.created_at)}</div></div>
         </div>
       </div>
-      ${o.signature?`
-        <div style="margin-bottom:6px;font-size:13px;font-weight:600">Müştəri imzası</div>
-        <div style="border:2px solid var(--bd);border-radius:var(--r);overflow:hidden;background:#fff">
-          <img src="${o.signature}" style="width:100%;max-height:180px;object-fit:contain">
-        </div>
-        <div style="font-size:11px;color:var(--tl);margin-top:6px;text-align:center">✍ İmza alınmışdır</div>
-      `:`
-        <div style="padding:24px;text-align:center;background:rgba(17,24,32,.04);border-radius:var(--r)">
-          <div style="font-size:24px;margin-bottom:6px">✍</div>
-          <div style="font-size:13px;color:var(--t3)">İmza yoxdur</div>
-        </div>
-      `}
     </div>`;
 }
 
 async function showOD(id){
   showLoader();
-  // Order-i cache-dən tap, yoxdursa Supabase-dən çək
-  const cached = _cache.orders?.find(x=>x.id===id);
+  // Tək sifariş — həmişə tam çəkilir (imza siyahı keşində saxlanılmır)
   const [{data:o}, {data:logs}] = await Promise.all([
-    cached ? Promise.resolve({data:cached}) : sb.from('orders').select('*').eq('id',id).single(),
+    sb.from('orders').select('*').eq('id',id).single(),
     sb.from('task_logs').select('*').eq('order_id',id).order('created_at'),
   ]);
   hideLoader();
@@ -3389,7 +3378,7 @@ async function createOrder(){
 async function renderDeptPick(){
   showLoader();
   const [ordersRes, completedLogsRes, modelsData, pinsRes] = await Promise.all([
-    sb.from('orders').select('*')
+    sb.from('orders').select(ORDER_COLS)
       .in('status', ['in_progress','created','late','ready'])
       .gt('current_stage', 0),
     sb.from('task_logs').select('*')
@@ -4627,7 +4616,7 @@ async function dStartExtra(oid,si,key,dept){
 async function renderLogisticsDone(){
   showLoader();
   const [{data:orders, error:oErr},{data:models}] = await Promise.all([
-    sb.from('orders').select('*').eq('status','delivered'),
+    sb.from('orders').select(ORDER_COLS).eq('status','delivered'),
     sb.from('models').select('id,name,emoji,is_active'),
   ]);
   hideLoader();
@@ -4682,10 +4671,6 @@ async function renderLogisticsDone(){
           <div class="tm-i"><div class="tm-k">Sürücü</div><div class="tm-v" style="font-weight:600">${driverName}</div></div>
         </div>
         <div style="font-size:11px;color:var(--t3);margin-top:6px;text-decoration:none">🕐 Təslim: ${delStr}</div>
-        ${o.signature ? `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--bd);text-decoration:none">
-          <div style="font-size:11px;color:var(--t2);margin-bottom:6px">İmza:</div>
-          <img src="${o.signature}" style="width:100%;max-width:250px;background:#fff;border:1px solid var(--bd);border-radius:8px">
-        </div>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -4694,7 +4679,7 @@ async function renderLogisticsDone(){
 async function renderLogisticsDept(){
   showLoader();
   const [{data:orders},{data:models},{data:drivers},{data:users}] = await Promise.all([
-    sb.from('orders').select('*').not('status', 'eq', 'delivered').order('created_at',{ascending:true}),
+    sb.from('orders').select(ORDER_COLS).not('status', 'eq', 'delivered').order('created_at',{ascending:true}),
     sb.from('models').select('id,name,emoji,stages,category,is_active'),
     sb.from('workers').select('*').eq('dept_key','logistics').eq('status','active'),
     sb.from('users').select('id,name'),
@@ -5369,7 +5354,7 @@ async function filterAllOrdersPage(){
   if(tbody) tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;text-align:center;color:var(--t3)">Yuklenilir...</td></tr>';
 
   // Supabase-den filtrle cek
-  let query = sb.from('orders').select('*').order('created_at',{ascending:false});
+  let query = sb.from('orders').select(ORDER_COLS).order('created_at',{ascending:false});
   if(fromDate) query = query.gte('created_at', fromDate+'T00:00:00');
   if(toDate) query = query.lte('created_at', toDate+'T23:59:59');
   if(statusFilter) query = query.eq('status', statusFilter);
@@ -5502,7 +5487,7 @@ async function showCustomerOrders(client){
   document.getElementById('cs-welcome').textContent = 'Salam, '+client.name;
   showLoader();
   const [{data:orders},{data:models}] = await Promise.all([
-    sb.from('orders').select('*').eq('client', client.name).order('created_at',{ascending:false}),
+    sb.from('orders').select(ORDER_COLS).eq('client', client.name).order('created_at',{ascending:false}),
     sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
   ]);
   hideLoader();
@@ -6384,8 +6369,8 @@ async function renderLogi(){
   
   // İki ayrı sorğu — daha etibarlı və sürətli (Supabase or() bəzən ləng işləyir)
   const [activeRes, deliveredRes] = await Promise.all([
-    sb.from('orders').select('*').in('status',['ready','delivering']).order('created_at',{ascending:false}),
-    sb.from('orders').select('*').eq('status','delivered').gte('updated_at', since).order('updated_at',{ascending:false})
+    sb.from('orders').select(ORDER_COLS).in('status',['ready','delivering']).order('created_at',{ascending:false}),
+    sb.from('orders').select(ORDER_COLS).eq('status','delivered').gte('updated_at', since).order('updated_at',{ascending:false})
   ]);
   hideLoader();
   
@@ -6493,87 +6478,59 @@ async function markDel(id){
 }
 
 function openSignatureSheet(order,model){
-  const sheet = document.getElementById('signature-sheet');
-  const canvas = document.getElementById('signature-canvas');
-  const ctx = canvas.getContext('2d');
-  
-  // Canvas təmizlə
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.strokeStyle='#111820';
-  ctx.lineWidth=2;
-  ctx.lineCap='round';
-  
-  let drawing=false;
-  const startDraw=(e)=>{
-    drawing=true;
-    const rect=canvas.getBoundingClientRect();
-    ctx.beginPath();
-    ctx.moveTo(e.clientX-rect.left,e.clientY-rect.top);
-  };
-  const draw=(e)=>{
-    if(!drawing)return;
-    const rect=canvas.getBoundingClientRect();
-    ctx.lineTo(e.clientX-rect.left,e.clientY-rect.top);
-    ctx.stroke();
-  };
-  const stopDraw=()=>drawing=false;
-  
-  canvas.onmousedown=startDraw;
-  canvas.onmousemove=draw;
-  canvas.onmouseup=stopDraw;
-  canvas.onmouseleave=stopDraw;
-  
-  // Touch events
-  canvas.ontouchstart=(e)=>{e.preventDefault();startDraw(e.touches[0]);};
-  canvas.ontouchmove=(e)=>{e.preventDefault();draw(e.touches[0]);};
-  canvas.ontouchend=(e)=>{e.preventDefault();stopDraw();};
-  
   // Sifariş məlumatlarını doldur
   document.getElementById('sig-order-num').textContent=order.order_number;
   document.getElementById('sig-client').textContent=order.client;
   document.getElementById('sig-model-name').textContent=model.name;
-  const _firstImg = getFirstImage(model); const modelImg = _firstImg || model.emoji || '🛋️';
-  if(getFirstImage(model)){
-    document.getElementById('sig-model-img').innerHTML=`<img src="${model.img_url}" style="width:60px;height:60px;object-fit:cover;border-radius:8px">`;
+  const _firstImg = getFirstImage(model); const modelImg = _firstImg || model.emoji || '\u{1F6CB}';
+  if(_firstImg){
+    document.getElementById('sig-model-img').innerHTML=`<img src="${_firstImg}" style="width:60px;height:60px;object-fit:cover;border-radius:8px">`;
   }else{
     document.getElementById('sig-model-img').innerHTML=`<div style="font-size:40px">${modelImg}</div>`;
   }
   document.getElementById('sig-qty').textContent=order.qty;
-  document.getElementById('sig-price').textContent=(order.final_price||0).toFixed(2)+' ₼';
-  
-  // Təmizlə və təsdiqlə düymələri
-  document.getElementById('sig-clear-btn').onclick=()=>ctx.clearRect(0,0,canvas.width,canvas.height);
-  document.getElementById('sig-confirm-btn').onclick=async ()=>{
-    const signatureData=canvas.toDataURL('image/png');
-    const driverId = window._pendingDriverId;
-    let driverName = currentUser.name;
-    let driverIdFinal = null;
-    
+  document.getElementById('sig-price').textContent=(order.final_price||0).toFixed(2)+' \u20BC';
+
+  // Sürücü adını göstər
+  const driverEl = document.getElementById('sig-driver-name');
+  const driverId = window._pendingDriverId;
+  if(driverEl){
+    driverEl.textContent = currentUser?.name || '\u2014';
     if(driverId){
-      const {data:drv} = await sb.from('workers').select('*').eq('id', driverId).maybeSingle();
+      sb.from('workers').select('name').eq('id', driverId).maybeSingle().then(({data})=>{
+        if(data?.name) driverEl.textContent = data.name;
+      });
+    }
+  }
+
+  document.getElementById('sig-confirm-btn').onclick=async ()=>{
+    const dId = window._pendingDriverId;
+    let driverName = currentUser?.name || '';
+    let driverIdFinal = null;
+
+    if(dId){
+      const {data:drv} = await sb.from('workers').select('id,name').eq('id', dId).maybeSingle();
       if(drv){
         driverName = drv.name;
         driverIdFinal = drv.id;
       }
     }
-    
+
     await sb.from('orders').update({
       status:'delivered',
-      signature:signatureData,
       delivered_by: driverName,
       delivered_by_id: driverIdFinal,
       delivered_at: new Date().toISOString()
     }).eq('id',order.id);
-    
+
     invalidateCache('orders','logs');
     window._pendingDriverId = null;
     closeSheet('signature');
-    toast('✅ Təslim edildi — '+driverName);
-    
+    toast('\u2705 Təslim edildi \u2014 '+driverName);
+
     // Dərhal Tamamlananlar tab-ına keç və render et
     curDeptTab = 'done';
-    
-    // Tab button vizual yenilə
+
     const ta = document.getElementById('dept-tab-active');
     const ts = document.getElementById('dept-tab-shared');
     const td = document.getElementById('dept-tab-done');
@@ -6581,13 +6538,12 @@ function openSignatureSheet(order,model){
       if(btn){btn.style.background='transparent';btn.style.color='var(--t2)';btn.style.boxShadow='none';}
     });
     if(td){td.style.background='var(--sf)';td.style.color='var(--tl)';td.style.boxShadow='0 1px 4px rgba(0,0,0,.08)';}
-    
-    // BİRBAŞA Tamamlananlar render et - gecikmə yoxdur
+
     if(typeof renderLogisticsDone === 'function'){
       await renderLogisticsDone();
     }
   };
-  
+
   openSheet('signature');
 }
 
@@ -6772,7 +6728,7 @@ function renderCancelledOrders(){
 async function renderAI(){
   showLoader();
   const [{data:orders},{data:logs}]=await Promise.all([
-    sb.from('orders').select('*').order('created_at',{ascending:false}),
+    sb.from('orders').select(ORDER_COLS).order('created_at',{ascending:false}),
     sb.from('task_logs').select('*'),
   ]);
   hideLoader();
@@ -6845,7 +6801,7 @@ async function sendAI(){
 
   // Load ALL data for deep analysis
   const [{data:orders},{data:logs},{data:models},{data:workers},{data:users}] = await Promise.all([
-    sb.from('orders').select('*'),
+    sb.from('orders').select(ORDER_COLS),
     sb.from('task_logs').select('*'),
     sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
     sb.from('workers').select('*'),
@@ -7019,7 +6975,7 @@ async function runAutoAnalysis(){
   
   // Load data
   const [{data:orders},{data:logs},{data:models},{data:workers}] = await Promise.all([
-    sb.from('orders').select('*'),
+    sb.from('orders').select(ORDER_COLS),
     sb.from('task_logs').select('*'),
     sb.from('models').select('id,name,description,emoji,img_url,stages,total_hours,sale_price,cost_price,category,show_in_catalog,show_price,price_variants,is_active'),
     sb.from('workers').select('*'),
@@ -7172,7 +7128,7 @@ async function renderPendingOrdersSection(el){
   showLoader();
   // Müştəri sifarişlərini tap: order_number CUS- ilə başlayır VƏ current_stage=0 (təsdiqlənməyib)
   // Və ya notes içində [📱 MÜŞTƏRİ SİFARİŞİ] etiketi var
-  const allOrders = (await sb.from('orders').select('*').order('created_at',{ascending:false})).data || [];
+  const allOrders = (await sb.from('orders').select(ORDER_COLS).order('created_at',{ascending:false})).data || [];
   const models = window._adminModels && window._adminModels.length ? window._adminModels : (await sb.from('models').select('*')).data || [];
   hideLoader();
   
@@ -7938,7 +7894,7 @@ async function renderStatsSection(el){
   
   // Hər sorğunu ayrı-ayrı et ki, biri uğursuz olarsa digərləri işləsin
   let orders = [], logs = [], users = [], models = [];
-  try { const r = await sb.from('orders').select('*'); orders = r.data || []; } catch(e){ console.warn('orders:',e); }
+  try { const r = await sb.from('orders').select(ORDER_COLS); orders = r.data || []; } catch(e){ console.warn('orders:',e); }
   try { const r = await sb.from('task_logs').select('*'); logs = r.data || []; } catch(e){ console.warn('task_logs:',e); }
   try { const r = await sb.from('users').select('*'); users = r.data || []; } catch(e){ console.warn('users:',e); }
   try { const r = await sb.from('models').select('*'); models = r.data || []; } catch(e){ console.warn('models:',e); }
@@ -8037,7 +7993,7 @@ async function refreshStats(){
   if(!window._statsAllOrders || !window._statsAllOrders.length){
     target.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3)">⏳ Yüklənir...</div>';
     let orders=[], logs=[], users=[], models=[];
-    try { const r=await sb.from('orders').select('*'); orders=r.data||[]; } catch(e){}
+    try { const r=await sb.from('orders').select(ORDER_COLS); orders=r.data||[]; } catch(e){}
     try { const r=await sb.from('task_logs').select('*'); logs=r.data||[]; } catch(e){}
     try { const r=await sb.from('users').select('*'); users=r.data||[]; } catch(e){}
     try { const r=await sb.from('models').select('*'); models=r.data||[]; } catch(e){}
