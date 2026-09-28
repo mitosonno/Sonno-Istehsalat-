@@ -657,6 +657,11 @@ textarea{resize:vertical;min-height:80px}
               </div>
 
               <div class="fg"><label>Qeydlər</label><input id="o-notes" placeholder="Xüsusi tələblər..."></div>
+              <div class="fg">
+                <label>🎨 Nümunə şəkil <span style="font-weight:400;color:var(--t3)">(rəng, parça və s. — istəyə bağlı)</span></label>
+                <input type="file" id="o-sample-file" accept="image/*" style="display:none" onchange="pickSampleImage(this)">
+                <div id="o-sample-box" onclick="document.getElementById('o-sample-file').click()" style="border:2px dashed var(--bd);border-radius:var(--r);padding:14px;text-align:center;cursor:pointer;background:#fff;font-size:13px;color:var(--t2)">📷 Şəkil seç və ya çək</div>
+              </div>
               <div id="eta-bar" style="display:none;background:var(--lt);border-radius:var(--r);padding:11px 14px;margin-bottom:12px;font-size:13px"><span style="color:var(--tl);font-weight:600" id="eta-txt">—</span></div>
               <button class="btn btn-t btn-full btn-lg" onclick="createOrder()">Sifariş Yarat — Pipeline Avtomatik Başlasın</button>
             </div>
@@ -1130,7 +1135,7 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
 // ═══════════ CONSTANTS ═══════════
 // Siyahı sorğuları üçün sütun siyahısı — köhnə "signature" sütunu artıq istifadə olunmur
 // (imza funksiyası ləğv edilib), ona görə heç bir sorğuda çəkilmir.
-const ORDER_COLS = 'id,order_number,model_id,created_by,client,qty,fabric,legs,notes,status,current_stage,deadline,created_at,sale_price,total_amount,color,size,custom_notes,discount,final_price,fabric_company,sale_type,parallel_done_depts,shared_with,shared_done_depts,order_date,delivered_by,delivered_by_id,delivered_at,cancelled_at,cancelled_by,cancel_reason,rework_status,rework_reason,rework_by,repair_dept,repair_stage,repair_count,client_phone';
+const ORDER_COLS = 'id,order_number,model_id,created_by,client,qty,fabric,legs,notes,status,current_stage,deadline,created_at,sale_price,total_amount,color,size,custom_notes,discount,final_price,fabric_company,sale_type,parallel_done_depts,shared_with,shared_done_depts,order_date,delivered_by,delivered_by_id,delivered_at,cancelled_at,cancelled_by,cancel_reason,rework_status,rework_reason,rework_by,repair_dept,repair_stage,repair_count,client_phone,sample_img_url';
 
 const DEPT_INFO = {
   hazirlik:         {name:'Astar',                        icon:'🪣',  hours:2},
@@ -2937,6 +2942,23 @@ async function showOD(id){
       Deadline: <b style="color:${o.status==='late'?'#E24B4A':'var(--t1)'}">${o.deadline||'—'}</b>
       · Başlanma: <b>${fmtDate(o.created_at)}</b>
     </div>
+
+    <div class="slbl" style="margin-top:0">Şəkillər</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div onclick="showModelImage('${o.model_id}','Model: ${String(m.name||'').replace(/['"<>]/g,'')}')" style="cursor:pointer;border:1px solid var(--bd);border-radius:var(--r);background:#fff;padding:10px;text-align:center">
+        <div id="od-model-thumb" style="height:110px;display:flex;align-items:center;justify-content:center;font-size:40px">${m.emoji||'🛋️'}</div>
+        <div style="font-size:12px;font-weight:600;margin-top:6px">🛋️ Model şəkli</div>
+      </div>
+      ${o.sample_img_url ? `
+      <div onclick="openImageViewer('${o.sample_img_url}','Nümunə — ${o.order_number}')" style="cursor:pointer;border:2px solid var(--or);border-radius:var(--r);background:#fff;padding:10px;text-align:center">
+        <img src="${o.sample_img_url}" loading="lazy" style="height:110px;max-width:100%;object-fit:cover;border-radius:6px">
+        <div style="font-size:12px;font-weight:600;margin-top:6px;color:var(--or)">🎨 Nümunə şəkil</div>
+      </div>` : `
+      <div style="border:1px dashed var(--bd);border-radius:var(--r);padding:10px;text-align:center;color:var(--t3);display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <div style="font-size:28px">🎨</div>
+        <div style="font-size:12px;margin-top:4px">Nümunə şəkil yoxdur</div>
+      </div>`}
+    </div>
     
     ${(o.fabric||o.color||o.fabric_company||o.legs||o.notes) ? `
     <div class="slbl" style="margin-top:0">Sifariş məlumatı</div>
@@ -2989,6 +3011,17 @@ async function showOD(id){
     </div>
     ` : ''}`;
   openSheet('order-detail');
+  // Model önizləməsini arxa planda doldur (yalnız bu model, keşlənir)
+  (async ()=>{
+    let src = window._modelImgCache[o.model_id];
+    if(src === undefined){
+      const {data} = await sb.from('models').select('img_url,emoji').eq('id', o.model_id).maybeSingle();
+      src = data ? (getFirstImage(data) || null) : null;
+      window._modelImgCache[o.model_id] = src;
+    }
+    const t = document.getElementById('od-model-thumb');
+    if(t && src) t.innerHTML = `<img src="${src}" style="height:110px;max-width:100%;object-fit:cover;border-radius:6px">`;
+  })();
 }
 
 // ═══════════ ADMIN ORDER OPS ═══════════
@@ -3320,6 +3353,112 @@ function renderPipePrev(m){
     </div>`;
 }
 
+// Şöbə kartlarında: model şəkli + nümunə şəkil düymələri (şəkil yalnız klikdə yüklənir)
+function taskImgButtons(o){
+  if(!o) return '';
+  const title = String(o.order_number||'').replace(/['"<>]/g,'');
+  const sample = o.sample_img_url
+    ? `<button type="button" onclick="event.stopPropagation();openImageViewer('${o.sample_img_url}','Nümunə — ${title}')" style="flex:1;padding:8px;border:2px solid var(--or);background:#FFF7EE;color:var(--or);border-radius:8px;font-family:inherit;font-weight:700;font-size:12px;cursor:pointer">🎨 Nümunə şəkil</button>`
+    : '';
+  return `<div style="display:flex;gap:8px;margin-bottom:10px">
+    <button type="button" onclick="event.stopPropagation();showModelImage('${o.model_id}','Model — ${title}')" style="flex:1;padding:8px;border:1px solid var(--bd);background:#fff;color:var(--t1);border-radius:8px;font-family:inherit;font-weight:600;font-size:12px;cursor:pointer">🛋️ Model şəkli</button>
+    ${sample}
+  </div>`;
+}
+
+// ═══════════ NÜMUNƏ ŞƏKİL ═══════════
+window._sampleBlob = null;
+
+// Şəkli sıxır: maksimum 1000px, JPEG 80% → adətən 60-150 KB
+function compressImageToBlob(file, maxDim=1000, quality=0.8){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(Math.max(w,h) > maxDim){ const s = maxDim/Math.max(w,h); w = Math.round(w*s); h = Math.round(h*s); }
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        c.toBlob(b => b ? resolve(b) : reject(new Error('Sıxma alınmadı')), 'image/jpeg', quality);
+      };
+      img.onerror = () => reject(new Error('Şəkil oxunmadı'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('Fayl oxunmadı'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function pickSampleImage(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const box = document.getElementById('o-sample-box');
+  try{
+    box.innerHTML = '⏳ Hazırlanır...';
+    const blob = await compressImageToBlob(file);
+    window._sampleBlob = blob;
+    const url = URL.createObjectURL(blob);
+    box.innerHTML = `<div style="position:relative;display:inline-block">
+        <img src="${url}" style="max-width:100%;max-height:180px;border-radius:8px;display:block">
+        <button type="button" onclick="event.stopPropagation();clearSampleImage()" style="position:absolute;top:6px;right:6px;background:#E24B4A;color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:14px;cursor:pointer">✕</button>
+      </div>
+      <div style="font-size:11px;color:var(--t3);margin-top:6px">Dəyişmək üçün toxun · ${Math.round(blob.size/1024)} KB</div>`;
+  }catch(e){
+    window._sampleBlob = null;
+    box.innerHTML = '📷 Şəkil seç və ya çək';
+    toast('⚠ '+e.message);
+  }
+  input.value = '';
+}
+
+function clearSampleImage(){
+  window._sampleBlob = null;
+  const box = document.getElementById('o-sample-box');
+  if(box) box.innerHTML = '📷 Şəkil seç və ya çək';
+}
+
+// Storage-a yükləyir, public linki qaytarır
+async function uploadSampleImage(blob, orderNum){
+  const path = `${orderNum}-${Date.now()}.jpg`;
+  const {error} = await sb.storage.from('order-samples').upload(path, blob, {contentType:'image/jpeg', upsert:false});
+  if(error) throw error;
+  return sb.storage.from('order-samples').getPublicUrl(path).data.publicUrl;
+}
+
+// Tam ekran şəkil baxışı
+function openImageViewer(src, title){
+  if(!src) return;
+  let ov = document.getElementById('img-viewer-ov');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'img-viewer-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px';
+    ov.onclick = () => { ov.style.display = 'none'; };
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `<div style="color:#fff;font-size:14px;font-weight:600;margin-bottom:10px;text-align:center">${title||''}</div>
+    <img src="${src}" style="max-width:100%;max-height:82vh;object-fit:contain;border-radius:8px">
+    <div style="color:rgba(255,255,255,.6);font-size:12px;margin-top:10px">Bağlamaq üçün toxun</div>`;
+  ov.style.display = 'flex';
+}
+
+// Model şəklini yalnız lazım olanda (klikdə) çəkir — siyahılar sürətli qalır
+window._modelImgCache = {};
+async function showModelImage(modelId, title){
+  if(!modelId) return;
+  let src = window._modelImgCache[modelId];
+  if(src === undefined){
+    showLoader();
+    const {data} = await sb.from('models').select('img_url,emoji').eq('id', modelId).maybeSingle();
+    hideLoader();
+    src = data ? (getFirstImage(data) || null) : null;
+    window._modelImgCache[modelId] = src;
+  }
+  if(!src){ toast('Bu modelin kataloq şəkli yoxdur'); return; }
+  openImageViewer(src, title || 'Model şəkli');
+}
+
 async function createOrder(){
   if(!selModel){toast('⚠ Məhsul seçin');return;}
   const client=document.getElementById('o-client').value.trim();
@@ -3340,9 +3479,21 @@ async function createOrder(){
   const total=parseFloat((unit*qty).toFixed(2));
   showLoader();
   const num='SON-'+(Date.now()%100000);
+  // Nümunə şəkil varsa — əvvəlcə Storage-a yüklə (orders cədvəlinə yalnız link düşür)
+  let sampleUrl = null;
+  if(window._sampleBlob){
+    try{
+      sampleUrl = await uploadSampleImage(window._sampleBlob, num);
+    }catch(e){
+      hideLoader();
+      toast('⚠ Nümunə şəkil yüklənmədi: '+(e.message||e));
+      return;
+    }
+  }
   const{error}=await sb.from('orders').insert({
     order_number:num, model_id:selModel, created_by:currentUser.id,
     client, qty,
+    sample_img_url: sampleUrl,
     fabric:document.getElementById('o-fabric').value,
     fabric_company:document.getElementById('o-fabric-co').value,
     legs:document.getElementById('o-legs').value,
@@ -3364,6 +3515,7 @@ async function createOrder(){
   });
   const phoneDisp = document.getElementById('o-client-phone-display');
   if(phoneDisp) phoneDisp.textContent='';
+  clearSampleImage();
   if(document.getElementById('o-discount'))document.getElementById('o-discount').value=0;
   selModel=null; qty=1;
   document.querySelectorAll('.pcard').forEach(c=>c.classList.remove('sel'));
@@ -3621,7 +3773,7 @@ async function renderDeptTasks(dept, silent){
   // Hamısı paralel — eyni vaxtda
   const [ordersRes, allModels, logsRes] = await Promise.all([
     sb.from('orders')
-      .select('*')
+      .select(ORDER_COLS)
       .in('status', ['in_progress','created','late','ready','delivered','completed'])
       .gt('current_stage', 0)
       .order('created_at', {ascending: true}),
@@ -3824,7 +3976,7 @@ async function renderDeptTasks(dept, silent){
             </div>
             <span class="badge" style="background:${received?'#aaa':'var(--or)'};color:#fff">${received?'✓ Alındı':'📨 Ötürülüb'}</span>
           </div>
-          <div class="task-card-body">
+          <div class="task-card-body">${taskImgButtons(o)}
             ${!received ? `<div style="background:var(--lo);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#854F0B">
               <b>💡 Bildiriş:</b> Bu sifariş üçün parçanı hazırla. Parçanı alandan sonra <b>✓ Aldım</b> düyməsinə bas.
             </div>` : ''}
@@ -3876,7 +4028,7 @@ async function renderDeptTasks(dept, silent){
             </div>
             <span class="badge ${isLate?'bR':'bO'}">${hasReworkFlag?'TƏMİR':'Yoxlama'}</span>
           </div>
-          <div class="task-card-body">
+          <div class="task-card-body">${taskImgButtons(o)}
             <div class="task-meta">
               <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600">${o.client}</div></div>
               <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-size:20px;font-weight:700">${o.qty}</div></div>
@@ -3981,7 +4133,7 @@ async function renderDeptTasks(dept, silent){
           </span>
         </div>
         ${isRework?`<div style="background:#FFEBEE;border-left:4px solid #E24B4A;padding:10px 14px;font-size:12px;color:#C62828;font-weight:600">🔄 Bu sifariş bu şöbədə əvvəl görülüb — qalan işi tamamla. Yenidən iş görmə lazım deyil.</div>`:''}
-        <div class="task-card-body">
+        <div class="task-card-body">${taskImgButtons(o)}
           <div class="stage-dots">${dots}</div>
           <div style="font-size:11px;color:var(--t2);margin-bottom:8px">${si}/${total} mərhələ</div>
           <div class="task-meta">
@@ -4119,7 +4271,7 @@ async function renderDeptTasks(dept, silent){
           </div>
           <span class="badge" style="background:${received?'#aaa':'var(--or)'};color:#fff">${received?'✓ Alındı':'📨 Ötürülüb'}</span>
         </div>
-        <div class="task-card-body">
+        <div class="task-card-body">${taskImgButtons(o)}
           ${!received ? `<div style="background:var(--lo);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#854F0B">
             <b>💡 Bildiriş:</b> Bu sifariş üçün parçanı hazırla. Parçanı alandan sonra <b>✓ Aldım</b> düyməsinə bas.
           </div>` : ''}
@@ -4236,7 +4388,7 @@ async function renderDeptTasks(dept, silent){
               </div>
               <span class="badge ${st.c}">${st.t}</span>
             </div>
-            <div class="task-card-body">
+            <div class="task-card-body">${taskImgButtons(o)}
               <div style="background:linear-gradient(135deg,var(--lt),#E8F5E9);border-radius:12px;padding:18px;margin-bottom:10px;text-align:center;border:2px solid var(--tl)">
                 <div style="font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">⏱ Sərf olunan vaxt</div>
                 <div style="font-size:40px;font-weight:800;color:var(--tl);font-family:'DM Mono',monospace;line-height:1">${dm!==null&&dm!==undefined?dm+' dəq':'—'}</div>
@@ -4753,7 +4905,7 @@ async function renderLogisticsDept(){
         </div>
         <span class="badge bT">Hazır</span>
       </div>
-      <div class="task-card-body">
+      <div class="task-card-body">${taskImgButtons(o)}
         <div class="task-meta">
           <div class="tm-i"><div class="tm-k">Müştəri</div><div class="tm-v" style="font-weight:600">${o.client}</div></div>
           <div class="tm-i"><div class="tm-k">Menecer</div><div class="tm-v" style="font-weight:600;color:var(--tl)">👤 ${managerName}</div></div>
