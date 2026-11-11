@@ -10,8 +10,9 @@ const SUPA_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6I
 const OPENAI = 'https://api.openai.com/v1';
 const VOICE = process.env.REIS_VOICE || 'onyx';
 
-// Ən yeni modeldən başlayır; hesabda olmayan model olsa, növbətiyə keçir
-const MODELS = [...new Set([process.env.REIS_MODEL, 'gpt-5.1', 'gpt-5', 'gpt-4.1', 'gpt-4o'].filter(Boolean))];
+// Sürətli model (danışıq üçün): düşünmə mərhələsi olmayan gpt-4.1; olmasa gpt-4o.
+// Başqa model üçün Vercel-də REIS_MODEL təyin etmək olar.
+const MODELS = [...new Set([process.env.REIS_MODEL, 'gpt-4.1', 'gpt-4o'].filter(Boolean))];
 let workingModel = null;
 
 const DEPTS = {
@@ -54,6 +55,8 @@ const TOOLS = [
       parameters: { type: 'object', properties: { sifaris_nomresi: { type: 'string', description: 'Məs: SON-44191 və ya 44191' } }, required: ['sifaris_nomresi'] } } },
   { type: 'function', function: { name: 'fabrik_statistikasi', description: 'Bütün fabrik üzrə rəqəmli analiz: N gündə yeni sifariş, təslim, hər şöbənin tamamladığı iş, açıq və gecikən işlər.',
       parameters: { type: 'object', properties: { gun: { type: 'integer', minimum: 1, maximum: 90 } } } } },
+  { type: 'function', function: { name: 'menecerler', description: 'Menecerlər üzrə N gündə: sifariş, məhsul, satış məbləği, təslim, müştəri sayı; indi aktiv və gecikən sifarişləri.',
+      parameters: { type: 'object', properties: { gun: { type: 'integer', minimum: 1, maximum: 365 } } } } },
   { type: 'function', function: { name: 'sobe_statistikasi', description: 'Şöbənin son N gündə tamamladığı iş, işçilərə görə bölgü, heyət və vəzifələr.',
       parameters: { type: 'object', properties: { dept_key: { type: 'string', enum: DEPT_KEYS }, gun: { type: 'integer', minimum: 1, maximum: 90 } }, required: ['dept_key'] } } }
 ];
@@ -94,6 +97,7 @@ async function runTool(name, args) {
     if (name === 'sifaris_melumati') return (await rpc('reis_order', { p_num: String(args.sifaris_nomresi || '').trim() })) || { xeta: 'Sifariş tapılmadı' };
     if (name === 'sobe_statistikasi') return await rpc('reis_dept_stats', { p_dept: args.dept_key, p_days: args.gun || 7 });
     if (name === 'fabrik_statistikasi') return named(await rpc('reis_factory_stats', { p_days: args.gun || 7 }));
+    if (name === 'menecerler') return await rpc('reis_managers', { p_days: args.gun || 30 });
     return { xeta: 'Naməlum alət' };
   } catch (e) {
     return { xeta: 'Məlumat alınmadı: ' + e.message };
@@ -176,25 +180,34 @@ ${staffText(staff)}
 Başqa şöbə, bütün fabrik və ya konkret sifariş lazım olsa, alətlərdən istifadə et.`;
 }
 
-function factoryPrompt(overview, staff, stats) {
+function factoryPrompt(overview, staff, stats, managers) {
   return `${PERSONA}
 
 İndi fabrik RƏHBƏRLİYİ (sahibkar, admin, menecerlər) ilə danışırsan. Onlara hesabat verən direktorsan: işçilərlə sərtsən, rəhbərliklə isə düz, qısa, faktlarla danışırsan. Əsas problemi, darboğazı, məsul baş ustanı və təklifini de. İndiki vaxt: ${bakuNow()} (Bakı).
 
 BÜTÜN ŞÖBƏLƏRİN CARİ VƏZİYYƏTİ (canlı bazadan): ${JSON.stringify(overview)}
 SON 7 GÜNÜN RƏQƏMLƏRİ: ${JSON.stringify(stats)}
-Başqa dövr (məs. 30 gün) istənsə, fabrik_statistikasi alətini çağır.
+MENECERLƏR, SON 30 GÜN (menecer = müştərinin bağlı olduğu menecer; satis_dovr manatla): ${JSON.stringify(managers)}
+Başqa dövr istənsə, fabrik_statistikasi və ya menecerler alətini çağır. Məlumat burada varsa, alət çağırmadan dərhal cavab ver.
 
 BÜTÜN FABRİKİN HEYƏTİ:
 ${staffText(staff)}`;
 }
 
-async function openaiJSON(path, body) {
-  const r = await fetch(`${OPENAI}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENAI_KEY}` },
-    body: JSON.stringify(body)
-  });
+async function openaiJSON(path, body, timeoutMs = 25000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  let r;
+  try {
+    r = await fetch(`${OPENAI}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENAI_KEY}` },
+      body: JSON.stringify(body),
+      signal: ctrl.signal
+    });
+  } catch (e) {
+    throw new Error(e.name === 'AbortError' ? 'model timeout' : e.message);
+  } finally { clearTimeout(timer); }
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data?.error?.message || `OpenAI ${r.status}`);
   return data;
@@ -207,14 +220,14 @@ async function chatCall(messages, tools) {
     const reasoning = /^(gpt-5|o\d)/.test(model);
     const body = { model, messages, tools: tools || TOOLS };
     if (reasoning) { body.max_completion_tokens = 3000; body.reasoning_effort = 'low'; }
-    else { body.temperature = 0.7; body.max_tokens = 500; }
+    else { body.temperature = 0.6; body.max_tokens = 450; }
     try {
       const out = await openaiJSON('/chat/completions', body);
       workingModel = model;
       return out;
     } catch (e) {
       lastErr = e;
-      if (!/model|not exist|not found|unsupported|parameter|reasoning|access/i.test(e.message)) throw e;
+      if (!/model|not exist|not found|unsupported|parameter|reasoning|access|timeout/i.test(e.message)) throw e;
     }
   }
   throw lastErr;
@@ -224,12 +237,13 @@ async function think(dept, history, mode) {
   const staff = await rpc('reis_all_workers', {}).catch(() => []);
   if (dept === 'fabrik') {
     if (mode === 'brief') return { text: '', has_late: false };
-    const [ov, st] = await Promise.all([
+    const [ov, st, mg] = await Promise.all([
       rpc('reis_overview', {}).catch(() => []),
-      rpc('reis_factory_stats', { p_days: 7 }).catch(() => null)
+      rpc('reis_factory_stats', { p_days: 7 }).catch(() => null),
+      rpc('reis_managers', { p_days: 30 }).catch(() => [])
     ]);
     const overview = (ov || []).map(r => ({ ...r, sobe: DEPTS[r.dept_key] || r.dept_key }));
-    return converse([{ role: 'system', content: factoryPrompt(overview, staff, named(st)) }], history, 'fabrik');
+    return converse([{ role: 'system', content: factoryPrompt(overview, staff, named(st), mg) }], history, 'fabrik');
   }
   const [rawTasks, rawStats] = await Promise.all([
     rpc('reis_dept_tasks', { p_dept: dept }).catch(() => []),
@@ -249,7 +263,7 @@ async function converse(messages, history, scope) {
   (history || []).slice(-10).forEach(m => {
     if ((m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string') messages.push({ role: m.role, content: m.content.slice(0, 2000) });
   });
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 3; i++) {
     const out = await chatCall(messages, scope === 'fabrik' ? TOOLS : DEPT_TOOLS);
     const msg = out.choices?.[0]?.message;
     if (!msg) break;
@@ -324,6 +338,10 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Bu şöbə üçün SonnoReis Admin tərəfindən söndürülüb', disabled: true });
   }
   try {
+    if (action === 'tts') {
+      const audioB64 = await speak(String(req.body.text || ''));
+      return res.status(200).json({ audio: audioB64 });
+    }
     if (action === 'stt') {
       const text = await transcribe(audio || '', mime || 'audio/webm', d);
       return res.status(200).json({ text });
