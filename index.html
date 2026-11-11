@@ -2096,6 +2096,7 @@ async function startCatalogMode(){
   window._catalogGuestMode = true;
   // Minimum iş günü parametrini yüklə (deadline validasiyası üçün)
   loadMinWorkDaysSetting();
+  loadReisSettings();
   
   // URL parametrlərini oxu
   const urlParams = new URLSearchParams(window.location.search);
@@ -2366,6 +2367,7 @@ async function openKioskDept(dept){
   // İcazə sistemini, ötürmə konfiqini və şöbə limitlərini yüklə
   await Promise.all([
     loadOvertimeSetting(),
+    loadReisSettings(),
     getForwardingConfig().then(cfg=>{ window.forwardingConfig = cfg || {}; }),
     loadDeptSettings(),
   ]);
@@ -2435,6 +2437,7 @@ async function initApp(){
   loadOvertimeSetting();
   // Minimum iş günü parametrini yüklə
   loadMinWorkDaysSetting();
+  loadReisSettings();
   
   // Data arxa planda yüklə (parallel)
   const dataPromise = Promise.all([
@@ -2503,6 +2506,7 @@ async function goTo(key, fromHistory){
   document.querySelectorAll('.sidebar-item').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('.bnav-item').forEach(b=>b.classList.remove('on'));
   document.getElementById(item.sc).classList.add('on');
+  reisSync(key==='dash' && ['admin','manager'].includes(currentUser?.role) ? 'fabrik' : null);
   const sb2=document.getElementById('sbi-'+key);if(sb2)sb2.classList.add('on');
   const nb=document.getElementById('bnav-'+key);if(nb)nb.classList.add('on');
   const titles={dash:'Dashboard',order:'Yeni Sifariş',allorders:'Bütün sifarişlər',dept:'Şöbə Ekranı',logi:'Logistika',ai:'AI Analiz',admin:'Admin'};
@@ -3716,6 +3720,7 @@ function lockDept(){
 }
 
 function showDV(v){
+  if(v !== 'dept-tasks') reisSync(null);
   ['dept-pick','dept-pin','dept-tasks'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.style.display='none';
   });
@@ -3764,6 +3769,7 @@ async function cachedFetch(key, fetcher){
 }
 
 async function renderDeptTasks(dept, silent){
+  reisSync(dept);
   if(dept === 'logistics'){
     if(curDeptTab === 'done') return renderLogisticsDone();
     return renderLogisticsDept();
@@ -5086,6 +5092,68 @@ async function sharedReceive(oid, dept){
     toast('⚠ Xəta: '+(e.message||'Naməlum'));
     console.error('[sharedReceive] xətası:', e);
   }
+}
+
+// ═══════════ SONNOREIS — sistemin içində ═══════════
+window._reisOff = [];      // Admin tərəfindən söndürülmüş şöbələr
+window._reisDept = null;   // Hazırda düymənin aid olduğu şöbə ('fabrik' = rəhbərlik)
+async function loadReisSettings(){
+  try{
+    const {data} = await sb.from('app_settings').select('value').eq('key','reis_disabled').maybeSingle();
+    window._reisOff = String(data?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  }catch(e){ window._reisOff = []; }
+  if(window._reisDept) reisSync(window._reisDept);
+}
+function reisEnabled(d){ return d==='fabrik' || !(window._reisOff||[]).includes(d); }
+function reisSync(d){
+  window._reisDept = d;
+  let fab = document.getElementById('reis-fab');
+  if(!d || !reisEnabled(d)){ if(fab) fab.style.display='none'; return; }
+  if(!fab){
+    fab = document.createElement('button');
+    fab.id = 'reis-fab'; fab.type = 'button';
+    fab.setAttribute('aria-label','SonnoReis-i aç');
+    fab.style.cssText = 'position:fixed;right:16px;z-index:900;display:flex;align-items:center;gap:10px;height:64px;padding:0 18px 0 8px;border:0;border-radius:32px;background:#111820;color:#fff;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 8px 24px rgba(17,24,32,.28)';
+    fab.innerHTML = '<svg width="48" height="48" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="#1A232E"></circle><path d="M44 86 A56 56 0 0 1 156 86 L156 92 L44 92 Z" fill="#F78930"></path><rect x="36" y="88" width="128" height="8" rx="4" fill="#C96A1E"></rect><rect x="72" y="110" width="14" height="20" rx="7" fill="#fff"></rect><rect x="114" y="110" width="14" height="20" rx="7" fill="#fff"></rect><rect x="84" y="146" width="32" height="8" rx="4" fill="#2FB3A0"></rect></svg><span>SonnoReis</span>';
+    fab.onclick = ()=> openReis(window._reisDept);
+    document.body.appendChild(fab);
+  }
+  fab.style.bottom = document.body.classList.contains('dept-mode') ? 'calc(20px + env(safe-area-inset-bottom))' : 'calc(92px + env(safe-area-inset-bottom))';
+  fab.style.display = 'flex';
+}
+function openReis(d){
+  if(!d || !reisEnabled(d)) return;
+  let ov = document.getElementById('reis-ov');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'reis-ov';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9500;background:#111820;display:flex;flex-direction:column';
+    ov.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:#111820;border-bottom:1px solid rgba(255,255,255,.1)"><button type="button" onclick="closeReis()" style="display:flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:1px solid rgba(255,255,255,.18);border-radius:12px;background:transparent;color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer">← Geri qayıt</button></div><iframe id="reis-frame" title="SonnoReis" allow="microphone; autoplay" style="flex:1;width:100%;border:0;background:#111820"></iframe>';
+    document.body.appendChild(ov);
+  }
+  const fr = document.getElementById('reis-frame');
+  const want = '/reis.html?embed=1&dept=' + encodeURIComponent(d);
+  if(fr.getAttribute('src') !== want) fr.setAttribute('src', want);
+  ov.style.visibility = 'visible'; ov.style.pointerEvents = 'auto';
+}
+function closeReis(){
+  const ov = document.getElementById('reis-ov');
+  // Bağlanmır, gizlənir: arxa planda gecikmə xəbərdarlığı davam etsin
+  if(ov){ ov.style.visibility = 'hidden'; ov.style.pointerEvents = 'none'; }
+}
+window.addEventListener('message', e=>{
+  if(e.origin !== location.origin || !e.data) return;
+  if(e.data.type === 'reis-alert' && window._reisDept === e.data.dept) openReis(e.data.dept);
+});
+async function saveReisSettings(){
+  const off = [...document.querySelectorAll('.reis-dept-cb')].filter(cb=>!cb.checked).map(cb=>cb.value);
+  showLoader();
+  try{
+    await sb.from('app_settings').upsert({key:'reis_disabled', value: off.join(',')});
+    window._reisOff = off;
+    hideLoader();
+    toast('✓ SonnoReis parametrləri yadda saxlanıldı');
+  }catch(e){ hideLoader(); toast('Xəta: '+e.message); }
 }
 
 // ═══════════ KİM TAMAMLADI — işçi seçimi ═══════════
@@ -7862,6 +7930,7 @@ async function renderSettingsSection(el){
   const limit = await getDailyLimit();
   const forwardingConfig = await getForwardingConfig();
   await loadMinWorkDaysSetting();
+  await loadReisSettings();
   
   el.innerHTML = `
     <div class="slbl" style="margin-top:0">⚙️ Parametrlər</div>
@@ -7887,6 +7956,16 @@ async function renderSettingsSection(el){
         </div>
       </div>
       
+      <!-- SonnoReis — şöbələrə görə -->
+      <div style="padding-top:16px;border-top:1px solid var(--bd);margin-bottom:16px">
+        <label style="font-size:13px;font-weight:600;color:var(--dp);display:block;margin-bottom:6px">SonnoReis — şöbələr</label>
+        <p style="font-size:12px;color:var(--t2);margin-bottom:10px">İşarəli şöbələrdə SonnoReis düyməsi görünür və səsli xəbərdarlıq edir. İşarəni götürsəniz, həmin şöbədə SonnoReis söndürülür.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:12px">
+          ${Object.entries(DEPT_INFO).map(([k,info])=>`<label style="display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border:1px solid var(--bd);border-radius:10px;background:#fff;font-size:13px;cursor:pointer"><input type="checkbox" class="reis-dept-cb" value="${k}" ${(window._reisOff||[]).includes(k)?'':'checked'} style="width:18px;height:18px;accent-color:var(--tl)">${info.name}</label>`).join('')}
+        </div>
+        <button class="btn btn-t" style="font-size:12px;padding:10px 16px" onclick="saveReisSettings()">💾 Yadda saxla</button>
+      </div>
+
       <!-- Əlavə iş icazəsi -->
       <div style="padding-top:16px;border-top:1px solid var(--bd)">
         <div style="display:flex;align-items:center;justify-content:space-between">

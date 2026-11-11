@@ -151,6 +151,7 @@ footer{display:flex;align-items:center;justify-content:space-between;gap:12px;fl
 <script>
 const API = '/api/reis';
 const DEPTS = {
+  fabrik:'Bütün fabrik (rəhbərlik)',
   karkaz:'Karkaz yığım', bel_eyme:'Bel əymə', bez_kesim:'Bel kəsim', ayaq_bagla:'Ayaq bağlama', hazirlik:'Astar',
   shkurka:'Şkurka', rengleme:'Rənglənmə', divan_karkaz:'Divan karkaz', divan_yastiqlama:'Divan yastıqlama',
   oturacaq_dik:'Divan Dərzi', yastiqlama:'Yastıqlama / Döşəmə', tikis:'Tikiş', masa_karkaz:'Masa karkaz',
@@ -158,6 +159,18 @@ const DEPTS = {
   qa:'Keyfiyyət yoxlama', logistics:'Logistika / Çatdırılma'
 };
 const $ = id => document.getElementById(id);
+const EMBED = new URLSearchParams(location.search).get('embed') === '1';
+const CHIPS_FACTORY = [
+  ['Ən çox hansı şöbə gecikir?','Ən çox hansı şöbə gecikir və nə etməliyik?'],
+  ['Darboğaz haradadır?','Hazırda istehsalatda darboğaz haradadır?'],
+  ['Bu həftənin xülasəsi','Bu həftə fabrik necə işlədi? Qısa xülasə ver.']
+];
+function setChips(){
+  if(S.dept !== 'fabrik') return;
+  const btns = document.querySelectorAll('.chip');
+  CHIPS_FACTORY.forEach((c,i)=>{ if(btns[i]){ btns[i].textContent=c[0]; btns[i].dataset.q=c[1]; } });
+  $('auto').closest('label').style.display='none';
+}
 const S = { dept:null, history:[], busy:false, rec:null, stream:null, lastTalk:0, actx:null, analyser:null, player:null, raf:0 };
 
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
@@ -181,7 +194,12 @@ $('deptBtn').onclick = ()=>{ buildGrid(); $('start').hidden=false; };
 
 $('goBtn').onclick = async ()=>{
   if(!S.dept) return;
-  lsSet('reis_dept', S.dept);
+  try{
+    const st = await api({action:'status', dept:S.dept});
+    if(st && st.enabled === false){ $('startErr').textContent='Bu şöbə üçün SonnoReis Admin tərəfindən söndürülüb.'; return; }
+  }catch(e){}
+  if(!EMBED) lsSet('reis_dept', S.dept);
+  setChips();
   $('deptName').textContent = DEPTS[S.dept];
   S.history = [];
   ensureAudio();
@@ -340,7 +358,7 @@ $('typer').onsubmit = e=>{ e.preventDefault(); ensureAudio(); const v=$('txt').v
 $('auto').checked = lsGet('reis_auto') !== '0';
 $('auto').onchange = ()=> lsSet('reis_auto', $('auto').checked?'1':'0');
 async function brief(){
-  if(!$('auto').checked || S.busy || !S.dept || !$('start').hidden) return;
+  if(!$('auto').checked || S.busy || !S.dept || S.dept==='fabrik' || !$('start').hidden) return;
   if(S.rec && S.rec.state==='recording') return;
   if(Date.now()-S.lastTalk < 2*60*1000) return;
   const h = new Date().getHours()+new Date().getMinutes()/60;
@@ -349,6 +367,7 @@ async function brief(){
   try{
     const d = await api({action:'brief', dept:S.dept});
     if(d.text){
+      if(EMBED && window.parent !== window){ try{ window.parent.postMessage({type:'reis-alert', dept:S.dept}, location.origin); }catch(e){} }
       $('q').textContent = 'SonnoReis xəbərdarlıq edir';
       $('a').className='a'; $('a').textContent = d.text;
       chime(); await new Promise(r=>setTimeout(r,600));
@@ -364,6 +383,14 @@ document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState=
 function tickClock(){ $('clock').textContent = new Date().toLocaleString('az-AZ',{weekday:'long',hour:'2-digit',minute:'2-digit'}); }
 tickClock(); setInterval(tickClock, 30000);
 if(S.dept) $('deptName').textContent = DEPTS[S.dept];
+if(EMBED){
+  $('deptBtn').style.pointerEvents='none';
+  if(S.dept){
+    $('deptGrid').style.display='none';
+    document.querySelector('#start h1').textContent = 'SonnoReis · ' + DEPTS[S.dept];
+    document.querySelector('#start p').textContent = 'Başlamaq üçün düyməni basın. Mikrofon icazəsi istəniləndə "İcazə ver" seçin.';
+  }
+}
 </script>
 </body>
 </html>
