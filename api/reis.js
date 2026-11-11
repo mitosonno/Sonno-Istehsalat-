@@ -15,8 +15,20 @@ const DEPTS = {
   bel_eyme: 'Bel əymə', karkaz: 'Karkaz yığım', divan_karkaz: 'Divan karkaz', divan_yastiqlama: 'Divan yastıqlama',
   shkurka: 'Şkurka', masa_karkaz: 'Masa karkaz', masa_rengle: 'Masa rəngləmə', masa_shkurka: 'Masa şkurka',
   masa_mexanizm: 'Masa mexanizm + Cildləmə', rengleme: 'Rənglənmə', yastiqlama: 'Yastıqlama / Döşəmə',
-  tikis: 'Tikiş', qa: 'Keyfiyyət yoxlama', logistics: 'Logistika / Çatdırılma'
+  tikis: 'Tikiş', qa: 'Keyfiyyət yoxlama', logistics: 'Logistika / Çatdırılma',
+  fabrik: 'Bütün fabrik'
 };
+
+// Admin şöbələrə görə söndürə bilir: app_settings.reis_disabled = "karkaz,tikis,..."
+async function disabledDepts() {
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/app_settings?key=eq.reis_disabled&select=value`, {
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }
+    });
+    const rows = await r.json();
+    return String((rows && rows[0] && rows[0].value) || '').split(',').map(s => s.trim()).filter(Boolean);
+  } catch (e) { return []; }
+}
 
 async function rpc(fn, args) {
   const r = await fetch(`${SUPA_URL}/rest/v1/rpc/${fn}`, {
@@ -30,13 +42,13 @@ async function rpc(fn, args) {
 
 const TOOLS = [
   { type: 'function', function: { name: 'sobe_tapsiriqlari', description: 'Bir şöbənin hazırda açıq olan tapşırıqları (gecikmə, son tarix, başlanıb-başlanmayıb).',
-      parameters: { type: 'object', properties: { dept_key: { type: 'string', enum: Object.keys(DEPTS) } }, required: ['dept_key'] } } },
+      parameters: { type: 'object', properties: { dept_key: { type: 'string', enum: Object.keys(DEPTS).filter(k => k !== 'fabrik') } }, required: ['dept_key'] } } },
   { type: 'function', function: { name: 'umumi_veziyyet', description: 'Bütün şöbələrin yükü: açıq tapşırıq, gecikən, norma saatı.',
       parameters: { type: 'object', properties: {} } } },
   { type: 'function', function: { name: 'sifaris_melumati', description: 'Bir sifarişin tam vəziyyəti: model, parça, mərhələlər, kim tamamlayıb.',
       parameters: { type: 'object', properties: { sifaris_nomresi: { type: 'string', description: 'Məs: SON-44191 və ya 44191' } }, required: ['sifaris_nomresi'] } } },
   { type: 'function', function: { name: 'sobe_statistikasi', description: 'Şöbənin son N gündə tamamladığı iş, işçilərə görə bölgü, işçi siyahısı.',
-      parameters: { type: 'object', properties: { dept_key: { type: 'string', enum: Object.keys(DEPTS) }, gun: { type: 'integer', minimum: 1, maximum: 90 } }, required: ['dept_key'] } } }
+      parameters: { type: 'object', properties: { dept_key: { type: 'string', enum: Object.keys(DEPTS).filter(k => k !== 'fabrik') }, gun: { type: 'integer', minimum: 1, maximum: 90 } }, required: ['dept_key'] } } }
 ];
 
 async function runTool(name, args) {
@@ -56,6 +68,21 @@ async function runTool(name, args) {
 
 function bakuNow() {
   return new Date().toLocaleString('az-AZ', { timeZone: 'Asia/Baku', weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
+}
+
+function factoryPrompt(overview) {
+  return `Sən SonnoReis-sən — SONNO mebel fabrikinin (Bakı, Rəşid Behbudov 77A) istehsalat rəisi. 25 illik təcrübən var: stul və kreslo karkası, bel əymə, şkurka, astar və rəngləmə, divan karkası, yastıqlama və döşəmə, tikiş, masa istehsalı.
+İndi fabrik RƏHBƏRLİYİ (admin və menecerlər) ilə danışırsan. İndiki vaxt: ${bakuNow()} (Bakı).
+
+QAYDALAR:
+- HƏMİŞƏ yalnız Azərbaycan dilində (latın əlifbası) danış.
+- Cavabın səslə oxunacaq: qısa və konkret, 3-5 cümlə. Siyahı, ulduz, markdown işlətmə.
+- Rəhbərə hesabat verən təcrübəli rəis kimi danış: əsas problemi, darboğazı və təklifini de.
+- Rəqəmləri HEÇ VAXT uydurma; yalnız aşağıdakı vəziyyətdən və alətlərdən götür. Konkret şöbə və ya sifariş üçün alətlərdən istifadə et.
+- Sən sistemdə heç nəyi dəyişə bilmirsən, yalnız məsləhət verirsən.
+- İş müddəti statistikasında gecə və fasilələr də sayıla bilər; nəticə çıxaranda bunu nəzərə al.
+
+BÜTÜN ŞÖBƏLƏRİN CARİ VƏZİYYƏTİ (canlı bazadan): ${JSON.stringify(overview)}`;
 }
 
 function systemPrompt(dept, tasks, stats, mode) {
@@ -100,6 +127,11 @@ async function openaiJSON(path, body) {
 }
 
 async function think(dept, history, mode) {
+  if (dept === 'fabrik') {
+    if (mode === 'brief') return { text: '', has_late: false };
+    const overview = (await rpc('reis_overview', {}).catch(() => [])).map(r => ({ ...r, sobe: DEPTS[r.dept_key] || r.dept_key }));
+    return converse([{ role: 'system', content: factoryPrompt(overview) }], history);
+  }
   const [tasks, stats] = await Promise.all([
     rpc('reis_dept_tasks', { p_dept: dept }).catch(() => []),
     rpc('reis_dept_stats', { p_dept: dept, p_days: 7 }).catch(() => null)
@@ -109,8 +141,12 @@ async function think(dept, history, mode) {
     if (!late.length) return { text: '', has_late: false };
   }
   const messages = [{ role: 'system', content: systemPrompt(dept, tasks, stats, mode) }];
-  if (mode === 'brief') messages.push({ role: 'user', content: '(Avtomatik xəbərdarlıq vaxtıdır. Şöbəyə qısa göstəriş ver.)' });
-  else (history || []).slice(-10).forEach(m => {
+  if (mode === 'brief') return converse(messages, [{ role: 'user', content: '(Avtomatik xəbərdarlıq vaxtıdır. Şöbəyə qısa göstəriş ver.)' }]);
+  return converse(messages, history);
+}
+
+async function converse(messages, history) {
+  (history || []).slice(-10).forEach(m => {
     if ((m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string') messages.push({ role: m.role, content: m.content.slice(0, 2000) });
   });
 
@@ -177,6 +213,13 @@ export default async function handler(req, res) {
 
   const { action, dept, messages, audio, mime, speak: wantVoice = true } = req.body || {};
   const d = DEPTS[dept] ? dept : 'karkaz';
+  if (action === 'status') {
+    const off = await disabledDepts();
+    return res.status(200).json({ dept: d, enabled: !off.includes(d) });
+  }
+  if (d !== 'fabrik' && (await disabledDepts()).includes(d)) {
+    return res.status(403).json({ error: 'Bu şöbə üçün SonnoReis Admin tərəfindən söndürülüb', disabled: true });
+  }
   try {
     if (action === 'stt') {
       const text = await transcribe(audio || '', mime || 'audio/webm', d);
