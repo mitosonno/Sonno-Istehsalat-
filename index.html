@@ -5113,14 +5113,29 @@ function reisSync(d){
     fab = document.createElement('button');
     fab.id = 'reis-fab'; fab.type = 'button';
     fab.setAttribute('aria-label','SonnoReis-i aç');
-    fab.style.cssText = 'position:fixed;right:16px;z-index:900;display:flex;align-items:center;gap:10px;height:64px;padding:0 18px 0 8px;border:0;border-radius:32px;background:#111820;color:#fff;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 8px 24px rgba(17,24,32,.28)';
-    fab.innerHTML = '<svg width="48" height="48" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="#1A232E"></circle><path d="M44 86 A56 56 0 0 1 156 86 L156 92 L44 92 Z" fill="#F78930"></path><rect x="36" y="88" width="128" height="8" rx="4" fill="#C96A1E"></rect><rect x="72" y="110" width="14" height="20" rx="7" fill="#fff"></rect><rect x="114" y="110" width="14" height="20" rx="7" fill="#fff"></rect><rect x="84" y="146" width="32" height="8" rx="4" fill="#2FB3A0"></rect></svg><span>SonnoReis</span>';
+    fab.style.cssText = 'position:fixed;right:16px;z-index:900;display:flex;align-items:center;gap:8px;height:56px;padding:0 16px 0 6px;border:0;border-radius:28px;background:#111820;color:#fff;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 8px 24px rgba(17,24,32,.28)';
+    fab.innerHTML = '<svg width="44" height="44" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="#1A232E"></circle><path d="M44 86 A56 56 0 0 1 156 86 L156 92 L44 92 Z" fill="#F78930"></path><rect x="36" y="88" width="128" height="8" rx="4" fill="#C96A1E"></rect><rect x="72" y="110" width="14" height="20" rx="7" fill="#fff"></rect><rect x="114" y="110" width="14" height="20" rx="7" fill="#fff"></rect><rect x="84" y="146" width="32" height="8" rx="4" fill="#2FB3A0"></rect></svg><span>SonnoReis</span>';
     fab.onclick = ()=> openReis(window._reisDept);
     document.body.appendChild(fab);
   }
-  fab.style.bottom = document.body.classList.contains('dept-mode') ? 'calc(20px + env(safe-area-inset-bottom))' : 'calc(92px + env(safe-area-inset-bottom))';
   fab.style.display = 'flex';
+  reisPlace();
 }
+// Düyməni həmişə aşağı menyunun ÜSTÜNDƏ saxla (menyu görünürsə)
+function reisPlace(){
+  const fab = document.getElementById('reis-fab');
+  if(!fab || fab.style.display==='none') return;
+  const nav = document.getElementById('bottom-nav');
+  let navH = 0;
+  if(nav){
+    const r = nav.getBoundingClientRect();
+    const cs = getComputedStyle(nav);
+    if(cs.display!=='none' && cs.visibility!=='hidden' && r.height>0 && r.top < window.innerHeight) navH = window.innerHeight - r.top;
+  }
+  fab.style.bottom = navH ? (navH + 12) + 'px' : 'calc(20px + env(safe-area-inset-bottom))';
+}
+window.addEventListener('resize', reisPlace);
+setInterval(reisPlace, 1500);
 function openReis(d){
   if(!d || !reisEnabled(d)) return;
   let ov = document.getElementById('reis-ov');
