@@ -58,6 +58,35 @@ const TOOLS = [
       parameters: { type: 'object', properties: { dept_key: { type: 'string', enum: DEPT_KEYS }, gun: { type: 'integer', minimum: 1, maximum: 90 } }, required: ['dept_key'] } } }
 ];
 
+// Şöbə işçiləri üçün: yalnız öz şöbəsi, müştəri və maliyyə yoxdur
+const DEPT_TOOLS = [
+  { type: 'function', function: { name: 'sobe_tapsiriqlari', description: 'Bu şöbənin hazırda açıq olan tapşırıqları (gecikmə günü, son tarix, başlanıb-başlanmayıb).',
+      parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'sifaris_melumati', description: 'Bir sifarişin istehsal vəziyyəti: model, ədəd, parça, rəng, qeyd, mərhələlər, kim tamamlayıb.',
+      parameters: { type: 'object', properties: { sifaris_nomresi: { type: 'string', description: 'Məs: SON-44191 və ya 44191' } }, required: ['sifaris_nomresi'] } } },
+  { type: 'function', function: { name: 'sobe_statistikasi', description: 'Bu şöbənin son N gündə tamamladığı iş və işçilərə görə bölgü.',
+      parameters: { type: 'object', properties: { gun: { type: 'integer', minimum: 1, maximum: 90 } } } } }
+];
+const FINANCE_KEYS = ['client', 'musteri', 'client_phone', 'sale_price', 'final_price', 'total_amount', 'discount', 'price', 'qiymet', 'mebleg', 'cost_price'];
+function stripFinance(x) {
+  if (Array.isArray(x)) return x.map(stripFinance);
+  if (x && typeof x === 'object') {
+    const o = {};
+    for (const [k, v] of Object.entries(x)) if (!FINANCE_KEYS.includes(k)) o[k] = stripFinance(v);
+    return o;
+  }
+  return x;
+}
+
+async function runToolScoped(name, args, scope) {
+  if (scope === 'fabrik') return runTool(name, args);
+  // Şöbə rejimi: başqa şöbəyə və fabrik rəqəmlərinə giriş yoxdur
+  if (name === 'sobe_tapsiriqlari') return stripFinance(await runTool(name, { dept_key: scope }));
+  if (name === 'sobe_statistikasi') return stripFinance(await runTool(name, { dept_key: scope, gun: args.gun }));
+  if (name === 'sifaris_melumati') return stripFinance(await runTool(name, args));
+  return { xeta: 'Bu məlumat şöbə ekranından açıq deyil.' };
+}
+
 async function runTool(name, args) {
   try {
     if (name === 'sobe_tapsiriqlari') return await rpc('reis_dept_tasks', { p_dept: args.dept_key });
@@ -129,6 +158,11 @@ function deptPrompt(dept, tasks, stats, staff, mode) {
 İndi ${deptName} şöbəsinin planşetindəsən, oradakı işçilərlə üz-üzəsən. İndiki vaxt: ${bakuNow()} (Bakı).
 Bu şöbənin heyəti: ${own || 'sistemdə qeydiyyatda deyil'}.
 Baş usta varsa, məsuliyyət əvvəlcə ondan soruşulur.
+
+ŞÖBƏ EKRANI QADAĞALARI (çox vacib):
+- Burada yalnız ${deptName} şöbəsinin İSTEHSAL işindən danışırsan: açıq tapşırıqlar, gecikmələr, kim yavaş işləyir, hansı iş birinci görülməlidir, texniki istehsal sualları.
+- Qiymət, məbləğ, satış, endirim, gəlir, maaş, müştəri adı, müştəri telefonu və ümumiyyətlə maliyyə barədə HEÇ NƏ demirsən. Belə sual gəlsə, qısa de: "Bu sual menecerlərə aiddir. Sən öz işinə bax." və işə qaytar.
+- Başqa şöbələrin və bütün fabrikin rəqəmlərini burada açıqlamırsan.
 ${mode === 'brief' ? `
 İNDİ SƏN ÖZÜN GƏLİB XƏBƏRDARLIQ EDİRSƏN: heç kim soruşmayıb. Şöbədə gecikən iş var. Baş ustanı (yoxdursa, şöbəni) adla çağır, ən çox gecikən bir-iki sifarişi nömrəsi ilə de, sərt danla və konkret əmr ver. 2-4 cümlə.` : ''}
 
@@ -166,12 +200,12 @@ async function openaiJSON(path, body) {
   return data;
 }
 
-async function chatCall(messages) {
+async function chatCall(messages, tools) {
   const list = workingModel ? [workingModel, ...MODELS.filter(m => m !== workingModel)] : MODELS;
   let lastErr;
   for (const model of list) {
     const reasoning = /^(gpt-5|o\d)/.test(model);
-    const body = { model, messages, tools: TOOLS };
+    const body = { model, messages, tools: tools || TOOLS };
     if (reasoning) { body.max_completion_tokens = 3000; body.reasoning_effort = 'low'; }
     else { body.temperature = 0.7; body.max_tokens = 500; }
     try {
@@ -195,27 +229,28 @@ async function think(dept, history, mode) {
       rpc('reis_factory_stats', { p_days: 7 }).catch(() => null)
     ]);
     const overview = (ov || []).map(r => ({ ...r, sobe: DEPTS[r.dept_key] || r.dept_key }));
-    return converse([{ role: 'system', content: factoryPrompt(overview, staff, named(st)) }], history);
+    return converse([{ role: 'system', content: factoryPrompt(overview, staff, named(st)) }], history, 'fabrik');
   }
-  const [tasks, stats] = await Promise.all([
+  const [rawTasks, rawStats] = await Promise.all([
     rpc('reis_dept_tasks', { p_dept: dept }).catch(() => []),
     rpc('reis_dept_stats', { p_dept: dept, p_days: 7 }).catch(() => null)
   ]);
+  const tasks = stripFinance(rawTasks), stats = stripFinance(rawStats);
   if (mode === 'brief') {
     const late = (tasks || []).filter(t => t.days_late > 0);
     if (!late.length) return { text: '', has_late: false };
     return converse([{ role: 'system', content: deptPrompt(dept, tasks, stats, staff, 'brief') }],
-      [{ role: 'user', content: '(Avtomatik yoxlama vaxtıdır. Şöbəyə gəl və göstəriş ver.)' }]);
+      [{ role: 'user', content: '(Avtomatik yoxlama vaxtıdır. Şöbəyə gəl və göstəriş ver.)' }], dept);
   }
-  return converse([{ role: 'system', content: deptPrompt(dept, tasks, stats, staff, 'chat') }], history);
+  return converse([{ role: 'system', content: deptPrompt(dept, tasks, stats, staff, 'chat') }], history, dept);
 }
 
-async function converse(messages, history) {
+async function converse(messages, history, scope) {
   (history || []).slice(-10).forEach(m => {
     if ((m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string') messages.push({ role: m.role, content: m.content.slice(0, 2000) });
   });
   for (let i = 0; i < 4; i++) {
-    const out = await chatCall(messages);
+    const out = await chatCall(messages, scope === 'fabrik' ? TOOLS : DEPT_TOOLS);
     const msg = out.choices?.[0]?.message;
     if (!msg) break;
     if (msg.tool_calls && msg.tool_calls.length) {
@@ -223,7 +258,7 @@ async function converse(messages, history) {
       for (const tc of msg.tool_calls) {
         let args = {};
         try { args = JSON.parse(tc.function.arguments || '{}'); } catch (e) {}
-        const result = await runTool(tc.function.name, args);
+        const result = await runToolScoped(tc.function.name, args, scope);
         messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result).slice(0, 12000) });
       }
       continue;
