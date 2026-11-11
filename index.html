@@ -4173,7 +4173,7 @@ async function renderDeptTasks(dept, silent){
               onclick="dStart('${o.id}','${si}','${key}','${dept}')">
               ▶ Başla
             </button>
-            <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="dDone('${o.id}','${si}','${key}','${dept}','${total}')">✓ Tamamla</button>
+            <button class="btn btn-t btn-lg" ${!started||done?'disabled':''} id="td-${o.id}" onclick="askCompleter('${o.id}','${si}','${key}','${dept}','${total}')">✓ Tamamla</button>
           </div>
           ${(() => {
             const altDept = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : null);
@@ -4404,6 +4404,7 @@ async function renderDeptTasks(dept, silent){
                 <div style="font-size:11px;color:var(--t3);margin-top:6px">Plan: ${s.hours*60} dəq${dm?' · Fərq: '+(dm>s.hours*60?'+':'')+Math.round(dm-s.hours*60)+' dəq':''}</div>
                 <div style="font-size:11px;color:var(--t3);margin-top:4px">🕐 Tamamlandı: ${completedTime}</div>
               </div>
+              ${(()=>{ const wn = log.worker_name; const unknown = !wn || wn===dept || wn===altDept || wn===(DEPT_INFO[dept]&&DEPT_INFO[dept].name); return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;margin-bottom:10px;border-radius:12px;background:${unknown?'#F4F4F2':'#111820'};color:${unknown?'var(--t3)':'#fff'}"><span style="font-size:12px;font-weight:600;opacity:.8">İşləyən</span><span style="font-size:16px;font-weight:700">${unknown?'Qeyd olunmayıb':String(wn).replace(/[&<>"']/g,'')}</span></div>`; })()}
               <div class="task-meta">
                 <div class="tm-i"><div class="tm-k">Model</div><div class="tm-v">${m.name.split('—')[0].trim()}</div></div>
                 <div class="tm-i"><div class="tm-k">Ədəd</div><div class="tm-v" style="color:var(--tl);font-weight:700">${o.qty}</div></div>
@@ -5087,6 +5088,52 @@ async function sharedReceive(oid, dept){
   }
 }
 
+// ═══════════ KİM TAMAMLADI — işçi seçimi ═══════════
+window._completer = null;
+async function askCompleter(oid, si, key, dept, totalStages){
+  const altDept = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : dept);
+  let workers = [];
+  try{
+    const {data} = await sb.from('workers').select('id,name').in('dept_key', [dept, altDept]).order('name');
+    workers = data || [];
+  }catch(e){ workers = (appWorkers||[]).filter(w=>w.dept_key===dept||w.dept_key===altDept); }
+
+  let ov = document.getElementById('completer-ov');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'completer-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(17,24,32,.55);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+    document.body.appendChild(ov);
+  }
+  const esc = s => String(s||'').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  window._completerArgs = {oid, si, key, dept, totalStages, workers};
+  const btn = (idx, label, sub, strong) => `<button type="button" onclick="pickCompleter(${idx})" style="min-height:56px;padding:10px 12px;border:2px solid ${strong?'var(--tl)':'var(--bd)'};background:${strong?'var(--lt)':'#fff'};border-radius:12px;font-family:inherit;font-size:15px;font-weight:600;color:var(--t1);cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:2px">${label}${sub?`<span style="font-size:11px;font-weight:500;color:var(--t2)">${sub}</span>`:''}</button>`;
+  ov.innerHTML = `<div onclick="event.stopPropagation()" style="background:#fff;width:100%;max-width:560px;max-height:85vh;overflow:auto;border-radius:20px 20px 0 0;padding:20px 16px 24px;box-sizing:border-box">
+      <div style="font-size:18px;font-weight:700;margin-bottom:4px">Kim tamamladı?</div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:14px">Bu işi görən işçini seçin</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+        ${workers.map((w,i)=>btn(i, esc(w.name), '', false)).join('')}
+        ${btn(-1, 'Kollektiv', 'bir neçə nəfər birlikdə', true)}
+      </div>
+      ${workers.length ? '' : '<div style="font-size:12px;color:var(--t3);margin-top:10px">Bu şöbədə qeydiyyatda işçi yoxdur — Admin panelindən əlavə edin.</div>'}
+      <button type="button" onclick="closeCompleter()" style="width:100%;margin-top:14px;min-height:48px;border:1px solid var(--bd);background:#fff;border-radius:12px;font-family:inherit;font-size:14px;color:var(--t2);cursor:pointer">Ləğv et</button>
+    </div>`;
+  ov.onclick = closeCompleter;
+  ov.style.display = 'flex';
+}
+function closeCompleter(){
+  const ov = document.getElementById('completer-ov');
+  if(ov) ov.style.display = 'none';
+}
+function pickCompleter(idx){
+  const a = window._completerArgs;
+  if(!a) return;
+  const w = idx >= 0 ? a.workers[idx] : null;
+  window._completer = { oid: a.oid, id: w ? w.id : null, name: w ? w.name : 'Kollektiv' };
+  closeCompleter();
+  dDone(a.oid, a.si, a.key, a.dept, a.totalStages);
+}
+
 async function dDone(oid, si, key, dept, totalStages){
   if(window._dDoneInProgress && window._dDoneInProgress[oid]) return;
   if(!window._dDoneInProgress) window._dDoneInProgress = {};
@@ -5152,8 +5199,8 @@ async function dDone(oid, si, key, dept, totalStages){
       .eq('dept_key', dept);
     await sb.from('task_logs').insert({
       order_id: oid, stage_index: stageIndex,
-      worker_id: currentUser?.id || null,
-      worker_name: currentUser?.name || dept,
+      worker_id: (window._completer && window._completer.oid===oid) ? window._completer.id : (currentUser?.id || null),
+      worker_name: (window._completer && window._completer.oid===oid) ? window._completer.name : (currentUser?.name || dept),
       dept_key: dept, action: 'completed',
       started_at: startTime || now, completed_at: now,
       duration_minutes: durMin
