@@ -263,6 +263,7 @@ function play(b64, text){
     if(b64 && S.player){
       ensureAudio();
       S.player.src = 'data:audio/mpeg;base64,'+b64;
+      S.player.preservesPitch = true; S.player.playbackRate = 1.1;
       S.player.onended = ()=>{ setState('idle','Hazıram'); res(); };
       S.player.onerror = ()=>{ setState('idle','Hazıram'); res(); };
       setState('speaking','Danışır…');
