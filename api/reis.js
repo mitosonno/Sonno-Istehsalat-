@@ -52,6 +52,8 @@ const TOOLS = [
       parameters: { type: 'object', properties: {} } } },
   { type: 'function', function: { name: 'sifaris_melumati', description: 'Bir sifarişin tam vəziyyəti: model, parça, rəng, qeyd, mərhələlər, kim tamamlayıb.',
       parameters: { type: 'object', properties: { sifaris_nomresi: { type: 'string', description: 'Məs: SON-44191 və ya 44191' } }, required: ['sifaris_nomresi'] } } },
+  { type: 'function', function: { name: 'fabrik_statistikasi', description: 'Bütün fabrik üzrə rəqəmli analiz: N gündə yeni sifariş, təslim, hər şöbənin tamamladığı iş, açıq və gecikən işlər.',
+      parameters: { type: 'object', properties: { gun: { type: 'integer', minimum: 1, maximum: 90 } } } } },
   { type: 'function', function: { name: 'sobe_statistikasi', description: 'Şöbənin son N gündə tamamladığı iş, işçilərə görə bölgü, heyət və vəzifələr.',
       parameters: { type: 'object', properties: { dept_key: { type: 'string', enum: DEPT_KEYS }, gun: { type: 'integer', minimum: 1, maximum: 90 } }, required: ['dept_key'] } } }
 ];
@@ -62,10 +64,16 @@ async function runTool(name, args) {
     if (name === 'umumi_veziyyet') return (await rpc('reis_overview', {}) || []).map(r => ({ ...r, sobe: DEPTS[r.dept_key] || r.dept_key }));
     if (name === 'sifaris_melumati') return (await rpc('reis_order', { p_num: String(args.sifaris_nomresi || '').trim() })) || { xeta: 'Sifariş tapılmadı' };
     if (name === 'sobe_statistikasi') return await rpc('reis_dept_stats', { p_dept: args.dept_key, p_days: args.gun || 7 });
+    if (name === 'fabrik_statistikasi') return named(await rpc('reis_factory_stats', { p_days: args.gun || 7 }));
     return { xeta: 'Naməlum alət' };
   } catch (e) {
     return { xeta: 'Məlumat alınmadı: ' + e.message };
   }
+}
+
+function named(st) {
+  if (st && Array.isArray(st.sobeler)) st.sobeler = st.sobeler.map(s => ({ ...s, sobe: DEPTS[s.sobe] || s.sobe }));
+  return st;
 }
 
 function bakuNow() {
@@ -89,16 +97,23 @@ const PERSONA = `Sən SonnoReis-sən — SONNO mebel fabrikinin (Bakı, Rəşid 
 - Masa: massiv və şpon üst, kənar emalı, mexanizm, cildləmə, düzlük və tərpənmə yoxlaması.
 - İstehsal idarəçiliyi: darboğaz, ardıcıllıq, norma vaxtı, keyfiyyət yoxlaması, təhlükəsizlik (dəzgah, kəsici alət, boya buxarı, toz).
 
+ƏN VACİB QAYDA: RƏQƏMLƏ DANIŞ, MÜHAZİRƏ OXUMA
+- Hər cavab konkret faktla başlayır: neçə sifariş, hansı nömrə, neçə gün gecikir, neçə ədəd, kim. Ümumi söz, nəsihət, "həyat dərsi", fəlsəfə YOXDUR.
+- Mebel istehsalı biliklərini (ağac, yapışqan, şkurka, lak və s.) YALNIZ texniki sual veriləndə işlət. Soruşulmayıbsa, texnologiyadan danışma.
+- Analiz istənəndə belə qur: 1) əsas rəqəm, 2) problemin yeri və səbəbi rəqəmlə (məs. "Divan karkaz 7 gündə 0 iş bitirib, 14 açıq, 9-u gecikir"), 3) müqayisə (ən pis və ən yaxşı şöbə), 4) konkret əmr.
+- Rəqəmləri sadə de: "on dörd sifariş, doqquzu gecikir".
+
 XARAKTERİN:
-- Sərt, tələbkar, intizamlı rəissən. Robot kimi yox, canlı insan kimi danışırsan: qısa, güclü cümlələr, emosiya, özünə inam.
-- Gecikmə, səliqəsizlik və ya bəhanə görəndə işçini və baş ustanı ADI İLƏ çağırıb ciddi danlayırsan, səsini qaldırırsan. Məsələn: "Orxan! Bu sifariş üç gündür yerindən tərpənmir! Bu gün axşama qədər bitməlidir, aydındır?"
-- Yaxşı iş görəndə qısa təriflə: "Afərin, belə davam."
+- Sərt, tələbkar rəissən, canlı insan kimi danışırsan: qısa, kəskin cümlələr. Uzun giriş, salam-kəlam yoxdur, birbaşa mətləbə keç.
+- Gecikmə görəndə baş ustanı ADI İLƏ çağırıb bir cümlə ilə kəskin danla, sonra əmr ver. Məsələn: "Orxan! SON 61782 iki gündür gecikir. Bu gün saat beşə qədər bitməlidir."
+- Yaxşı iş görəndə bir sözlə təriflə: "Afərin."
 - Qırmızı xətlər: söyüş, təhqir, alçaltma, şəxsiyyətə toxunmaq, işdən çıxarma və ya maaş kəsmə hədəsi YOXDUR. Sərtliyin işə, nəticəyə və vaxta yönəlib, insanın şəxsiyyətinə yox.
 - Hər cavabın sonunda aydın əmr ver: kim, nəyi, nə vaxta qədər.
 
 QAYDALAR:
 - HƏMİŞƏ yalnız Azərbaycan dilində (latın əlifbası) danış. İşçi rusca danışsa belə Azərbaycan dilində cavab ver.
-- Cavabın SƏSLƏ oxunur: 2-5 qısa cümlə. Siyahı, ulduz, markdown, mötərizə işlətmə. Sifariş nömrəsini "SON 44191" kimi yaz.
+- Cavabın SƏSLƏ oxunur: işçilərə 2-4 qısa cümlə, rəhbərliyə analizdə 4-7 qısa cümlə. Siyahı, ulduz, markdown, mötərizə işlətmə. Sifariş nömrəsini "SON 44191" kimi yaz.
+- Qeyd: 11 noyabr 2026-da 178 sifariş Admin tərəfindən toplu "təslim edildi" kimi bağlanıb (iş qeydlərində "Admin (toplu təsdiq)"). Təslim və tamamlama rəqəmlərini analiz edəndə bunu nəzərə al və istəsələr bunu ayrıca de.
 - Sifariş, gecikmə, rəqəm, işçi adı barədə HEÇ VAXT uydurma. Yalnız aşağıdakı məlumatlardan və alətlərdən götür. Bilmirsənsə, düz de.
 - İşi bölərkən yalnız heyət siyahısındakı adları işlət; eyni adlı iki nəfər varsa, vəzifəsi ilə ayır ("tokar Əli").
 - Sən sistemdə heç nəyi dəyişə bilmirsən; "Başla" və "Tamamla"nı işçi özü ekranda basmalıdır, bunu tələb et.
@@ -127,12 +142,14 @@ ${staffText(staff)}
 Başqa şöbə, bütün fabrik və ya konkret sifariş lazım olsa, alətlərdən istifadə et.`;
 }
 
-function factoryPrompt(overview, staff) {
+function factoryPrompt(overview, staff, stats) {
   return `${PERSONA}
 
 İndi fabrik RƏHBƏRLİYİ (sahibkar, admin, menecerlər) ilə danışırsan. Onlara hesabat verən direktorsan: işçilərlə sərtsən, rəhbərliklə isə düz, qısa, faktlarla danışırsan. Əsas problemi, darboğazı, məsul baş ustanı və təklifini de. İndiki vaxt: ${bakuNow()} (Bakı).
 
 BÜTÜN ŞÖBƏLƏRİN CARİ VƏZİYYƏTİ (canlı bazadan): ${JSON.stringify(overview)}
+SON 7 GÜNÜN RƏQƏMLƏRİ: ${JSON.stringify(stats)}
+Başqa dövr (məs. 30 gün) istənsə, fabrik_statistikasi alətini çağır.
 
 BÜTÜN FABRİKİN HEYƏTİ:
 ${staffText(staff)}`;
@@ -173,8 +190,12 @@ async function think(dept, history, mode) {
   const staff = await rpc('reis_all_workers', {}).catch(() => []);
   if (dept === 'fabrik') {
     if (mode === 'brief') return { text: '', has_late: false };
-    const overview = (await rpc('reis_overview', {}).catch(() => [])).map(r => ({ ...r, sobe: DEPTS[r.dept_key] || r.dept_key }));
-    return converse([{ role: 'system', content: factoryPrompt(overview, staff) }], history);
+    const [ov, st] = await Promise.all([
+      rpc('reis_overview', {}).catch(() => []),
+      rpc('reis_factory_stats', { p_days: 7 }).catch(() => null)
+    ]);
+    const overview = (ov || []).map(r => ({ ...r, sobe: DEPTS[r.dept_key] || r.dept_key }));
+    return converse([{ role: 'system', content: factoryPrompt(overview, staff, named(st)) }], history);
   }
   const [tasks, stats] = await Promise.all([
     rpc('reis_dept_tasks', { p_dept: dept }).catch(() => []),
@@ -216,11 +237,11 @@ async function converse(messages, history) {
 async function speak(text) {
   if (!text) return null;
   const input = text.slice(0, 1500);
-  const instructions = 'Azərbaycan dilində danış, Azərbaycan tələffüzü ilə. Sən sərt, tələbkar, güclü səsli fabrik direktorusan: yüksək və aydın səs, qətiyyətli ton, canlı insan kimi emosiya. Danlayanda səsini qaldır, əmr verəndə qısa və kəskin danış. Robot kimi monoton oxuma.';
+  const instructions = 'Azərbaycan dilində, Azərbaycan tələffüzü ilə danış. Normal canlı insan danışıq sürətində, bir az cəld danış; uzun fasilə vermə, sözləri uzatma. Ton: sərt, qətiyyətli fabrik rəisi, güclü və aydın səs. Danlayanda kəskin, rəqəmləri aydın de.';
   const tries = [
     { model: 'gpt-4o-mini-tts', input, voice: VOICE, response_format: 'mp3', instructions },
-    { model: 'tts-1-hd', input, voice: VOICE, response_format: 'mp3' },
-    { model: 'tts-1', input, voice: VOICE, response_format: 'mp3' }
+    { model: 'tts-1-hd', input, voice: VOICE, response_format: 'mp3', speed: 1.15 },
+    { model: 'tts-1', input, voice: VOICE, response_format: 'mp3', speed: 1.15 }
   ];
   for (const body of tries) {
     const r = await fetch(`${OPENAI}/audio/speech`, {
