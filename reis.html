@@ -204,8 +204,9 @@ $('goBtn').onclick = async ()=>{
   S.history = [];
   ensureAudio();
   try{
-    S.stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-    S.stream.getTracks().forEach(t=>t.enabled=false);
+    const tmp = await navigator.mediaDevices.getUserMedia({audio:true});
+    tmp.getTracks().forEach(t=>t.stop());   // yalnız icazə üçün; açıq saxlanmır
+    S.stream = null;
     $('startErr').textContent='';
   }catch(e){
     $('startErr').textContent='Mikrofona icazə verilmədi — yalnız yazı ilə işləyəcək.';
@@ -222,8 +223,13 @@ function ensureAudio(){
   S.actx = new AC();
   S.analyser = S.actx.createAnalyser(); S.analyser.fftSize = 512;
   S.player = new Audio(); S.player.crossOrigin='anonymous';
+  S.player.volume = 1;
   const src = S.actx.createMediaElementSource(S.player);
-  src.connect(S.analyser); S.analyser.connect(S.actx.destination);
+  const gain = S.actx.createGain(); gain.gain.value = 2.2;           // səsi gücləndir
+  const comp = S.actx.createDynamicsCompressor();                    // cırıldamasın
+  comp.threshold.value = -12; comp.knee.value = 6; comp.ratio.value = 8; comp.attack.value = 0.003; comp.release.value = 0.15;
+  src.connect(S.analyser);
+  src.connect(gain); gain.connect(comp); comp.connect(S.actx.destination);
 }
 function level(an){
   const d = new Uint8Array(an.fftSize); an.getByteTimeDomainData(d);
@@ -310,10 +316,8 @@ async function startRec(){
   ensureAudio();
   if(S.player && !S.player.paused) S.player.pause();
   try{
-    if(!S.stream || S.stream.getTracks().every(t=>t.readyState==='ended'))
-      S.stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+    S.stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
   }catch(e){ setState('idle','Mikrofon icazəsi yoxdur — yazı ilə soruşun'); return; }
-  S.stream.getTracks().forEach(t=>t.enabled=true);
   const mime = pickMime();
   const rec = new MediaRecorder(S.stream, mime?{mimeType:mime}:undefined);
   const chunks=[]; rec.ondataavailable = e=>{ if(e.data.size) chunks.push(e.data); };
@@ -331,7 +335,7 @@ async function startRec(){
   };
   rec.onstop = async ()=>{
     try{ msrc.disconnect(); }catch(e){}
-    $('ring').style.strokeWidth=''; S.stream.getTracks().forEach(t=>t.enabled=false);
+    $('ring').style.strokeWidth=''; if(S.stream){ S.stream.getTracks().forEach(t=>t.stop()); S.stream=null; }
     $('mic').classList.remove('on'); $('micTitle').textContent='Bas və danış';
     const blob = new Blob(chunks,{type:rec.mimeType||mime||'audio/webm'});
     if(blob.size<1500){ setState('idle','Səs eşidilmədi, bir də cəhd edin'); return; }
