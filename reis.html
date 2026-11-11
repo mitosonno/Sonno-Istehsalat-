@@ -294,10 +294,15 @@ async function ask(text, opts={}){
   setState('thinking','Düşünür…');
   S.history.push({role:'user',content:text});
   try{
-    const d = await api({action:'chat', dept:S.dept, messages:S.history});
+    const d = await api({action:'chat', dept:S.dept, messages:S.history, speak:false});
     S.history.push({role:'assistant',content:d.text||''});
     $('a').className='a'; $('a').textContent = d.text || '—';
-    await play(d.audio, d.text);
+    if(d.text){
+      setState('thinking','Danışmağa hazırlaşır…');
+      let audio = null;
+      try{ audio = (await api({action:'tts', dept:S.dept, text:d.text})).audio; }catch(e){}
+      await play(audio, d.text);
+    } else setState('idle','Hazıram');
   }catch(e){
     $('a').className='a'; $('a').textContent='Bağışlayın, əlaqə alınmadı. Bir də cəhd edin.';
     setState('idle','Xəta: '+e.message);
@@ -370,8 +375,9 @@ async function brief(){
   if(h < 8.5 || h > 18.5) return;
   S.busy = true;
   try{
-    const d = await api({action:'brief', dept:S.dept});
+    const d = await api({action:'brief', dept:S.dept, speak:false});
     if(d.text){
+      try{ d.audio = (await api({action:'tts', dept:S.dept, text:d.text})).audio; }catch(e){}
       if(EMBED && window.parent !== window){ try{ window.parent.postMessage({type:'reis-alert', dept:S.dept}, location.origin); }catch(e){} }
       $('q').textContent = 'SonnoReis xəbərdarlıq edir';
       $('a').className='a'; $('a').textContent = d.text;
