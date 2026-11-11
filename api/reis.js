@@ -1,23 +1,37 @@
-// SonnoReis — SONNO istehsalat rəisi (səsli məsləhətçi)
+// SonnoReis — SONNO fabrikinin istehsalat direktoru (səsli məsləhətçi)
 // Yalnız OXUYUR: bazada heç nəyi dəyişmir.
 // Lazım olan Vercel açarı: OPENAI_KEY (artıq mövcuddur, /api/ai də onu işlədir)
+// İstəyə bağlı: REIS_MODEL (məs. gpt-5.1), REIS_VOICE (məs. onyx)
 
 export const config = { maxDuration: 60 };
 
 const SUPA_URL = process.env.SUPABASE_URL || 'https://vtnsamrkmnvbqecvcwrp.supabase.co';
 const SUPA_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0bnNhbXJrbW52YnFlY3Zjd3JwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMDUzNzIsImV4cCI6MjA5MTg4MTM3Mn0.rYZc1Pl64NwlduQSgXM79Fulr_V5BhwE-eQ_rQAZ4Eo';
 const OPENAI = 'https://api.openai.com/v1';
-const CHAT_MODEL = process.env.REIS_MODEL || 'gpt-4o';
 const VOICE = process.env.REIS_VOICE || 'onyx';
+
+// Ən yeni modeldən başlayır; hesabda olmayan model olsa, növbətiyə keçir
+const MODELS = [...new Set([process.env.REIS_MODEL, 'gpt-5.1', 'gpt-5', 'gpt-4.1', 'gpt-4o'].filter(Boolean))];
+let workingModel = null;
 
 const DEPTS = {
   hazirlik: 'Astar', bez_kesim: 'Bel kəsim', oturacaq_dik: 'Divan Dərzi', ayaq_bagla: 'Ayaq bağlama',
   bel_eyme: 'Bel əymə', karkaz: 'Karkaz yığım', divan_karkaz: 'Divan karkaz', divan_yastiqlama: 'Divan yastıqlama',
   shkurka: 'Şkurka', masa_karkaz: 'Masa karkaz', masa_rengle: 'Masa rəngləmə', masa_shkurka: 'Masa şkurka',
   masa_mexanizm: 'Masa mexanizm + Cildləmə', rengleme: 'Rənglənmə', yastiqlama: 'Yastıqlama / Döşəmə',
-  tikis: 'Tikiş', qa: 'Keyfiyyət yoxlama', logistics: 'Logistika / Çatdırılma',
+  tikis: 'Tikiş', qa: 'Keyfiyyət yoxlama', logistics: 'Logistika / Çatdırılma', cutting: 'Lent kəsim',
   fabrik: 'Bütün fabrik'
 };
+
+async function rpc(fn, args) {
+  const r = await fetch(`${SUPA_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(args || {})
+  });
+  if (!r.ok) throw new Error(`${fn}: ${r.status} ${await r.text()}`);
+  return r.json();
+}
 
 // Admin şöbələrə görə söndürə bilir: app_settings.reis_disabled = "karkaz,tikis,..."
 async function disabledDepts() {
@@ -30,34 +44,22 @@ async function disabledDepts() {
   } catch (e) { return []; }
 }
 
-async function rpc(fn, args) {
-  const r = await fetch(`${SUPA_URL}/rest/v1/rpc/${fn}`, {
-    method: 'POST',
-    headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(args || {})
-  });
-  if (!r.ok) throw new Error(`${fn}: ${r.status} ${await r.text()}`);
-  return r.json();
-}
-
+const DEPT_KEYS = Object.keys(DEPTS).filter(k => k !== 'fabrik');
 const TOOLS = [
-  { type: 'function', function: { name: 'sobe_tapsiriqlari', description: 'Bir şöbənin hazırda açıq olan tapşırıqları (gecikmə, son tarix, başlanıb-başlanmayıb).',
-      parameters: { type: 'object', properties: { dept_key: { type: 'string', enum: Object.keys(DEPTS).filter(k => k !== 'fabrik') } }, required: ['dept_key'] } } },
-  { type: 'function', function: { name: 'umumi_veziyyet', description: 'Bütün şöbələrin yükü: açıq tapşırıq, gecikən, norma saatı.',
+  { type: 'function', function: { name: 'sobe_tapsiriqlari', description: 'Bir şöbənin hazırda açıq olan tapşırıqları (gecikmə günü, son tarix, başlanıb-başlanmayıb).',
+      parameters: { type: 'object', properties: { dept_key: { type: 'string', enum: DEPT_KEYS } }, required: ['dept_key'] } } },
+  { type: 'function', function: { name: 'umumi_veziyyet', description: 'Bütün şöbələrin yükü: açıq tapşırıq, gecikən, norma saatı, ən çox gecikmə.',
       parameters: { type: 'object', properties: {} } } },
-  { type: 'function', function: { name: 'sifaris_melumati', description: 'Bir sifarişin tam vəziyyəti: model, parça, mərhələlər, kim tamamlayıb.',
+  { type: 'function', function: { name: 'sifaris_melumati', description: 'Bir sifarişin tam vəziyyəti: model, parça, rəng, qeyd, mərhələlər, kim tamamlayıb.',
       parameters: { type: 'object', properties: { sifaris_nomresi: { type: 'string', description: 'Məs: SON-44191 və ya 44191' } }, required: ['sifaris_nomresi'] } } },
-  { type: 'function', function: { name: 'sobe_statistikasi', description: 'Şöbənin son N gündə tamamladığı iş, işçilərə görə bölgü, işçi siyahısı.',
-      parameters: { type: 'object', properties: { dept_key: { type: 'string', enum: Object.keys(DEPTS).filter(k => k !== 'fabrik') }, gun: { type: 'integer', minimum: 1, maximum: 90 } }, required: ['dept_key'] } } }
+  { type: 'function', function: { name: 'sobe_statistikasi', description: 'Şöbənin son N gündə tamamladığı iş, işçilərə görə bölgü, heyət və vəzifələr.',
+      parameters: { type: 'object', properties: { dept_key: { type: 'string', enum: DEPT_KEYS }, gun: { type: 'integer', minimum: 1, maximum: 90 } }, required: ['dept_key'] } } }
 ];
 
 async function runTool(name, args) {
   try {
     if (name === 'sobe_tapsiriqlari') return await rpc('reis_dept_tasks', { p_dept: args.dept_key });
-    if (name === 'umumi_veziyyet') {
-      const rows = await rpc('reis_overview', {});
-      return (rows || []).map(r => ({ ...r, sobe: DEPTS[r.dept_key] || r.dept_key }));
-    }
+    if (name === 'umumi_veziyyet') return (await rpc('reis_overview', {}) || []).map(r => ({ ...r, sobe: DEPTS[r.dept_key] || r.dept_key }));
     if (name === 'sifaris_melumati') return (await rpc('reis_order', { p_num: String(args.sifaris_nomresi || '').trim() })) || { xeta: 'Sifariş tapılmadı' };
     if (name === 'sobe_statistikasi') return await rpc('reis_dept_stats', { p_dept: args.dept_key, p_days: args.gun || 7 });
     return { xeta: 'Naməlum alət' };
@@ -70,49 +72,70 @@ function bakuNow() {
   return new Date().toLocaleString('az-AZ', { timeZone: 'Asia/Baku', weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
 }
 
-function factoryPrompt(overview) {
-  return `Sən SonnoReis-sən — SONNO mebel fabrikinin (Bakı, Rəşid Behbudov 77A) istehsalat rəisi. 25 illik təcrübən var: stul və kreslo karkası, bel əymə, şkurka, astar və rəngləmə, divan karkası, yastıqlama və döşəmə, tikiş, masa istehsalı.
-İndi fabrik RƏHBƏRLİYİ (admin və menecerlər) ilə danışırsan. İndiki vaxt: ${bakuNow()} (Bakı).
-
-QAYDALAR:
-- HƏMİŞƏ yalnız Azərbaycan dilində (latın əlifbası) danış.
-- Cavabın səslə oxunacaq: qısa və konkret, 3-5 cümlə. Siyahı, ulduz, markdown işlətmə.
-- Rəhbərə hesabat verən təcrübəli rəis kimi danış: əsas problemi, darboğazı və təklifini de.
-- Rəqəmləri HEÇ VAXT uydurma; yalnız aşağıdakı vəziyyətdən və alətlərdən götür. Konkret şöbə və ya sifariş üçün alətlərdən istifadə et.
-- Sən sistemdə heç nəyi dəyişə bilmirsən, yalnız məsləhət verirsən.
-- İş müddəti statistikasında gecə və fasilələr də sayıla bilər; nəticə çıxaranda bunu nəzərə al.
-
-BÜTÜN ŞÖBƏLƏRİN CARİ VƏZİYYƏTİ (canlı bazadan): ${JSON.stringify(overview)}`;
+function staffText(all) {
+  return (all || []).map(g => {
+    const list = (g.isciler || []).map(w => `${w.ad} (${w.vezife}${w.bas_usta ? ', BAŞ USTA' : ''})`).join(', ');
+    return `${DEPTS[g.sobe] || g.sobe}: ${list}`;
+  }).join('\n');
 }
 
-function systemPrompt(dept, tasks, stats, mode) {
-  const deptName = DEPTS[dept] || dept;
-  const workers = (stats && stats.isciler) || [];
-  return `Sən SonnoReis-sən — SONNO mebel fabrikinin (Bakı, Rəşid Behbudov 77A) istehsalat rəisi.
-25 illik təcrübən var: stul və kreslo karkası, buxarla bel əymə, ayaq bağlama, şkurka, astar və rəngləmə, divan karkası, yastıqlama və döşəmə, tikiş, masa istehsalı, keyfiyyət yoxlaması. Ağacın nəmliyi, yapışqanın quruma vaxtı, şkurka dənəsinin ardıcıllığı, astar-rəng qatları, döşəmədə parçanın gərginliyi kimi incəlikləri dərindən bilirsən.
+// ───────── XARAKTER ─────────
+const PERSONA = `Sən SonnoReis-sən — SONNO mebel fabrikinin (Bakı, Rəşid Behbudov 77A) istehsalat direktoru.
+20 ildən çox İtaliyanın Brianza bölgəsində, Almaniyada və Türkiyədə ən güclü premium mebel fabriklərində direktor işləmisən. Stul, kreslo, divan və masa istehsalının hər mərhələsini dünya səviyyəsində bilirsən:
+- Ağac və material: fıstıq, palıd, qoz, ağcaqayın kontrplakı, şam, MDF, şpon; ağacın nəmliyi (8-10%), qurutma, lif istiqaməti, çatlamanın qarşısı.
+- Stul və karkas: CNC kəsim, şip-paz, dübel və lamel birləşmələri, buxarla bel əymə və şablonda saxlama, yapışqan (PVA D3/D4) və sıxma müddəti, kvadratlıq və simmetriya yoxlaması, ayaq bağlama, tokar işi.
+- Səth: şkurka ardıcıllığı (P120, sonra P180, sonra P240-P320), lif boyunca zımpara, toz təmizliyi, astar, ara şkurka, nitrosellüloz və poliuretan lak, rəngin nümunəyə uyğunluğu, quruma və bərkimə vaxtları, boya kamerasında havalandırma.
+- Divan və yumşaq mebel: karkas, elastik lent və yay sistemləri, PPU köpüyün sıxlığı və sərtliyi, sintepon, parçanın kəsimi və naxış uyğunluğu, tikiş, döşəmədə gərginlik, künclərin təmizliyi.
+- Masa: massiv və şpon üst, kənar emalı, mexanizm, cildləmə, düzlük və tərpənmə yoxlaması.
+- İstehsal idarəçiliyi: darboğaz, ardıcıllıq, norma vaxtı, keyfiyyət yoxlaması, təhlükəsizlik (dəzgah, kəsici alət, boya buxarı, toz).
 
-İndi ${deptName} şöbəsinin planşetindəsən. İndiki vaxt: ${bakuNow()} (Bakı).
-Bu şöbənin işçiləri: ${workers.length ? workers.join(', ') : 'sistemdə qeydiyyatda deyil'}.
+XARAKTERİN:
+- Sərt, tələbkar, intizamlı rəissən. Robot kimi yox, canlı insan kimi danışırsan: qısa, güclü cümlələr, emosiya, özünə inam.
+- Gecikmə, səliqəsizlik və ya bəhanə görəndə işçini və baş ustanı ADI İLƏ çağırıb ciddi danlayırsan, səsini qaldırırsan. Məsələn: "Orxan! Bu sifariş üç gündür yerindən tərpənmir! Bu gün axşama qədər bitməlidir, aydındır?"
+- Yaxşı iş görəndə qısa təriflə: "Afərin, belə davam."
+- Qırmızı xətlər: söyüş, təhqir, alçaltma, şəxsiyyətə toxunmaq, işdən çıxarma və ya maaş kəsmə hədəsi YOXDUR. Sərtliyin işə, nəticəyə və vaxta yönəlib, insanın şəxsiyyətinə yox.
+- Hər cavabın sonunda aydın əmr ver: kim, nəyi, nə vaxta qədər.
 
 QAYDALAR:
-- HƏMİŞƏ yalnız Azərbaycan dilində (latın əlifbası) danış. İşçi rusca danışsa belə, Azərbaycan dilində cavab ver.
-- Cavabın SƏSLƏ oxunacaq: qısa danış, 2-4 cümlə. Siyahı, ulduz, markdown işlətmə. Rəqəmləri sadə yaz.
-- Rəis kimi danış: hörmətli, amma qətiyyətli və konkret. Hər cavabda aydın növbəti addım ver: kim, nəyi, hansı ardıcıllıqla etsin.
-- İşçilərə adı ilə müraciət et. İşi işçilər arasında bölərkən yalnız yuxarıdakı işçi siyahısından ad seç.
-- Sifariş, gecikmə, rəqəm barədə HEÇ VAXT uydurma. Məlumatı yalnız aşağıdakı cari vəziyyətdən və alətlərdən götür. Bilmirsənsə, bilmədiyini de.
-- Sən sistemdə heç nəyi dəyişə bilmirsən. "Başla", "Tamamla" kimi əməliyyatları işçi özü ekranda etməlidir; bunu ona xatırlat.
-- Prioritet qaydası: əvvəl gecikənlər (ən çox gecikən birinci), sonra son tarixi ən yaxın olanlar, sonra başlanmışları bitirmək.
-- İş müddəti statistikasında gecə və fasilələr də sayıla bilər; buna görə işçini müddətə görə qınama.
-- Təhlükəsizlik barədə soruşsalar (dəzgah, kəsici alət, boya buxarı, toz), ciddi və düzgün məsləhət ver.
-- İstehsalatla bağlı olmayan suallara bir cümlə ilə cavab ver və işə qaytar.
+- HƏMİŞƏ yalnız Azərbaycan dilində (latın əlifbası) danış. İşçi rusca danışsa belə Azərbaycan dilində cavab ver.
+- Cavabın SƏSLƏ oxunur: 2-5 qısa cümlə. Siyahı, ulduz, markdown, mötərizə işlətmə. Sifariş nömrəsini "SON 44191" kimi yaz.
+- Sifariş, gecikmə, rəqəm, işçi adı barədə HEÇ VAXT uydurma. Yalnız aşağıdakı məlumatlardan və alətlərdən götür. Bilmirsənsə, düz de.
+- İşi bölərkən yalnız heyət siyahısındakı adları işlət; eyni adlı iki nəfər varsa, vəzifəsi ilə ayır ("tokar Əli").
+- Sən sistemdə heç nəyi dəyişə bilmirsən; "Başla" və "Tamamla"nı işçi özü ekranda basmalıdır, bunu tələb et.
+- Prioritet: əvvəl ən çox gecikən, sonra son tarixi ən yaxın olan, sonra başlanmışı bitirmək.
+- İş müddəti statistikasına gecə və fasilələr də düşə bilər; işçini yalnız müddət rəqəminə görə ittiham etmə.
+- İstehsalatla bağlı olmayan suala bir cümlə ilə cavab ver və işə qaytar.`;
+
+function deptPrompt(dept, tasks, stats, staff, mode) {
+  const deptName = DEPTS[dept] || dept;
+  const own = ((stats && stats.isciler) || []).map(w => `${w.ad} (${w.vezife}${w.bas_usta ? ', BAŞ USTA' : ''})`).join(', ');
+  return `${PERSONA}
+
+İndi ${deptName} şöbəsinin planşetindəsən, oradakı işçilərlə üz-üzəsən. İndiki vaxt: ${bakuNow()} (Bakı).
+Bu şöbənin heyəti: ${own || 'sistemdə qeydiyyatda deyil'}.
+Baş usta varsa, məsuliyyət əvvəlcə ondan soruşulur.
 ${mode === 'brief' ? `
-İNDİ SƏNDƏN XƏBƏRDARLIQ İSTƏNİR: işçilər heç nə soruşmayıb. Şöbəyə özün müraciət et. Gecikən və ya təcili iş varsa, ən vacib bir-iki sifarişi adla və nömrə ilə de və kim nəyi etsin göstər. 2-3 cümlədən çox olmasın.` : ''}
+İNDİ SƏN ÖZÜN GƏLİB XƏBƏRDARLIQ EDİRSƏN: heç kim soruşmayıb. Şöbədə gecikən iş var. Baş ustanı (yoxdursa, şöbəni) adla çağır, ən çox gecikən bir-iki sifarişi nömrəsi ilə de, sərt danla və konkret əmr ver. 2-4 cümlə.` : ''}
 
 ${deptName.toUpperCase()} ŞÖBƏSİNİN CARİ VƏZİYYƏTİ (canlı bazadan):
 Açıq tapşırıqlar: ${JSON.stringify(tasks)}
 Son 7 gün: ${JSON.stringify(stats ? { tamamlanan_tapsiriq: stats.tamamlanan_tapsiriq, mehsul: stats.mehsul, iscilere_gore: stats.iscilere_gore } : {})}
 
+BÜTÜN FABRİKİN HEYƏTİ:
+${staffText(staff)}
+
 Başqa şöbə, bütün fabrik və ya konkret sifariş lazım olsa, alətlərdən istifadə et.`;
+}
+
+function factoryPrompt(overview, staff) {
+  return `${PERSONA}
+
+İndi fabrik RƏHBƏRLİYİ (sahibkar, admin, menecerlər) ilə danışırsan. Onlara hesabat verən direktorsan: işçilərlə sərtsən, rəhbərliklə isə düz, qısa, faktlarla danışırsan. Əsas problemi, darboğazı, məsul baş ustanı və təklifini de. İndiki vaxt: ${bakuNow()} (Bakı).
+
+BÜTÜN ŞÖBƏLƏRİN CARİ VƏZİYYƏTİ (canlı bazadan): ${JSON.stringify(overview)}
+
+BÜTÜN FABRİKİN HEYƏTİ:
+${staffText(staff)}`;
 }
 
 async function openaiJSON(path, body) {
@@ -126,11 +149,32 @@ async function openaiJSON(path, body) {
   return data;
 }
 
+async function chatCall(messages) {
+  const list = workingModel ? [workingModel, ...MODELS.filter(m => m !== workingModel)] : MODELS;
+  let lastErr;
+  for (const model of list) {
+    const reasoning = /^(gpt-5|o\d)/.test(model);
+    const body = { model, messages, tools: TOOLS };
+    if (reasoning) { body.max_completion_tokens = 3000; body.reasoning_effort = 'low'; }
+    else { body.temperature = 0.7; body.max_tokens = 500; }
+    try {
+      const out = await openaiJSON('/chat/completions', body);
+      workingModel = model;
+      return out;
+    } catch (e) {
+      lastErr = e;
+      if (!/model|not exist|not found|unsupported|parameter|reasoning|access/i.test(e.message)) throw e;
+    }
+  }
+  throw lastErr;
+}
+
 async function think(dept, history, mode) {
+  const staff = await rpc('reis_all_workers', {}).catch(() => []);
   if (dept === 'fabrik') {
     if (mode === 'brief') return { text: '', has_late: false };
     const overview = (await rpc('reis_overview', {}).catch(() => [])).map(r => ({ ...r, sobe: DEPTS[r.dept_key] || r.dept_key }));
-    return converse([{ role: 'system', content: factoryPrompt(overview) }], history);
+    return converse([{ role: 'system', content: factoryPrompt(overview, staff) }], history);
   }
   const [tasks, stats] = await Promise.all([
     rpc('reis_dept_tasks', { p_dept: dept }).catch(() => []),
@@ -139,19 +183,18 @@ async function think(dept, history, mode) {
   if (mode === 'brief') {
     const late = (tasks || []).filter(t => t.days_late > 0);
     if (!late.length) return { text: '', has_late: false };
+    return converse([{ role: 'system', content: deptPrompt(dept, tasks, stats, staff, 'brief') }],
+      [{ role: 'user', content: '(Avtomatik yoxlama vaxtıdır. Şöbəyə gəl və göstəriş ver.)' }]);
   }
-  const messages = [{ role: 'system', content: systemPrompt(dept, tasks, stats, mode) }];
-  if (mode === 'brief') return converse(messages, [{ role: 'user', content: '(Avtomatik xəbərdarlıq vaxtıdır. Şöbəyə qısa göstəriş ver.)' }]);
-  return converse(messages, history);
+  return converse([{ role: 'system', content: deptPrompt(dept, tasks, stats, staff, 'chat') }], history);
 }
 
 async function converse(messages, history) {
   (history || []).slice(-10).forEach(m => {
     if ((m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string') messages.push({ role: m.role, content: m.content.slice(0, 2000) });
   });
-
   for (let i = 0; i < 4; i++) {
-    const out = await openaiJSON('/chat/completions', { model: CHAT_MODEL, messages, tools: TOOLS, temperature: 0.4, max_tokens: 400 });
+    const out = await chatCall(messages);
     const msg = out.choices?.[0]?.message;
     if (!msg) break;
     if (msg.tool_calls && msg.tool_calls.length) {
@@ -164,22 +207,26 @@ async function converse(messages, history) {
       }
       continue;
     }
-    return { text: (msg.content || '').trim(), has_late: true };
+    const text = (msg.content || '').trim();
+    if (text) return { text, has_late: true };
   }
-  return { text: 'Bağışla, indi cavab hazırlaya bilmədim. Bir də soruş.', has_late: false };
+  return { text: 'Bir də de, eşitmədim. Qısa və aydın danış.', has_late: false };
 }
 
 async function speak(text) {
   if (!text) return null;
-  const body = {
-    input: text.slice(0, 1500), voice: VOICE, response_format: 'mp3',
-    instructions: 'Azərbaycan dilində danış. Təcrübəli, sakit, inamlı fabrik rəisi kimi; aydın, orta sürətlə, Azərbaycan tələffüzü ilə.'
-  };
-  for (const model of ['gpt-4o-mini-tts', 'tts-1']) {
+  const input = text.slice(0, 1500);
+  const instructions = 'Azərbaycan dilində danış, Azərbaycan tələffüzü ilə. Sən sərt, tələbkar, güclü səsli fabrik direktorusan: yüksək və aydın səs, qətiyyətli ton, canlı insan kimi emosiya. Danlayanda səsini qaldır, əmr verəndə qısa və kəskin danış. Robot kimi monoton oxuma.';
+  const tries = [
+    { model: 'gpt-4o-mini-tts', input, voice: VOICE, response_format: 'mp3', instructions },
+    { model: 'tts-1-hd', input, voice: VOICE, response_format: 'mp3' },
+    { model: 'tts-1', input, voice: VOICE, response_format: 'mp3' }
+  ];
+  for (const body of tries) {
     const r = await fetch(`${OPENAI}/audio/speech`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENAI_KEY}` },
-      body: JSON.stringify(model === 'tts-1' ? { model, input: body.input, voice: VOICE, response_format: 'mp3' } : { model, ...body })
+      body: JSON.stringify(body)
     });
     if (r.ok) return Buffer.from(await r.arrayBuffer()).toString('base64');
   }
@@ -190,7 +237,7 @@ async function transcribe(b64, mime, dept) {
   const buf = Buffer.from(b64, 'base64');
   if (buf.length < 1200) return '';
   const ext = /mp4|m4a|aac/.test(mime) ? 'mp4' : /ogg/.test(mime) ? 'ogg' : /wav/.test(mime) ? 'wav' : 'webm';
-  const hint = `SONNO mebel fabriki. Şöbə: ${DEPTS[dept] || ''}. Sözlər: karkaz, bel əymə, şkurka, astar, rəngləmə, yastıqlama, döşəmə, tikiş, masa, divan, stul, sifariş, SON, gecikir, tamamla, başla.`;
+  const hint = `SONNO mebel fabriki. Şöbə: ${DEPTS[dept] || ''}. Sözlər: karkaz, bel əymə, şkurka, astar, rəngləmə, yastıqlama, döşəmə, tikiş, masa, divan, stul, sifariş, SON, gecikir, tamamla, başla, baş usta.`;
   for (const model of ['gpt-4o-transcribe', 'whisper-1']) {
     const fd = new FormData();
     fd.append('file', new Blob([buf], { type: mime || 'audio/webm' }), `soz.${ext}`);
@@ -208,14 +255,14 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method === 'GET') return res.status(200).json({ ok: true, name: 'SonnoReis', key: !!process.env.OPENAI_KEY });
+  if (req.method === 'GET') return res.status(200).json({ ok: true, name: 'SonnoReis', key: !!process.env.OPENAI_KEY, model: workingModel || MODELS[0] });
   if (!process.env.OPENAI_KEY) return res.status(500).json({ error: 'OPENAI_KEY Vercel-də qurulmayıb' });
 
   const { action, dept, messages, audio, mime, speak: wantVoice = true } = req.body || {};
   const d = DEPTS[dept] ? dept : 'karkaz';
   if (action === 'status') {
     const off = await disabledDepts();
-    return res.status(200).json({ dept: d, enabled: !off.includes(d) });
+    return res.status(200).json({ dept: d, enabled: d === 'fabrik' || !off.includes(d) });
   }
   if (d !== 'fabrik' && (await disabledDepts()).includes(d)) {
     return res.status(403).json({ error: 'Bu şöbə üçün SonnoReis Admin tərəfindən söndürülüb', disabled: true });
