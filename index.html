@@ -3771,12 +3771,20 @@ async function renderDeptTasks(dept, silent){
   if(!silent) showLoader();
   
   // Hamısı paralel — eyni vaxtda
-  const [ordersRes, allModels, logsRes] = await Promise.all([
+  // Aktiv və təslim edilmiş sifarişlər AYRI çəkilir: Supabase bir sorğuda maks. 1000 sətir qaytarır.
+  // Əvvəl hamısı bir sorğuda idi və təslim edilənlər artdıqca ən yeni aktiv işlər kəsilirdi.
+  const [activeOrdRes, doneOrdRes, allModels, logsRes] = await Promise.all([
     sb.from('orders')
       .select(ORDER_COLS)
-      .in('status', ['in_progress','created','late','ready','delivered','completed'])
+      .in('status', ['in_progress','created','late','ready'])
       .gt('current_stage', 0)
       .order('created_at', {ascending: true}),
+    sb.from('orders')
+      .select(ORDER_COLS)
+      .in('status', ['delivered','completed'])
+      .gt('current_stage', 0)
+      .order('created_at', {ascending: false})
+      .limit(1000),
     cachedModelsLight(),
     sb.from('task_logs')
       .select('id,order_id,stage_index,dept_key,started_at,completed_at,worker_name,action')
@@ -3784,7 +3792,8 @@ async function renderDeptTasks(dept, silent){
       .limit(500),
   ]);
   
-  const allOrders = ordersRes.data || [];
+  if(activeOrdRes.error) console.error('[ŞÖBƏ] aktiv sifarişlər xətası:', activeOrdRes.error);
+  const allOrders = [...(activeOrdRes.data || []), ...((doneOrdRes.data || []).slice().reverse())];
   const allLogs = logsRes.data || [];
   
   hideLoader();
