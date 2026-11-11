@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#111820">
+<title>SonnoReis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#111820; --ink2:#1A232E; --line:rgba(255,255,255,.10); --mute:#9AA3AE; --soft:#C9CED6;
+  --teal:#007565; --teal2:#2FB3A0; --orange:#F78930; --white:#FFFFFF;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--ink);color:var(--white);font-family:'Geist',system-ui,sans-serif}
+button{font:inherit;color:inherit}
+.app{min-height:100%;display:flex;flex-direction:column;padding:max(16px,env(safe-area-inset-top)) clamp(16px,3vw,40px) max(16px,env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand b{font-size:18px;letter-spacing:.22em;font-weight:700}
+.brand span{font-family:'Geist Mono',monospace;font-size:12px;color:var(--orange);letter-spacing:.06em}
+.dept{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);font-size:14px;font-weight:600;cursor:pointer}
+.dept i{width:8px;height:8px;border-radius:4px;background:var(--teal2);display:inline-block}
+
+main{flex:1;display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:center;padding:16px 0}
+@media (min-width:900px) and (orientation:landscape){ main{grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:40px} }
+
+.stage{display:flex;flex-direction:column;align-items:center;gap:14px}
+.avatar{width:min(64vw,340px);aspect-ratio:1;position:relative}
+.avatar svg{width:100%;height:100%;display:block;overflow:visible}
+.ring{transition:stroke .4s, opacity .4s}
+.state-idle .ring{stroke:var(--teal2);opacity:.35;animation:breathe 4s ease-in-out infinite}
+.state-listening .ring{stroke:var(--orange);opacity:1}
+.state-thinking .ring{stroke:var(--teal2);opacity:.9;stroke-dasharray:60 30;animation:spin 1.6s linear infinite;transform-origin:50% 50%}
+.state-speaking .ring{stroke:var(--teal2);opacity:.9}
+@keyframes breathe{0%,100%{opacity:.25}50%{opacity:.55}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.eye{transform-box:fill-box;transform-origin:center;animation:blink 5.5s infinite}
+@keyframes blink{0%,94%,100%{transform:scaleY(1)}96%{transform:scaleY(.1)}}
+#mouth{transform-box:fill-box;transform-origin:center;transition:transform .06s linear}
+.name{font-size:28px;font-weight:600;letter-spacing:-.01em}
+.status{font-size:15px;color:var(--mute);min-height:20px}
+
+.talk{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--ink2);border:1px solid var(--line);border-radius:22px;padding:20px 22px;min-height:180px;display:flex;flex-direction:column;gap:12px}
+.q{font-size:14px;color:var(--mute);line-height:1.45}
+.q b{color:var(--soft);font-weight:600}
+.a{font-size:clamp(20px,2.6vw,26px);line-height:1.4;font-weight:500;letter-spacing:-.005em}
+.a.empty{color:var(--mute);font-weight:400}
+
+.controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.mic{width:96px;height:96px;border-radius:48px;border:0;background:var(--orange);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;box-shadow:0 0 0 0 rgba(247,137,48,.5);transition:transform .15s}
+.mic:active{transform:scale(.96)}
+.mic.on{background:var(--white);box-shadow:0 0 0 10px rgba(247,137,48,.25)}
+.mic[disabled]{opacity:.5}
+.mic-label{display:flex;flex-direction:column;gap:2px}
+.mic-label b{font-size:18px;font-weight:600}
+.mic-label span{font-size:13px;color:var(--mute)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);font-size:14px;cursor:pointer}
+.chip:hover{background:rgba(255,255,255,.08)}
+.typer{display:flex;gap:8px}
+.typer input{flex:1;min-width:0;min-height:48px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--white);padding:0 14px;font:inherit;font-size:16px}
+.typer input::placeholder{color:var(--mute)}
+.typer button{min-height:48px;padding:0 18px;border-radius:14px;border:0;background:var(--teal);font-weight:600;cursor:pointer}
+
+footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--mute);padding-top:8px;border-top:1px solid var(--line)}
+.toggle{display:flex;align-items:center;gap:10px;cursor:pointer;min-height:44px}
+.toggle input{width:20px;height:20px;accent-color:var(--teal2)}
+
+.overlay{position:fixed;inset:0;background:var(--ink);display:flex;align-items:center;justify-content:center;padding:24px;z-index:10;overflow:auto}
+.overlay[hidden]{display:none}
+.panel{width:100%;max-width:760px;display:flex;flex-direction:column;gap:18px}
+.panel h1{margin:0;font-size:clamp(28px,4vw,40px);letter-spacing:-.02em;font-weight:600}
+.panel p{margin:0;color:var(--soft);font-size:16px;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.grid button{min-height:56px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.04);font-size:15px;font-weight:500;text-align:left;padding:10px 14px;cursor:pointer}
+.grid button.sel{border-color:var(--teal2);background:rgba(47,179,160,.14)}
+.go{min-height:60px;border-radius:16px;border:0;background:var(--orange);color:var(--ink);font-size:18px;font-weight:700;cursor:pointer}
+.go[disabled]{opacity:.4}
+.err{color:#FFB38A;font-size:14px;min-height:18px}
+</style>
+</head>
+<body>
+<div class="app state-idle" id="app">
+  <header>
+    <div class="brand"><b>SONNO</b><span>REIS</span></div>
+    <button class="dept" id="deptBtn" type="button" aria-label="Şöbəni dəyiş"><i></i><span id="deptName">—</span></button>
+  </header>
+
+  <main>
+    <section class="stage" aria-label="SonnoReis">
+      <div class="avatar" aria-hidden="true">
+        <svg viewBox="0 0 200 200">
+          <circle class="ring" cx="100" cy="100" r="94" fill="none" stroke-width="3" stroke-linecap="round" id="ring"></circle>
+          <circle cx="100" cy="100" r="80" fill="#1A232E"></circle>
+          <path d="M44 86 A56 56 0 0 1 156 86 L156 92 L44 92 Z" fill="#F78930"></path>
+          <rect x="94" y="40" width="12" height="20" rx="4" fill="#F78930"></rect>
+          <rect x="36" y="88" width="128" height="8" rx="4" fill="#C96A1E"></rect>
+          <rect class="eye" x="72" y="110" width="14" height="20" rx="7" fill="#FFFFFF"></rect>
+          <rect class="eye" x="114" y="110" width="14" height="20" rx="7" fill="#FFFFFF"></rect>
+          <rect id="mouth" x="84" y="146" width="32" height="8" rx="4" fill="#2FB3A0"></rect>
+        </svg>
+      </div>
+      <div class="name">SonnoReis</div>
+      <div class="status" id="status" aria-live="polite">Hazıram</div>
+    </section>
+
+    <section class="talk">
+      <div class="card" aria-live="polite">
+        <div class="q" id="q">Sualınızı səslə və ya yazı ilə verin.</div>
+        <div class="a empty" id="a">Məsələn: "Bu gün nədən başlayaq?"</div>
+      </div>
+      <div class="controls">
+        <button class="mic" id="mic" type="button" aria-label="Danışmaq üçün bas">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>
+        </button>
+        <div class="mic-label"><b id="micTitle">Bas və danış</b><span id="micSub">Danışıb bitirəndə özü dayanır</span></div>
+      </div>
+      <div class="chips">
+        <button class="chip" type="button" data-q="Bu gün nədən başlayaq? İşi necə bölək?">Bu gün nədən başlayaq?</button>
+        <button class="chip" type="button" data-q="Bizim şöbədə hansı sifarişlər gecikir?">Gecikənlər</button>
+        <button class="chip" type="button" data-q="Son bir həftədə şöbəmiz necə işləyib?">Həftənin nəticəsi</button>
+      </div>
+      <form class="typer" id="typer">
+        <label for="txt" style="position:absolute;left:-9999px">Sual yazın</label>
+        <input id="txt" type="text" placeholder="Və ya yazın…" autocomplete="off">
+        <button type="submit">Göndər</button>
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    <label class="toggle"><input type="checkbox" id="auto" checked> Gecikmə olanda özü xəbərdarlıq etsin (hər 20 dəqiqə)</label>
+    <span id="clock"></span>
+  </footer>
+</div>
+
+<div class="overlay" id="start">
+  <div class="panel">
+    <h1>SonnoReis</h1>
+    <p>Bu planşet hansı şöbədədir? Seçin və başlayın. Mikrofon icazəsi istəniləndə "İcazə ver" basın.</p>
+    <div class="grid" id="deptGrid"></div>
+    <div class="err" id="startErr"></div>
+    <button class="go" id="goBtn" type="button" disabled>Başla</button>
+  </div>
+</div>
+
+<script>
+const API = '/api/reis';
+const DEPTS = {
+  karkaz:'Karkaz yığım', bel_eyme:'Bel əymə', bez_kesim:'Bel kəsim', ayaq_bagla:'Ayaq bağlama', hazirlik:'Astar',
+  shkurka:'Şkurka', rengleme:'Rənglənmə', divan_karkaz:'Divan karkaz', divan_yastiqlama:'Divan yastıqlama',
+  oturacaq_dik:'Divan Dərzi', yastiqlama:'Yastıqlama / Döşəmə', tikis:'Tikiş', masa_karkaz:'Masa karkaz',
+  masa_shkurka:'Masa şkurka', masa_rengle:'Masa rəngləmə', masa_mexanizm:'Masa mexanizm + Cildləmə',
+  qa:'Keyfiyyət yoxlama', logistics:'Logistika / Çatdırılma'
+};
+const $ = id => document.getElementById(id);
+const S = { dept:null, history:[], busy:false, rec:null, stream:null, lastTalk:0, actx:null, analyser:null, player:null, raf:0 };
+
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+
+// ---------- Şöbə seçimi ----------
+function buildGrid(){
+  const g = $('deptGrid'); g.innerHTML = '';
+  Object.entries(DEPTS).forEach(([k,n])=>{
+    const b = document.createElement('button'); b.type='button'; b.textContent=n;
+    if(k===S.dept) b.classList.add('sel');
+    b.onclick = ()=>{ S.dept=k; [...g.children].forEach(c=>c.classList.remove('sel')); b.classList.add('sel'); $('goBtn').disabled=false; };
+    g.appendChild(b);
+  });
+  $('goBtn').disabled = !S.dept;
+}
+const urlDept = new URLSearchParams(location.search).get('dept');
+S.dept = (urlDept && DEPTS[urlDept]) ? urlDept : (DEPTS[lsGet('reis_dept')] ? lsGet('reis_dept') : null);
+buildGrid();
+$('deptBtn').onclick = ()=>{ buildGrid(); $('start').hidden=false; };
+
+$('goBtn').onclick = async ()=>{
+  if(!S.dept) return;
+  lsSet('reis_dept', S.dept);
+  $('deptName').textContent = DEPTS[S.dept];
+  S.history = [];
+  ensureAudio();
+  try{
+    S.stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+    S.stream.getTracks().forEach(t=>t.enabled=false);
+    $('startErr').textContent='';
+  }catch(e){
+    $('startErr').textContent='Mikrofona icazə verilmədi — yalnız yazı ilə işləyəcək.';
+  }
+  $('start').hidden = true;
+  keepAwake();
+  setState('idle','Hazıram');
+};
+
+// ---------- Səs / avatar ----------
+function ensureAudio(){
+  if(S.actx) { if(S.actx.state==='suspended') S.actx.resume(); return; }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  S.actx = new AC();
+  S.analyser = S.actx.createAnalyser(); S.analyser.fftSize = 512;
+  S.player = new Audio(); S.player.crossOrigin='anonymous';
+  const src = S.actx.createMediaElementSource(S.player);
+  src.connect(S.analyser); S.analyser.connect(S.actx.destination);
+}
+function level(an){
+  const d = new Uint8Array(an.fftSize); an.getByteTimeDomainData(d);
+  let s=0; for(let i=0;i<d.length;i++){ const v=(d[i]-128)/128; s+=v*v; } return Math.sqrt(s/d.length);
+}
+function setState(st, text){
+  $('app').className = 'app state-'+st;
+  if(text!==undefined) $('status').textContent = text;
+  if(st!=='speaking') $('mouth').style.transform='scaleY(1)';
+}
+function animateMouth(){
+  cancelAnimationFrame(S.raf);
+  const tick = ()=>{
+    if(!S.player || S.player.paused){ $('mouth').style.transform='scaleY(1)'; return; }
+    const l = level(S.analyser);
+    $('mouth').style.transform = 'scaleY('+(1+Math.min(l*14,3.2)).toFixed(2)+')';
+    S.raf = requestAnimationFrame(tick);
+  };
+  S.raf = requestAnimationFrame(tick);
+}
+function chime(){
+  if(!S.actx) return;
+  const o=S.actx.createOscillator(), g=S.actx.createGain(); o.connect(g); g.connect(S.actx.destination);
+  o.frequency.value=880; g.gain.setValueAtTime(0.0001,S.actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.25,S.actx.currentTime+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,S.actx.currentTime+0.5);
+  o.start(); o.stop(S.actx.currentTime+0.55);
+}
+function play(b64, text){
+  return new Promise(res=>{
+    if(b64 && S.player){
+      ensureAudio();
+      S.player.src = 'data:audio/mpeg;base64,'+b64;
+      S.player.onended = ()=>{ setState('idle','Hazıram'); res(); };
+      S.player.onerror = ()=>{ setState('idle','Hazıram'); res(); };
+      setState('speaking','Danışır…');
+      S.player.play().then(animateMouth).catch(()=>{ setState('idle','Səsi eşitmək üçün ekrana bir dəfə toxunun'); res(); });
+    } else if('speechSynthesis' in window && text && speechSynthesis.getVoices().some(v=>/^az/i.test(v.lang))){
+      const u = new SpeechSynthesisUtterance(text); u.lang='az-AZ';
+      u.onend = ()=>{ setState('idle','Hazıram'); res(); };
+      setState('speaking','Danışır…'); speechSynthesis.speak(u);
+    } else { setState('idle','Hazıram'); res(); }
+  });
+}
+
+// ---------- Server ----------
+async function api(body){
+  const r = await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.error || ('Xəta '+r.status));
+  return d;
+}
+async function ask(text, opts={}){
+  text = (text||'').trim(); if(!text || S.busy) return;
+  if(Date.now()-S.lastTalk > 3*60*1000) S.history = [];
+  S.lastTalk = Date.now();
+  S.busy = true; $('mic').disabled = true;
+  if(S.player && !S.player.paused) S.player.pause();
+  $('q').innerHTML = ''; const b=document.createElement('b'); b.textContent='Siz: '; $('q').append(b, document.createTextNode(text));
+  $('a').className='a empty'; $('a').textContent='…';
+  setState('thinking','Düşünür…');
+  S.history.push({role:'user',content:text});
+  try{
+    const d = await api({action:'chat', dept:S.dept, messages:S.history});
+    S.history.push({role:'assistant',content:d.text||''});
+    $('a').className='a'; $('a').textContent = d.text || '—';
+    await play(d.audio, d.text);
+  }catch(e){
+    $('a').className='a'; $('a').textContent='Bağışlayın, əlaqə alınmadı. Bir də cəhd edin.';
+    setState('idle','Xəta: '+e.message);
+  }finally{
+    S.busy=false; $('mic').disabled=false; S.lastTalk = Date.now();
+  }
+}
+
+// ---------- Mikrofon (bas, danış — susanda özü dayanır) ----------
+function pickMime(){
+  const c=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'];
+  for(const m of c) if(window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m;
+  return '';
+}
+async function startRec(){
+  if(S.busy) return;
+  ensureAudio();
+  if(S.player && !S.player.paused) S.player.pause();
+  try{
+    if(!S.stream || S.stream.getTracks().every(t=>t.readyState==='ended'))
+      S.stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+  }catch(e){ setState('idle','Mikrofon icazəsi yoxdur — yazı ilə soruşun'); return; }
+  S.stream.getTracks().forEach(t=>t.enabled=true);
+  const mime = pickMime();
+  const rec = new MediaRecorder(S.stream, mime?{mimeType:mime}:undefined);
+  const chunks=[]; rec.ondataavailable = e=>{ if(e.data.size) chunks.push(e.data); };
+  S.rec = rec;
+  const micAn = S.actx.createAnalyser(); micAn.fftSize=512;
+  const msrc = S.actx.createMediaStreamSource(S.stream); msrc.connect(micAn);
+  let spoke=false, quietSince=0; const t0=Date.now();
+  const watch = ()=>{
+    if(rec.state!=='recording') return;
+    const l = level(micAn);
+    $('ring').style.strokeWidth = (3+Math.min(l*60,9)).toFixed(1);
+    if(l>0.035){ spoke=true; quietSince=0; } else if(spoke){ quietSince = quietSince||Date.now(); }
+    if((spoke && quietSince && Date.now()-quietSince>1600) || Date.now()-t0>20000) { stopRec(); return; }
+    requestAnimationFrame(watch);
+  };
+  rec.onstop = async ()=>{
+    try{ msrc.disconnect(); }catch(e){}
+    $('ring').style.strokeWidth=''; S.stream.getTracks().forEach(t=>t.enabled=false);
+    $('mic').classList.remove('on'); $('micTitle').textContent='Bas və danış';
+    const blob = new Blob(chunks,{type:rec.mimeType||mime||'audio/webm'});
+    if(blob.size<1500){ setState('idle','Səs eşidilmədi, bir də cəhd edin'); return; }
+    setState('thinking','Eşitdim, anlayıram…');
+    try{
+      const b64 = await new Promise((ok,no)=>{ const fr=new FileReader(); fr.onload=()=>ok(String(fr.result).split(',')[1]); fr.onerror=no; fr.readAsDataURL(blob); });
+      const d = await api({action:'stt', dept:S.dept, audio:b64, mime:blob.type});
+      if(!d.text){ setState('idle','Səs aydın deyildi, bir də deyin'); return; }
+      await ask(d.text);
+    }catch(e){ setState('idle','Səs tanınmadı: '+e.message); }
+  };
+  rec.start();
+  $('mic').classList.add('on'); $('micTitle').textContent='Dinləyirəm…';
+  setState('listening','Dinləyirəm…');
+  requestAnimationFrame(watch);
+}
+function stopRec(){ if(S.rec && S.rec.state==='recording') S.rec.stop(); }
+$('mic').onclick = ()=>{ if(S.rec && S.rec.state==='recording') stopRec(); else startRec(); };
+
+document.querySelectorAll('.chip').forEach(c=> c.onclick = ()=>{ ensureAudio(); ask(c.dataset.q); });
+$('typer').onsubmit = e=>{ e.preventDefault(); ensureAudio(); const v=$('txt').value; $('txt').value=''; ask(v); };
+
+// ---------- Avtomatik xəbərdarlıq ----------
+$('auto').checked = lsGet('reis_auto') !== '0';
+$('auto').onchange = ()=> lsSet('reis_auto', $('auto').checked?'1':'0');
+async function brief(){
+  if(!$('auto').checked || S.busy || !S.dept || !$('start').hidden) return;
+  if(S.rec && S.rec.state==='recording') return;
+  if(Date.now()-S.lastTalk < 2*60*1000) return;
+  const h = new Date().getHours()+new Date().getMinutes()/60;
+  if(h < 8.5 || h > 18.5) return;
+  S.busy = true;
+  try{
+    const d = await api({action:'brief', dept:S.dept});
+    if(d.text){
+      $('q').textContent = 'SonnoReis xəbərdarlıq edir';
+      $('a').className='a'; $('a').textContent = d.text;
+      chime(); await new Promise(r=>setTimeout(r,600));
+      S.busy = false; await play(d.audio, d.text);
+    }
+  }catch(e){} finally { S.busy=false; }
+}
+setInterval(brief, 20*60*1000);
+
+// ---------- Ekran sönməsin, saat ----------
+async function keepAwake(){ try{ if('wakeLock' in navigator){ await navigator.wakeLock.request('screen'); } }catch(e){} }
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') keepAwake(); });
+function tickClock(){ $('clock').textContent = new Date().toLocaleString('az-AZ',{weekday:'long',hour:'2-digit',minute:'2-digit'}); }
+tickClock(); setInterval(tickClock, 30000);
+if(S.dept) $('deptName').textContent = DEPTS[S.dept];
+</script>
+</body>
+</html>
