@@ -259,6 +259,22 @@ async function think(dept, history, mode) {
   return converse([{ role: 'system', content: deptPrompt(dept, tasks, stats, staff, 'chat') }], history, dept);
 }
 
+async function composeCommand(dept, cmdText, worker) {
+  const staff = await rpc('reis_all_workers', {}).catch(() => []);
+  const [rawTasks, rawStats] = await Promise.all([
+    rpc('reis_dept_tasks', { p_dept: dept }).catch(() => []),
+    rpc('reis_dept_stats', { p_dept: dept, p_days: 7 }).catch(() => null)
+  ]);
+  const tasks = stripFinance(rawTasks), stats = stripFinance(rawStats);
+  const sys = deptPrompt(dept, tasks, stats, staff, 'chat') + `
+
+İNDİ RƏHBƏRLİKDƏN TAPŞIRIQ GƏLİB və sən onu şöbəyə SƏSLƏ çatdırırsan (heç kim soruşmayıb).
+Tapşırığın mətni: "${String(cmdText).slice(0, 1000)}"
+Kimə: ${worker ? worker : 'bütün şöbəyə (baş usta varsa, ona müraciət et)'}
+Necə de: işçini adla çağır, "Rəhbərlikdən tapşırıq var" de, tapşırığı aydın çatdır. Tapşırıq gecikmələrə, sifarişlərə aiddirsə, yuxarıdakı canlı məlumatdan konkret nömrə və gün sayı əlavə et. Tapşırıqda olmayan yeni əmr uydurma. Sonda "Eşitdinsə, ekranda Eşitdim düyməsini bas" de. 2-5 qısa cümlə. Qiymət, müştəri, maliyyə yoxdur.`;
+  return converse([{ role: 'system', content: sys }], [{ role: 'user', content: '(Tapşırığı indi şöbəyə çatdır.)' }], dept);
+}
+
 async function converse(messages, history, scope) {
   (history || []).slice(-10).forEach(m => {
     if ((m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string') messages.push({ role: m.role, content: m.content.slice(0, 2000) });
@@ -338,6 +354,11 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Bu şöbə üçün SonnoReis Admin tərəfindən söndürülüb', disabled: true });
   }
   try {
+    if (action === 'command') {
+      if (d === 'fabrik') return res.status(400).json({ error: 'Tapşırıq şöbəyə göndərilməlidir' });
+      const out = await composeCommand(d, String(req.body.text || ''), String(req.body.worker || '').trim());
+      return res.status(200).json({ text: out.text });
+    }
     if (action === 'tts') {
       const audioB64 = await speak(String(req.body.text || ''));
       return res.status(200).json({ audio: audioB64 });
