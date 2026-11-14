@@ -315,6 +315,176 @@ textarea{resize:vertical;min-height:80px}
   #toast{bottom:24px;right:24px}
 }
 </style>
+<style id="v2-skin">
+/* ═══════════ YENİ DİZAYN 2027 (html.v2) — yalnız görünüş, məntiqə toxunmur ═══════════ */
+html.v2{--bg:#F3F1EC;--bd:#E4E0D8;--t2:#5B6470;--t3:#7A838E;--lt:#E6F1EF;--lo:#FDE9D7;--r:12px;--rl:16px;--sidebar:232px}
+html.v2 body{font-family:'Geist',system-ui,-apple-system,sans-serif;background:#F3F1EC;font-feature-settings:'tnum' 1;-webkit-font-smoothing:antialiased}
+html.v2 button,html.v2 input,html.v2 select,html.v2 textarea,html.v2 .btn,html.v2 .login-btn,html.v2 .sidebar-item,html.v2 .pk,html.v2 .lf input{font-family:'Geist',system-ui,sans-serif}
+html.v2 [style*="DM Sans"]{font-family:'Geist',system-ui,sans-serif!important}
+html.v2 .mono,html.v2 [style*="DM Mono"],html.v2 .ot-time,html.v2 .pcard-h{font-family:'Geist Mono',ui-monospace,monospace!important}
+
+/* Giriş */
+html.v2 #login-screen{background:#111820}
+html.v2 .login-logo h1{letter-spacing:.22em;font-weight:700}
+html.v2 .login-card{border-radius:20px;background:rgba(255,255,255,.05)}
+html.v2 .lf input{min-height:50px;border-radius:12px;font-size:16px}
+html.v2 .login-btn{min-height:52px;border-radius:14px;color:#111820;font-weight:700;font-size:16px}
+
+/* Üst panel */
+html.v2 .topbar{height:60px;padding:0 20px}
+html.v2 .topbar-logo span{font-size:16px;letter-spacing:.22em;font-weight:700}
+html.v2 .topbar-title{font-size:15px;font-weight:600;color:#C9CED6}
+html.v2 .topbar-av{width:40px;height:40px;font-size:14px;color:#111820}
+html.v2 .sidebar{top:60px;height:calc(100vh - 60px);padding:18px 12px}
+
+/* Yan menyu + alt menyu ikonları (emoji → xətt ikon) */
+html.v2 .sidebar-item{font-size:15px;padding:12px;border-radius:10px;color:#9AA3AE;gap:12px}
+html.v2 .sidebar-item.on{background:rgba(255,255,255,.10);color:#fff;font-weight:600}
+html.v2 .si-icon,html.v2 .bni{font-size:0!important;width:22px;height:22px;display:inline-block;flex:0 0 22px;background:currentColor;-webkit-mask:var(--ic) center/22px 22px no-repeat;mask:var(--ic) center/22px 22px no-repeat}
+html.v2 .bottom-nav{padding:6px 4px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid #E4E0D8}
+html.v2 .bnav-item{color:#5B6470;gap:4px;min-height:52px;justify-content:center}
+html.v2 .bnav-item.on{color:#007565}
+html.v2 .bnav-label{font-size:11px;color:inherit}
+html.v2 .bnav-item.on .bnav-label{font-weight:600;color:#007565}
+html.v2 .bnav-item.on .bni::after{display:none}
+html.v2 #sbi-dash .si-icon,html.v2 #bnav-dash .bni{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8'%3E%3Crect x='3' y='3' width='7' height='9' rx='1.5'/%3E%3Crect x='14' y='3' width='7' height='5' rx='1.5'/%3E%3Crect x='14' y='12' width='7' height='9' rx='1.5'/%3E%3Crect x='3' y='16' width='7' height='5' rx='1.5'/%3E%3C/svg%3E")}
+html.v2 #sbi-order .si-icon,html.v2 #bnav-order .bni{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E")}
+html.v2 #sbi-allorders .si-icon,html.v2 #bnav-allorders .bni{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01'/%3E%3C/svg%3E")}
+html.v2 #sbi-dept .si-icon,html.v2 #bnav-dept .bni{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M3 21V10l6 4V10l6 4V6l6 3v12H3z'/%3E%3C/svg%3E")}
+html.v2 #sbi-ai .si-icon,html.v2 #bnav-ai .bni{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z'/%3E%3C/svg%3E")}
+html.v2 #sbi-admin .si-icon,html.v2 #bnav-admin .bni{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12'/%3E%3Ccircle cx='16' cy='6' r='2'/%3E%3Ccircle cx='10' cy='12' r='2'/%3E%3Ccircle cx='18' cy='18' r='2'/%3E%3C/svg%3E")}
+html.v2 #sbi-logi .si-icon,html.v2 #bnav-logi .bni{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M3 7h11v9H3zM14 10h4l3 3v3h-7z'/%3E%3Ccircle cx='7' cy='18' r='2'/%3E%3Ccircle cx='17' cy='18' r='2'/%3E%3C/svg%3E")}
+
+/* Səhifə başlıqları və kartlar */
+html.v2 #main-content{padding:28px 32px}
+html.v2 .pg-hd{font-size:28px;font-weight:600;letter-spacing:-.02em;margin-bottom:22px}
+html.v2 .slbl{font-size:12px;letter-spacing:.06em;color:#5B6470;margin:20px 0 10px}
+html.v2 .card,html.v2 .sec-card,html.v2 .tbl-wrap,html.v2 .stat-card,html.v2 .ai-card{border:1px solid #E4E0D8;border-radius:16px;box-shadow:none}
+html.v2 .sec-card-hd{background:transparent;padding:14px 18px}
+html.v2 .sec-card-hd h3{font-size:16px}
+html.v2 .kpi{border:1px solid #E4E0D8;border-radius:16px;padding:18px}
+html.v2 .kpi::before{display:none}
+html.v2 .kpi.kO{background:#F78930;border-color:#F78930}
+html.v2 .kpi.kO .kl,html.v2 .kpi.kO .ks{color:#3B1A04}
+html.v2 .kpi.kD{background:#111820;border-color:#111820;color:#fff}
+html.v2 .kpi.kD .kl,html.v2 .kpi.kD .ks{color:#9AA3AE}
+html.v2 .kl{font-size:13px;font-weight:500;letter-spacing:0;color:#5B6470}
+html.v2 .kv{font-size:32px;font-weight:600;letter-spacing:-.03em}
+html.v2 .stat-value{font-weight:600;letter-spacing:-.02em}
+html.v2 thead th{background:transparent;font-size:11px;color:#5B6470;padding:14px}
+html.v2 tbody td{padding:14px;font-size:14px;border-bottom:1px solid #EFECE6}
+html.v2 .list-item{padding:14px 16px;min-height:60px;border-bottom:1px solid #EFECE6}
+html.v2 .li-title{font-size:15px;font-weight:600}
+
+/* Düymələr və sahələr */
+html.v2 .btn{min-height:44px;border-radius:12px;font-size:14px;font-weight:600}
+html.v2 .btn-lg{min-height:56px;font-size:16px;border-radius:14px}
+html.v2 .btn-o{color:#111820}
+html.v2 .btn-ln{border:1px solid #E4E0D8;color:#111820;background:#fff}
+html.v2 input,html.v2 select,html.v2 textarea{min-height:46px;border:1px solid #E4E0D8;border-radius:12px;font-size:15px}
+html.v2 textarea{min-height:90px}
+html.v2 input[type=checkbox],html.v2 input[type=radio]{min-height:0}
+html.v2 label{color:#3D4652}
+html.v2 .badge{font-weight:700;padding:4px 10px}
+html.v2 .bT{background:#E6F1EF;color:#004F51}
+html.v2 .bO{background:#FDE9D7;color:#8A3B07}
+html.v2 .role-admin{background:#111820;color:#F78930}
+
+/* Model kartları (yeni sifariş) */
+html.v2 .pcard{border:1px solid #E4E0D8;border-radius:14px}
+html.v2 .pcard.sel{border:2px solid #007565;background:#E6F1EF;box-shadow:none}
+html.v2 .pcard-img{background:#EFECE6}
+html.v2 .pcard-name{font-size:14px}
+html.v2 .qb{width:44px;height:44px;border-radius:12px;border:1px solid #E4E0D8}
+
+/* Admin plitələri */
+html.v2 .admin-menu{gap:12px}
+html.v2 .ami{text-align:left;border:1px solid #E4E0D8;border-radius:16px;padding:18px;min-height:128px;display:flex;flex-direction:column;gap:6px;box-shadow:none}
+html.v2 .ami:hover{transform:none;border-color:#007565}
+html.v2 .ami-icon{font-size:0!important;width:44px;height:44px;border-radius:12px;background:#E6F1EF;margin-bottom:6px;position:relative}
+html.v2 .ami-icon::after{content:'';position:absolute;inset:11px;background:#007565;-webkit-mask:var(--ic) center/22px 22px no-repeat;mask:var(--ic) center/22px 22px no-repeat}
+html.v2 .ami-name{font-size:16px;font-weight:600}
+html.v2 .ami-sub{font-size:13px;color:#5B6470}
+html.v2 #ami-kalk{background:#111820;border-color:#111820;color:#fff}
+html.v2 #ami-kalk .ami-sub{color:#9AA3AE}
+html.v2 #ami-kalk .ami-icon{background:#F78930}
+html.v2 #ami-kalk .ami-icon::after{background:#111820}
+html.v2 .admin-menu .ami:nth-child(1) .ami-icon{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0'/%3E%3C/svg%3E")}
+html.v2 .admin-menu .ami:nth-child(2) .ami-icon{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M4 20V10M10 20V4M16 20v-7M22 20H2'/%3E%3C/svg%3E")}
+html.v2 .admin-menu .ami:nth-child(3) .ami-icon{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M16 20v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 20v-1a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8'/%3E%3C/svg%3E")}
+html.v2 .admin-menu .ami:nth-child(4) .ami-icon{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='11' cy='7' r='4'/%3E%3Cpath d='M11 11v10M8 18h6'/%3E%3C/svg%3E")}
+html.v2 .admin-menu .ami:nth-child(5) .ami-icon{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M4 11V8a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v3M2 13a2 2 0 0 1 4 0v2h12v-2a2 2 0 0 1 4 0v5H2zM5 18v2M19 18v2'/%3E%3C/svg%3E")}
+html.v2 .admin-menu .ami:nth-child(6) .ami-icon{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21a8 8 0 0 1 16 0'/%3E%3C/svg%3E")}
+html.v2 .admin-menu .ami:nth-child(7) .ami-icon{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M20 21a8 8 0 0 0-16 0'/%3E%3Ccircle cx='12' cy='8' r='5'/%3E%3C/svg%3E")}
+html.v2 .admin-menu .ami:nth-child(8) .ami-icon{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M3 21V10l6 4V10l6 4V6l6 3v12H3z'/%3E%3C/svg%3E")}
+html.v2 .admin-menu .ami:nth-child(9) .ami-icon{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M4 6h16M4 12h10M4 18h6'/%3E%3C/svg%3E")}
+html.v2 .admin-menu .ami:nth-child(10) .ami-icon{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1'/%3E%3C/svg%3E")}
+html.v2 .admin-menu .ami:nth-child(11) .ami-icon{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='5' y='3' width='14' height='18' rx='1.5'/%3E%3Cpath d='M8 7h8M8 12h2M14 12h2M8 16h2M14 16h2'/%3E%3C/svg%3E")}
+
+/* Şöbə ekranı: tapşırıq kartları */
+html.v2 .task-card{border-radius:20px;border:1px solid #E4E0D8;margin-bottom:14px}
+html.v2 .task-card-top{padding:16px 18px;border-bottom:1px solid #EFECE6}
+html.v2 .task-card-top.late{background:#FDE9D7}
+html.v2 .task-card-body{padding:16px 18px}
+html.v2 .sdot{height:6px;background:#EFECE6}
+html.v2 .tm-i{background:#F3F1EC;border-radius:12px;padding:10px 12px}
+html.v2 .tm-k{font-size:11px;color:#5B6470}
+html.v2 .tm-v{font-size:15px;font-weight:600}
+html.v2 .ts-box{border-radius:14px;padding:12px;font-size:14px;font-weight:600}
+html.v2 .ts-go{background:#FDE9D7;color:#6B2E05}
+html.v2 .ts-done{background:#E6F1EF;color:#004F51}
+html.v2 [id^="timer-"]{display:block;font-family:'Geist Mono',ui-monospace,monospace!important;font-size:30px!important;font-weight:500!important;letter-spacing:-.02em;line-height:1.1;text-align:center;background:#111820;color:#FFFFFF!important;border-radius:16px;padding:16px 14px!important;margin:10px 0!important}
+html.v2 .task-btns{gap:10px}
+html.v2 .task-btns .btn{min-height:64px;font-size:19px;font-weight:700;border-radius:16px}
+html.v2 .wchip{background:#E6F1EF;padding:5px 10px}
+
+/* PIN klaviatura */
+html.v2 .pk{height:76px;border-radius:18px;border:1px solid #E4E0D8;font-size:26px;font-weight:500}
+html.v2 .pdot{width:18px;height:18px}
+
+/* Pəncərələr, bildiriş */
+html.v2 .sheet-title{font-size:18px;font-weight:600}
+html.v2 #toast{border-radius:14px;font-weight:600}
+
+@media(max-width:768px){
+  html.v2 #main-content{padding:16px 16px calc(84px + env(safe-area-inset-bottom,0px))}
+  html.v2 .pg-hd{font-size:24px}
+  html.v2 .admin-menu{grid-template-columns:1fr 1fr!important}
+  html.v2 .ami{min-height:120px;padding:14px}
+  html.v2 .kv{font-size:28px}
+}
+</style>
+<script>
+// ═══════════ DİZAYN AÇARI (köhnə / yeni) — yalnız görünüş ═══════════
+(function(){
+  function want(){
+    try{
+      const q=new URLSearchParams(location.search).get('ui');
+      if(q==='v2'||q==='v1'){ localStorage.setItem('sonno_ui',q); }
+      return localStorage.getItem('sonno_ui')==='v2';
+    }catch(e){ return false; }
+  }
+  function fonts(){
+    if(document.getElementById('v2-fonts')) return;
+    const l=document.createElement('link'); l.id='v2-fonts'; l.rel='stylesheet';
+    l.href='https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap';
+    document.head.appendChild(l);
+  }
+  window.applyUiDesign=function(on){
+    document.documentElement.classList.toggle('v2', !!on);
+    if(on) fonts();
+  };
+  window.setUiDesign=function(on){
+    try{ localStorage.setItem('sonno_ui', on?'v2':'v1'); }catch(e){}
+    window.applyUiDesign(on);
+    const b=document.getElementById('ui-design-toggle');
+    if(b){ b.classList.toggle('on',!!on); b.classList.toggle('off',!on); }
+    if(typeof toast==='function') toast(on?'Yeni dizayn aktivdir':'Köhnə dizayna qayıdıldı');
+  };
+  window.isUiV2=function(){ return document.documentElement.classList.contains('v2'); };
+  window.applyUiDesign(want());
+})();
+</script>
 </head>
 <body>
 
@@ -8068,6 +8238,12 @@ async function renderSettingsSection(el){
   
   el.innerHTML = `
     <div class="slbl" style="margin-top:0">⚙️ Parametrlər</div>
+    <div class="sec-card card-pad" style="margin-bottom:14px">
+      <div class="perm-row" style="border:0;padding:0;gap:14px">
+        <div><div class="perm-label" style="font-size:15px">Yeni dizayn (2027)</div><div class="perm-sub">Yalnız görünüş dəyişir — sifarişlər, düymələr və məlumatlar eyni qalır. Seçim bu cihazda yadda qalır. Planşetdə açmaq üçün ünvanın sonuna <b>?ui=v2</b> yazın, köhnəyə qayıtmaq üçün <b>?ui=v1</b>.</div></div>
+        <button class="toggle ${(window.isUiV2&&isUiV2())?'on':'off'}" id="ui-design-toggle" aria-label="Yeni dizayn" onclick="setUiDesign(!isUiV2())"></button>
+      </div>
+    </div>
     <div class="sec-card card-pad" style="margin-bottom:14px">
       <div style="margin-bottom:16px">
         <label style="font-size:13px;font-weight:600;color:var(--dp);display:block;margin-bottom:6px">Gündəlik çatdırılma limiti (ədəd)</label>
