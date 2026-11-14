@@ -112,6 +112,7 @@ footer{display:flex;align-items:center;justify-content:space-between;gap:12px;fl
       <div class="card" aria-live="polite">
         <div class="q" id="q">Sualınızı səslə və ya yazı ilə verin.</div>
         <div class="a empty" id="a">Məsələn: "Bu gün nədən başlayaq?"</div>
+        <button type="button" id="heardBtn" hidden style="align-self:flex-start;min-height:56px;padding:0 24px;border:0;border-radius:16px;background:#2FB3A0;color:#111820;font-size:18px;font-weight:700;cursor:pointer">✓ Eşitdim</button>
       </div>
       <div class="controls">
         <button class="mic" id="mic" type="button" aria-label="Danışmaq üçün bas">
@@ -150,6 +151,16 @@ footer{display:flex;align-items:center;justify-content:space-between;gap:12px;fl
 
 <script>
 const API = '/api/reis';
+const SUPA_URL = 'https://vtnsamrkmnvbqecvcwrp.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0bnNhbXJrbW52YnFlY3Zjd3JwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMDUzNzIsImV4cCI6MjA5MTg4MTM3Mn0.rYZc1Pl64NwlduQSgXM79Fulr_V5BhwE-eQ_rQAZ4Eo';
+async function supa(path, opts={}){
+  const r = await fetch(SUPA_URL + '/rest/v1/' + path, {
+    ...opts,
+    headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal', ...(opts.headers||{}) }
+  });
+  if(!r.ok) throw new Error('Supabase ' + r.status);
+  return opts.method && opts.method !== 'GET' ? null : r.json();
+}
 const DEPTS = {
   fabrik:'Bütün fabrik (rəhbərlik)',
   karkaz:'Karkaz yığım', bel_eyme:'Bel əymə', bez_kesim:'Bel kəsim', ayaq_bagla:'Ayaq bağlama', hazirlik:'Astar',
@@ -368,7 +379,7 @@ $('typer').onsubmit = e=>{ e.preventDefault(); ensureAudio(); const v=$('txt').v
 $('auto').checked = lsGet('reis_auto') !== '0';
 $('auto').onchange = ()=> lsSet('reis_auto', $('auto').checked?'1':'0');
 async function brief(){
-  if(!$('auto').checked || S.busy || !S.dept || S.dept==='fabrik' || !$('start').hidden) return;
+  if(!$('auto').checked || S.busy || !S.dept || S.dept==='fabrik' || !$('start').hidden || S.cmd) return;
   if(S.rec && S.rec.state==='recording') return;
   if(Date.now()-S.lastTalk < 2*60*1000) return;
   const h = new Date().getHours()+new Date().getMinutes()/60;
@@ -387,6 +398,53 @@ async function brief(){
   }catch(e){} finally { S.busy=false; }
 }
 setInterval(brief, 20*60*1000);
+
+// ---------- Rəhbərlikdən tapşırıqlar ----------
+S.cmd = null;
+async function pollCommands(){
+  if(!S.dept || S.dept==='fabrik' || !$('start').hidden || S.busy) return;
+  if(S.rec && S.rec.state==='recording') return;
+  let rows = [];
+  try{
+    rows = await supa('reis_commands?select=id,dept_key,worker_name,text,status,played_at,play_count&dept_key=eq.' + encodeURIComponent(S.dept) + '&status=in.(pending,played)&order=created_at.asc&limit=5');
+  }catch(e){ return; }
+  const now = Date.now();
+  const next = (rows||[]).find(c => c.status==='pending' ||
+      (c.status==='played' && c.play_count < 3 && c.played_at && now - new Date(c.played_at).getTime() > 5*60*1000));
+  if(next) await runCommand(next);
+}
+async function runCommand(c){
+  S.busy = true; S.cmd = c;
+  try{
+    if(EMBED && window.parent !== window){ try{ window.parent.postMessage({type:'reis-alert', dept:S.dept}, location.origin); }catch(e){} }
+    $('q').textContent = 'Rəhbərlikdən tapşırıq' + (c.worker_name ? ' — ' + c.worker_name : '');
+    $('a').className='a'; $('a').textContent = '…';
+    setState('thinking','Tapşırıq gəldi…');
+    chime();
+    const d = await api({action:'command', dept:S.dept, text:c.text, worker:c.worker_name||''});
+    const say = (d && d.text) ? d.text : ((c.worker_name ? c.worker_name + '! ' : '') + 'Rəhbərlikdən tapşırıq var: ' + c.text);
+    $('a').textContent = say;
+    $('heardBtn').hidden = false;
+    let audio = null;
+    try{ audio = (await api({action:'tts', dept:S.dept, text:say})).audio; }catch(e){}
+    try{
+      await supa('reis_commands?id=eq.' + c.id, {method:'PATCH', body: JSON.stringify({status:'played', played_at:new Date().toISOString(), play_count:(c.play_count||0)+1, spoken_text: say})});
+    }catch(e){}
+    S.busy = false;
+    await play(audio, say);
+  }catch(e){
+    setState('idle','Tapşırıq səsləndirilmədi: ' + e.message);
+  }finally{ S.busy = false; S.lastTalk = Date.now(); }
+}
+$('heardBtn').onclick = async ()=>{
+  const c = S.cmd; $('heardBtn').hidden = true;
+  if(!c) return;
+  try{ await supa('reis_commands?id=eq.' + c.id, {method:'PATCH', body: JSON.stringify({status:'heard', heard_at:new Date().toISOString()})}); }catch(e){}
+  S.cmd = null;
+  $('q').textContent = 'Tapşırıq qəbul edildi';
+  setState('idle','Hazıram');
+};
+setInterval(pollCommands, 20*1000);
 
 // ---------- Ekran sönməsin, saat ----------
 async function keepAwake(){ try{ if('wakeLock' in navigator){ await navigator.wakeLock.request('screen'); } }catch(e){} }

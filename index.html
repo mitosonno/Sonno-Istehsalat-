@@ -891,6 +891,7 @@ textarea{resize:vertical;min-height:80px}
           <div class="ami" onclick="adminSec('deptanalytics')"><div class="ami-icon">🏭</div><div class="ami-name">Şöbə analitikası</div><div class="ami-sub">Detallı</div></div>
           <div class="ami" onclick="adminSec('deptsettings')"><div class="ami-icon">🔢</div><div class="ami-name">Şöbə limiti</div><div class="ami-sub">Kart sayı</div></div>
           <div class="ami" onclick="adminSec('settings')"><div class="ami-icon">⚙️</div><div class="ami-name">Parametrlər</div><div class="ami-sub">Limit & ayarlar</div></div>
+          <div class="ami" id="ami-kalk" onclick="adminSec('kalk')" style="display:none"><div class="ami-icon">🧮</div><div class="ami-name">Kalkulyasiya</div><div class="ami-sub">Maya dəyəri · yalnız admin</div></div>
         </div>
         <div id="admin-sec"></div>
       </div>
@@ -3669,28 +3670,69 @@ async function loadDeptCompletedStats(){
   const altDept = dept === 'tikis' ? 'tikiş' : (dept === 'tikiş' ? 'tikis' : null);
   const fromISO = fromStr + 'T00:00:00';
   const toISO = toStr + 'T23:59:59';
+  const esc = s => String(s==null?'':s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 
   try {
-    let query = sb.from('task_logs')
-      .select('id,order_id,stage_index,completed_at,dept_key')
-      .gte('completed_at', fromISO)
-      .lte('completed_at', toISO)
-      .not('completed_at','is',null)
-      .gte('stage_index', 0);
-
-    query = altDept ? query.in('dept_key', [dept, altDept]) : query.eq('dept_key', dept);
-
-    const {data: logs, error} = await query;
-    if(error) throw error;
-
-    const taskCount = (logs||[]).length;
-    const uniqueOrderIds = [...new Set((logs||[]).map(l=>l.order_id))];
-
-    let totalQty = 0;
-    if(uniqueOrderIds.length){
-      const {data: ordersData} = await sb.from('orders').select('id,qty').in('id', uniqueOrderIds);
-      totalQty = (ordersData||[]).reduce((sum,o)=>sum+(o.qty||0),0);
+    // Hissə-hissə çək (Supabase bir sorğuda maks. 1000 sətir qaytarır)
+    const logs = [];
+    for(let from = 0; from < 20000; from += 1000){
+      let q = sb.from('task_logs')
+        .select('id,order_id,stage_index,completed_at,dept_key,worker_name')
+        .gte('completed_at', fromISO)
+        .lte('completed_at', toISO)
+        .not('completed_at','is',null)
+        .gte('stage_index', 0)
+        .order('completed_at', {ascending:true})
+        .range(from, from + 999);
+      q = altDept ? q.in('dept_key', [dept, altDept]) : q.eq('dept_key', dept);
+      const {data, error} = await q;
+      if(error) throw error;
+      logs.push(...(data||[]));
+      if(!data || data.length < 1000) break;
     }
+
+    const taskCount = logs.length;
+    const uniqueOrderIds = [...new Set(logs.map(l=>l.order_id))];
+
+    const qtyMap = {};
+    for(let i = 0; i < uniqueOrderIds.length; i += 200){
+      const {data: ordersData} = await sb.from('orders').select('id,qty').in('id', uniqueOrderIds.slice(i, i+200));
+      (ordersData||[]).forEach(o => { qtyMap[o.id] = o.qty || 0; });
+    }
+    const totalQty = uniqueOrderIds.reduce((s,id)=>s+(qtyMap[id]||0),0);
+
+    // İşçilər üzrə bölgü
+    const deptNames = [dept, altDept, DEPT_INFO[dept] && DEPT_INFO[dept].name].filter(Boolean);
+    const byWorker = {};
+    logs.forEach(l=>{
+      const raw = (l.worker_name||'').trim();
+      const name = (!raw || deptNames.includes(raw)) ? 'Qeyd olunmayıb' : raw;
+      if(!byWorker[name]) byWorker[name] = {tasks:0, orders:new Set(), qty:0};
+      const w = byWorker[name];
+      w.tasks++;
+      if(!w.orders.has(l.order_id)){ w.orders.add(l.order_id); w.qty += (qtyMap[l.order_id]||0); }
+    });
+    const rows = Object.entries(byWorker)
+      .map(([name,w])=>({name, tasks:w.tasks, qty:w.qty, unknown: name==='Qeyd olunmayıb'}))
+      .sort((a,b)=> (a.unknown - b.unknown) || (b.tasks - a.tasks) || (b.qty - a.qty));
+    const maxTasks = Math.max(1, ...rows.filter(r=>!r.unknown).map(r=>r.tasks));
+
+    const workerHtml = rows.length ? `
+      <div style="margin-top:12px;border:1px solid var(--bd);border-radius:12px;overflow:hidden;background:#fff">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 72px 84px;gap:8px;padding:10px 12px;background:var(--lt);font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.03em">
+          <span>İşçi</span><span style="text-align:right">Tapşırıq</span><span style="text-align:right">Məhsul</span>
+        </div>
+        ${rows.map((r,i)=>`
+          <div style="padding:10px 12px;border-top:1px solid var(--bd);${r.unknown?'background:#FAFAF8;color:var(--t3)':''}">
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 72px 84px;gap:8px;align-items:center">
+              <span style="font-size:14px;font-weight:${r.unknown?'500':'700'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${!r.unknown && i===0 ? '🏆 ' : ''}${esc(r.name)}</span>
+              <span style="text-align:right;font-size:15px;font-weight:700">${r.tasks}</span>
+              <span style="text-align:right;font-size:15px;font-weight:700;color:var(--tl)">${r.qty} ədəd</span>
+            </div>
+            ${r.unknown ? `<div style="font-size:11px;margin-top:4px">"Kim tamamladı?" seçimi əlavə olunmazdan əvvəlki işlər</div>` :
+              `<div style="height:5px;border-radius:3px;background:#EFECE6;margin-top:6px;overflow:hidden"><div style="height:100%;width:${Math.round(r.tasks/maxTasks*100)}%;background:var(--tl);border-radius:3px"></div></div>`}
+          </div>`).join('')}
+      </div>` : '';
 
     resultEl.innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -3702,7 +3744,8 @@ async function loadDeptCompletedStats(){
           <div style="font-size:11px;color:var(--t2);font-weight:600">ÜMUMİ MƏHSUL</div>
           <div style="font-size:22px;font-weight:800;color:var(--tl)">${totalQty} ədəd</div>
         </div>
-      </div>`;
+      </div>
+      ${workerHtml}`;
   } catch(e){
     resultEl.innerHTML = '<div style="color:#E24B4A;font-size:12px">Xəta: '+e.message+'</div>';
   }
@@ -5160,6 +5203,71 @@ window.addEventListener('message', e=>{
   if(e.origin !== location.origin || !e.data) return;
   if(e.data.type === 'reis-alert' && window._reisDept === e.data.dept) openReis(e.data.dept);
 });
+async function reisCmdDeptChange(){
+  const d = document.getElementById('rc-dept')?.value;
+  const sel = document.getElementById('rc-worker');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">Bütün şöbəyə</option>';
+  if(!d) return;
+  const alt = d==='tikis' ? 'tikiş' : (d==='tikiş' ? 'tikis' : d);
+  const {data} = await sb.from('workers').select('name,role_title').in('dept_key',[d,alt]).order('name');
+  (data||[]).forEach(w=>{
+    const o = document.createElement('option');
+    o.value = w.name;
+    o.textContent = w.name + (w.role_title ? ' — ' + w.role_title : '');
+    sel.appendChild(o);
+  });
+}
+async function sendReisCommand(){
+  const d = document.getElementById('rc-dept')?.value;
+  const w = document.getElementById('rc-worker')?.value || null;
+  const t = (document.getElementById('rc-text')?.value || '').trim();
+  if(!d){ toast('⚠ Şöbəni seçin'); return; }
+  if(!t){ toast('⚠ Tapşırığı yazın'); return; }
+  showLoader();
+  const {error} = await sb.from('reis_commands').insert({dept_key:d, worker_name:w, text:t, created_by: currentUser?.name || 'Admin'});
+  hideLoader();
+  if(error){ toast('Xəta: ' + error.message); return; }
+  document.getElementById('rc-text').value = '';
+  toast('📣 Tapşırıq göndərildi');
+  loadReisCommands();
+}
+async function cancelReisCommand(id){
+  await sb.from('reis_commands').update({status:'cancelled'}).eq('id', id);
+  loadReisCommands();
+}
+async function loadReisCommands(){
+  const box = document.getElementById('rc-list');
+  if(!box) return;
+  const {data, error} = await sb.from('reis_commands').select('*').order('created_at',{ascending:false}).limit(15);
+  if(error){ box.innerHTML = '<div style="font-size:12px;color:#E24B4A">Siyahı yüklənmədi: ' + error.message + '</div>'; return; }
+  if(!data || !data.length){ box.innerHTML = '<div style="font-size:12px;color:var(--t3)">Hələ tapşırıq göndərilməyib.</div>'; return; }
+  const esc = s => String(s==null?'':s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const tm = x => x ? new Date(x).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'}) : '';
+  const dt = x => x ? new Date(x).toLocaleDateString('az-AZ',{day:'2-digit',month:'2-digit'}) : '';
+  const badge = r => {
+    if(r.status==='heard') return `<span style="background:#E6F1EF;color:#004F51;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700">✓ Eşitdi ${tm(r.heard_at)}</span>`;
+    if(r.status==='played') return `<span style="background:#FDE9D7;color:#6B2E05;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700">🔊 Səsləndirildi ${tm(r.played_at)} · ${r.play_count}×</span>`;
+    if(r.status==='cancelled') return `<span style="background:#EFECE6;color:#5B6470;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700">Ləğv edildi</span>`;
+    return `<span style="background:#111820;color:#fff;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700">⏳ Gözləyir</span>`;
+  };
+  box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:12px;font-weight:700;color:var(--t2)">Son tapşırıqlar</span>
+      <button type="button" onclick="loadReisCommands()" style="border:1px solid var(--bd);background:#fff;border-radius:8px;min-height:32px;padding:0 10px;font-family:inherit;font-size:12px;cursor:pointer">↻ Yenilə</button>
+    </div>` + data.map(r=>`
+    <div style="border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin-bottom:6px;background:#fff">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:13px;font-weight:700">${esc((DEPT_INFO[r.dept_key]||{}).name||r.dept_key)}${r.worker_name ? ' → ' + esc(r.worker_name) : ''}</span>
+        ${badge(r)}
+      </div>
+      <div style="font-size:13px;margin-top:6px">${esc(r.text)}</div>
+      ${r.spoken_text ? `<div style="font-size:12px;color:var(--t2);margin-top:6px;font-style:italic">SonnoReis dedi: "${esc(r.spoken_text)}"</div>` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+        <span style="font-size:11px;color:var(--t3)">${esc(r.created_by||'')} · ${dt(r.created_at)} ${tm(r.created_at)}</span>
+        ${(r.status==='pending'||r.status==='played') ? `<button type="button" onclick="cancelReisCommand('${r.id}')" style="border:0;background:none;color:#B4560F;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;min-height:32px">Ləğv et</button>` : ''}
+      </div>
+    </div>`).join('');
+}
 async function saveReisSettings(){
   const off = [...document.querySelectorAll('.reis-dept-cb')].filter(cb=>!cb.checked).map(cb=>cb.value);
   showLoader();
@@ -7334,6 +7442,7 @@ async function renderAdmin(){
   const mc=document.getElementById('ami-m');if(mc)mc.textContent=window._adminModels.length+' model';
   const wc=document.getElementById('ami-w');if(wc)wc.textContent=window._adminWorkers.length+' işçi';
   const cc=document.getElementById('ami-c');if(cc)cc.textContent=window._adminClients.length+' nəfər';
+  const kt=document.getElementById('ami-kalk');if(kt)kt.style.display=(currentUser && currentUser.role==='admin')?'':'none';
   updatePendingBadge();
 }
 
@@ -7354,6 +7463,16 @@ async function adminSec(sec){
   if(sec==='settings') await renderSettingsSection(el);
   if(sec==='deptanalytics') await renderDeptAnalytics(el);
   if(sec==='deptsettings') await renderDeptSettingsSection(el);
+  if(sec==='kalk') renderKalkSection(el);
+}
+
+// ═══════════ KALKULYASİYA — yalnız admin ═══════════
+function renderKalkSection(el){
+  if(!currentUser || currentUser.role !== 'admin'){ el.innerHTML = ''; toast('Kalkulyasiya yalnız admin üçündür'); return; }
+  if(!window.SonnoKalk){ el.innerHTML = '<div class="card" style="padding:16px">Kalkulyasiya modulu yüklənmədi. Səhifəni yeniləyin.</div>'; return; }
+  el.innerHTML = '<div id="kalk-host" style="margin-top:16px"></div>';
+  window.SonnoKalk.mount(document.getElementById('kalk-host'));
+  setTimeout(()=>{ const h=document.getElementById('kalk-host'); if(h) h.scrollIntoView({behavior:'smooth', block:'start'}); }, 50);
 }
 
 // ═══════════ ŞÖBƏ LİMİT PARAMETRLƏRİ ═══════════
@@ -7971,6 +8090,24 @@ async function renderSettingsSection(el){
         </div>
       </div>
       
+      <!-- SonnoReis — tapşırıq göndər -->
+      <div style="padding-top:16px;border-top:1px solid var(--bd);margin-bottom:16px">
+        <label style="font-size:13px;font-weight:600;color:var(--dp);display:block;margin-bottom:6px">SonnoReis — tapşırıq göndər</label>
+        <p style="font-size:12px;color:var(--t2);margin-bottom:10px">Tapşırıq seçilən şöbənin planşetində SonnoReis tərəfindən səslə deyiləcək (20-30 saniyə ərzində). İşçi "Eşitdim" basmasa, 5 dəqiqədən sonra təkrarlanır (ən çox 3 dəfə). Planşetdə SonnoReis bir dəfə açılıb "Başla" basılmış olmalıdır.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:8px">
+          <select id="rc-dept" onchange="reisCmdDeptChange()" style="min-height:44px;padding:0 12px;border:1px solid var(--bd);border-radius:10px;font-family:inherit;font-size:14px;background:#fff">
+            <option value="">Şöbə seçin…</option>
+            ${Object.entries(DEPT_INFO).filter(([k])=>!(window._reisOff||[]).includes(k)).map(([k,info])=>`<option value="${k}">${info.name}</option>`).join('')}
+          </select>
+          <select id="rc-worker" style="min-height:44px;padding:0 12px;border:1px solid var(--bd);border-radius:10px;font-family:inherit;font-size:14px;background:#fff">
+            <option value="">Bütün şöbəyə</option>
+          </select>
+        </div>
+        <textarea id="rc-text" rows="3" maxlength="1000" placeholder="Məs: Həsənə bütün gecikmələri de, bu gün hamısı bitməlidir" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;font-family:inherit;font-size:14px;resize:vertical;margin-bottom:8px"></textarea>
+        <button class="btn btn-t" style="font-size:13px;padding:10px 18px" onclick="sendReisCommand()">📣 Göndər</button>
+        <div id="rc-list" style="margin-top:14px"></div>
+      </div>
+
       <!-- SonnoReis — şöbələrə görə -->
       <div style="padding-top:16px;border-top:1px solid var(--bd);margin-bottom:16px">
         <label style="font-size:13px;font-weight:600;color:var(--dp);display:block;margin-bottom:6px">SonnoReis — şöbələr</label>
@@ -8042,6 +8179,7 @@ async function renderSettingsSection(el){
   window._fwdConfig = forwardingConfig;
   // Qonaq müştəri siyahısını yüklə
   setTimeout(()=>loadCatalogLeads(), 100);
+  setTimeout(()=>loadReisCommands(), 150);
 }
 
 function renderForwardingTargets(){
@@ -9847,6 +9985,849 @@ function openUserSheet(){
   document.getElementById('us-perms').innerHTML=(currentUser.perms||[]).map(p=>`<div>✓ ${pL[p]||p}</div>`).join('');
   openSheet('user-sheet');
 }
+</script>
+<script>
+// ═══════════ KALKULYASİYA (yalnız admin) ═══════════
+(function(){
+'use strict';
+const LIS=[];
+const KALK_CSS="\n:host{all:initial;display:block;\n  --bg:#F3F1EC;--card:#FFFFFF;--ink:#111820;--muted:#5B6470;--soft:#8A929B;--line:#E4E0D8;--line2:#EFECE6;\n  --teal:#007565;--teal-d:#004F51;--teal-l:#E6F1EF;--or:#F78930;--or-l:#FDE9D7;--or-ink:#8A3B07;\n  --danger:#B4231A;--danger-l:#FBE7E5;--inp:#FFFFFF;--bar-ink:#111820;--bar-fg:#FFFFFF;\n  color-scheme:light;\n}\n\n\n*{box-sizing:border-box}\n.kroot{container-type:inline-size;container-name:kr;margin:0;background:var(--bg);border-radius:14px;color:var(--ink);font-family:'Geist',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.4;-webkit-text-size-adjust:100%}\n.mono{font-family:'Geist Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}\n.wrap{max-width:1480px;margin:0 auto;padding:0 14px 24px}\nheader{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0 12px;flex-wrap:wrap}\n.brand{display:flex;align-items:baseline;gap:10px}\n.brand b{font-family:'Geist Mono',monospace;font-weight:600;letter-spacing:.14em;font-size:13px}\n.brand h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}\n.store-note{font-size:12px;color:var(--muted)}\n.tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px;overflow-x:auto;scrollbar-width:none;margin-bottom:16px}\n.tabs::-webkit-scrollbar{display:none}\n.tab{flex:1 0 auto;border:0;background:none;color:var(--muted);font:600 14px 'Geist',sans-serif;min-height:40px;padding:0 16px;border-radius:9px;cursor:pointer;white-space:nowrap}\n.tab.on{background:var(--ink);color:var(--bg)}\n.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}\n.card h3{margin:0 0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}\n.card+.card{margin-top:12px}\nlabel.f{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}\ninput,select,textarea{font:inherit;color:var(--ink);background:var(--inp);border:1px solid var(--line);border-radius:9px;min-height:40px;padding:0 10px;width:100%;min-width:0}\ntextarea{padding:8px 10px;resize:vertical}\ninput:focus,select:focus,textarea:focus{outline:2px solid var(--teal);outline-offset:-1px;border-color:transparent}\ninput.num{font-family:'Geist Mono',monospace;text-align:right}\n.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:600 13px 'Geist',sans-serif;min-height:40px;padding:0 14px;border-radius:9px;cursor:pointer;white-space:nowrap}\n.btn:hover{border-color:var(--soft)}\n.btn.pri{background:var(--teal);border-color:var(--teal);color:#fff}\n\n.btn.ghost{border-color:transparent;background:none;color:var(--muted)}\n.btn.dang{color:var(--danger)}\n.btn.dang.arm{background:var(--danger);border-color:var(--danger);color:#fff}\n.btn.sm{min-height:34px;padding:0 10px;font-size:12px}\n.x{border:0;background:none;color:var(--soft);width:36px;min-height:36px;border-radius:8px;cursor:pointer;font-size:18px;line-height:1}\n.x:hover{background:var(--danger-l);color:var(--danger)}\n.x.arm{background:var(--danger);color:#fff}\n.chip{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--line2);color:var(--muted)}\n.chip.t{background:var(--teal-l);color:var(--teal-d)}\n.chip.o{background:var(--or-l);color:var(--or-ink)}\n.muted{color:var(--muted)}\n.row-flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}\n.sp{flex:1}\n.empty{padding:28px 12px;text-align:center;color:var(--muted);font-size:13px}\n\n/* calc layout */\n.cgrid{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}\n.plist-desk{display:none}\n@container kr (min-width:900px){.cgrid{grid-template-columns:minmax(0,1fr) 320px;align-items:start}.sumcol{position:sticky;top:12px}}\n@container kr (min-width:1300px){\n  .cgrid{grid-template-columns:250px minmax(0,1fr) 340px;align-items:start}\n  .plist-desk{display:block;position:sticky;top:12px}\n  .sumcol{position:sticky;top:12px}\n  .mob-only{display:none!important}\n}\n.plist{display:flex;flex-direction:column;gap:2px;max-height:calc(100vh - 220px);overflow:auto;margin-top:8px}\n.pitem{display:block;width:100%;text-align:left;border:0;background:none;color:var(--ink);font:inherit;padding:9px 10px;border-radius:9px;cursor:pointer}\n.pitem:hover{background:var(--line2)}\n.pitem.on{background:var(--teal-l)}\n.pitem .n{font-weight:600;font-size:13px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n.pitem .p{font-size:12px;color:var(--muted)}\n.pname{font-size:20px;font-weight:700;border:0;background:none;padding:0;min-height:36px;border-radius:6px}\n.pname:focus{outline:2px solid var(--teal);outline-offset:2px}\n\n.lines{display:flex;flex-direction:column;gap:8px}\n.lrow{display:grid;gap:8px;align-items:center;grid-template-columns:minmax(0,1fr) 36px;grid-template-areas:\"m x\" \"d d\";padding:10px;border:1px solid var(--line2);border-radius:11px}\n.lrow .m{grid-area:m}.lrow .x{grid-area:x}\n.lrow .d{grid-area:d;display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end}\n.lrow .tot{text-align:right}\n.lhead{display:none}\n.mini{font-size:11px;color:var(--soft);margin-bottom:3px;display:block}\n.val{font-family:'Geist Mono',monospace;font-size:13px;min-height:40px;display:flex;align-items:center;justify-content:flex-end}\n.val.b{font-weight:600}\n@container kr (min-width:700px){\n  .lrow{grid-template-columns:minmax(0,1fr) 92px 96px 104px 110px 36px;grid-template-areas:none;padding:4px 0;border:0;border-bottom:1px solid var(--line2);border-radius:0}\n  .lrow .m,.lrow .x{grid-area:auto}\n  .lrow .d{display:contents}\n  .lrow .mini{display:none}\n  .lhead{display:grid;grid-template-columns:minmax(0,1fr) 92px 96px 104px 110px 36px;gap:8px;font-size:11px;font-weight:600;color:var(--soft);text-transform:uppercase;letter-spacing:.05em;padding-bottom:4px;border-bottom:1px solid var(--line)}\n  .lhead span:nth-child(n+4){text-align:right}\n  .mats-lines .lhead span:nth-child(2){text-align:right}\n  .lab .lrow,.lab .lhead{grid-template-columns:minmax(0,1fr) 64px 160px 96px 104px 36px}\n}\n.lab .lrow .d{grid-template-columns:1fr 1fr}\n.batch{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--teal-l);color:var(--teal-d);border-radius:12px;padding:10px 12px;margin-bottom:12px;font-weight:600}\n.batch input{width:90px;flex:0 0 90px;font-size:18px;font-weight:700}\n.bsum{border-top:1px dashed var(--line);margin-top:12px;padding-top:10px}\n.share{font-size:11px;color:var(--soft);text-align:right;font-family:'Geist Mono',monospace}\n@container kr (max-width:699px){.mats-lines .lrow .d{align-items:start}}\n.ovr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}\n.warn{background:var(--or-l);color:var(--or-ink);border-radius:10px;padding:10px 12px;font-size:13px;margin-top:10px}\n.missing{color:var(--danger);font-size:12px}\n\n/* summary */\n.sum .ln{display:flex;justify-content:space-between;gap:8px;padding:6px 0;font-size:13px}\n.sum .ln .mono{font-size:13px}\n.sum .hr{border-top:1px dashed var(--line);margin:6px 0}\n.cost{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0 4px}\n.cost .v{font-size:26px;font-weight:700;font-family:'Geist Mono',monospace;letter-spacing:-.02em}\n.price{border-radius:12px;padding:12px;margin-top:10px}\n.price.b2b{background:var(--teal-l)}\n.price.b2c{background:var(--or-l)}\n.price .k{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}\n.price.b2b .k{color:var(--teal-d)}.price.b2c .k{color:var(--or-ink)}\n.price .v{font-size:24px;font-weight:700;font-family:'Geist Mono',monospace;margin:2px 0}\n.price .s{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}\n.stack{display:flex;height:10px;border-radius:999px;overflow:hidden;background:var(--line2);margin:8px 0 6px}\n.stack i{display:block;height:100%}\n.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted)}\n.legend span::before{content:\"\";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--c)}\n.mbar{position:sticky;left:0;right:0;bottom:var(--kbar,0px);border-radius:12px;margin:0 8px 8px;background:var(--bar-ink);color:var(--bar-fg);display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px max(16px,env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom));z-index:20}\n.mbar div{min-width:0}\n.mbar small{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;opacity:.65}\n.mbar b{font-family:'Geist Mono',monospace;font-size:15px;white-space:nowrap}\n@container kr (min-width:1000px){.mbar{display:none}}\n.mbar[hidden]{display:none}\n\n/* materials */\n.mgrid{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}\n@container kr (min-width:1000px){.mgrid{grid-template-columns:minmax(0,1fr) 380px;align-items:start}.mform{position:sticky;top:12px;order:2}}\n.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}\n.fgrid .full{grid-column:1/-1}\n.preview{background:var(--teal-l);color:var(--teal-d);border-radius:10px;padding:10px 12px;font-size:13px}\n.preview b{font-family:'Geist Mono',monospace;font-size:18px;display:block;color:var(--ink)}\n.tbl{width:100%;border-collapse:collapse}\n.tbl th{text-align:left;font-size:11px;font-weight:600;color:var(--soft);text-transform:uppercase;letter-spacing:.05em;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap}\n.tbl td{padding:9px 8px;border-bottom:1px solid var(--line2);vertical-align:middle}\n.tbl td.r,.tbl th.r{text-align:right}\n.tbl tr.click{cursor:pointer}\n.tbl tr.click:hover td{background:var(--line2)}\n.gh td{background:var(--bg);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px 8px}\n.desk-tbl{display:none}\n.mcards{display:flex;flex-direction:column;gap:8px}\n.mcard{border:1px solid var(--line2);border-radius:11px;padding:12px}\n.mcard .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}\n.mcard .up{font-family:'Geist Mono',monospace;font-weight:600;white-space:nowrap}\n@container kr (min-width:760px){.desk-tbl{display:table}.mcards{display:none}}\n.tblwrap{overflow-x:auto}\n\n.sgrid{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}\n@container kr (min-width:900px){.sgrid{grid-template-columns:1fr 1fr;align-items:start}}\n.drow{display:grid;grid-template-columns:minmax(0,1fr) 120px 36px;gap:8px;align-items:center;margin-bottom:8px}\n.hint{font-size:12px;color:var(--muted);margin:6px 0 0}\n#toast{position:fixed;left:50%;bottom:var(--kb,84px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30;max-width:calc(100% - 32px)}\n#toast.on{opacity:1}\n.phead{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}\n@container kr (min-width:700px){.phead{grid-template-columns:190px minmax(0,1fr)}}\n.pimg{background:var(--line2);border-radius:12px;min-height:150px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;text-align:center;font-size:12px;color:var(--muted);padding:0}\n.pimg img{width:100%;height:100%;max-height:260px;object-fit:contain;display:block;cursor:zoom-in;background:#fff}\n.pimg .msg{padding:12px}\n.lightbox{position:fixed;inset:0;background:rgba(10,14,18,.88);z-index:50;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px;cursor:zoom-out}\n.lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;background:#fff}\n.lightbox[hidden]{display:none}\n@container kr (max-width:520px){.tabs{display:grid;grid-template-columns:1fr 1fr}.tab{padding:0 8px;font-size:13px}}\n.convrow{background:var(--or-l);color:var(--or-ink);border-radius:10px;padding:10px 12px;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}\n.convrow input{width:110px;flex:0 0 110px}\n.quick{border:2px solid var(--teal);border-radius:12px;padding:12px;background:var(--teal-l)}\n.quick .fgrid input,.quick .fgrid select{background:var(--inp)}\n.crow{display:grid;grid-template-columns:auto 100px minmax(0,1fr) 36px;gap:8px;align-items:center;margin-bottom:6px}\n.info{background:var(--line2);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--muted);margin-bottom:12px}\n.info b{color:var(--ink)}\n.pgh{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);padding:10px 10px 4px}\n.pitem.new .n{color:var(--muted);font-weight:500}\n.route{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}\n.route .chip{font-size:11px}\n.meas{grid-column:1/-1;font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:2px 0 4px}\n.meas .btn{min-height:28px;padding:0 8px;font-size:12px}\n.tvin{display:flex;gap:4px}.tvin input{flex:1 1 60px;min-width:0}.tvin select{flex:0 0 72px;padding:0 6px}\n.xrow{display:grid;grid-template-columns:minmax(0,1fr) 110px 36px;grid-template-areas:\"n n x\" \"a t t\" \"b b b\";gap:8px;align-items:center;padding:10px;border:1px solid var(--line2);border-radius:11px}\n.xrow>input:first-child{grid-area:n}.xrow>input.num{grid-area:a}.xrow .xb{grid-area:b;font-size:12px;display:flex;gap:6px;align-items:center}.xrow .val{grid-area:t}.xrow .x{grid-area:x}\n.xrow .xb input{width:18px;min-height:18px;height:18px}\n@container kr (min-width:700px){.xrow{grid-template-columns:minmax(0,1fr) 110px 170px 110px 36px;grid-template-areas:none;padding:4px 0;border:0;border-bottom:1px solid var(--line2);border-radius:0}.xrow>*{grid-area:auto!important}}\n.wchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;padding:4px 0 6px}\n.wchip{border:1px solid var(--line);background:var(--card);color:var(--ink);font:500 12px 'Geist',sans-serif;min-height:30px;padding:0 10px;border-radius:999px;cursor:pointer}\n.wchip.on{background:var(--teal);border-color:var(--teal);color:#fff}\n.dcard{border:1px solid var(--line2);border-radius:12px;padding:12px;margin-bottom:10px}\n.dcard .hd{display:grid;grid-template-columns:minmax(0,1fr) auto 36px;gap:8px;align-items:center}\n.wrow{display:grid;grid-template-columns:minmax(0,1fr) 120px 36px;gap:8px;align-items:center;margin-top:6px}\n.drate{font-size:13px;margin-top:8px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}\n.drate b{font-family:'Geist Mono',monospace}\n";
+const KALK_HTML="<div class=\"wrap\">\n  <header>\n    <div class=\"brand\"><b>SONNO</b><h1>Kalkulyasiya</h1></div>\n    <div class=\"store-note\" id=\"storeNote\">Yüklənir…</div>\n  </header>\n  <nav class=\"tabs\" id=\"tabs\"></nav>\n  <main id=\"main\"></main>\n</div>\n<div class=\"mbar\" id=\"mbar\" hidden></div>\n<div id=\"toast\"></div>\n<div class=\"lightbox\" id=\"lightbox\" hidden data-act=\"closeLb\"><img id=\"lbimg\" alt=\"Model şəkli\"></div>";
+
+const FAM={vol:{'m³':1,'dm³':0.001,'litr':0.001,'sm³':1e-6,'ml':1e-6},mass:{'ton':1000,'kq':1,'qram':0.001},len:{'metr':1,'sm':0.01,'mm':0.001},area:{'m²':1,'sm²':1e-4,'mm²':1e-6},cnt:{'ədəd':1,'cüt':2,'düjin':12}};
+const UNITS=['m³','dm³','sm³','litr','ml','ton','kq','qram','metr','sm','mm','m²','sm²','mm²','ədəd','cüt','düjin','dəst','komplekt','qutu','korobka','paket','kisə','list','plita','rulon','top','vedrə','balon','banka','palet'];
+const UGROUPS=[['Həcm',['m³','dm³','sm³','litr','ml']],['Çəki',['ton','kq','qram']],['Uzunluq',['metr','sm','mm']],['Sahə',['m²','sm²','mm²']],['Say',['ədəd','cüt','düjin']],['Qablaşdırma',['qutu','korobka','paket','kisə','list','plita','rulon','top','vedrə','balon','banka','palet','dəst','komplekt']]];
+const PACK={'qutu':'ədəd','korobka':'ədəd','paket':'ədəd','kisə':'kq','list':'m²','plita':'m²','rulon':'metr','top':'metr','vedrə':'kq','balon':'litr','banka':'litr','palet':'ədəd','dəst':'ədəd','komplekt':'ədəd'};
+function unitSel(attrs,val,other){
+  const known=UGROUPS.some(g=>g[1].includes(val));
+  let h=UGROUPS.map(([g,us])=>`<optgroup label="${g}">${us.map(u=>`<option${u===val?' selected':''}>${u}</option>`).join('')}</optgroup>`).join('');
+  if(has(val)&&!known)h=`<option selected>${esc(val)}</option>`+h;
+  if(other)h+=`<option value="__other">Başqa vahid (özüm yazım)…</option>`;
+  return `<select ${attrs}>${h}</select>`;
+}
+const GROUP_WASTE={'Massiv':25,'Lövhə':12,'Köpük':10,'Parça':15,'Boya':10,'Furnitura':2,'Yapışqan':5,'Abraziv':0,'Qablaşdırma':3};
+const DEF={overhead:15,markup:30,retail:1.8,vat:18,round:5,minMargin:15,monthHours:176,dayHours:8,depts:[]};
+const TABS=[['calc','Kalkulyasiya'],['mats','Materiallar'],['prices','Qiymətlər'],['settings','Parametrlər']];
+const LSKEY='sonno-kalk-v1';
+
+const S={mats:new Map(),prods:new Map(),settings:Object.assign({},DEF),catalog:{models:[],deptNames:{}}};
+const V={tab:'calc',sel:null,psearch:'',msearch:'',mformOpen:false,editMat:null,mf:blankMf(),quick:null};
+let db=null, downloads=null, draft=null, lastEdit=0, saveT=null, setT=null, armed=null, armT=null;
+const loaded={mats:false,prods:false,settings:false};
+
+function blankMf(){return {name:'',group:'',unit:'m³',qty:'',total:'',waste:'',conv:[],supplier:''};}
+let R=null;const $=s=>R.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=v=>{if(typeof v==='number')return isFinite(v)?v:0;const n=parseFloat(String(v==null?'':v).replace(/\s/g,'').replace(',','.'));return isFinite(n)?n:0;};
+const has=v=>v!==''&&v!=null&&String(v).trim()!=='';
+const nf2=new Intl.NumberFormat('az-AZ',{minimumFractionDigits:2,maximumFractionDigits:2});
+const nf4=new Intl.NumberFormat('az-AZ',{minimumFractionDigits:2,maximumFractionDigits:4});
+const nf0=new Intl.NumberFormat('az-AZ',{maximumFractionDigits:0});
+const m2=n=>nf2.format(n||0)+' ₼';
+const m4=n=>nf4.format(n||0)+' ₼';
+const m0=n=>nf0.format(n||0)+' ₼';
+const pct=n=>(isFinite(n)?n:0).toFixed(1).replace('.',',')+'%';
+const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const clone=o=>JSON.parse(JSON.stringify(o));
+
+function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('on'),2200);}
+
+/* ---------- money logic ---------- */
+function famOf(u){for(const k in FAM)if(FAM[k][u]!=null)return k;return null;}
+function convList(m){const o=[];(Array.isArray(m.conv)?m.conv:[]).forEach(c=>{if(has(c.unit)&&num(c.per)>0)o.push({unit:String(c.unit).trim(),per:num(c.per)});});
+  if(has(m.subUnit)&&num(m.subPer)>0&&!o.some(c=>c.unit===m.subUnit))o.push({unit:m.subUnit,per:num(m.subPer)});return o;}
+/* 1 alış vahidində neçə "u" var; bilinmirsə null */
+function factorFor(unit,conv,u){
+  if(!u||u===unit)return 1;
+  const fu=famOf(u),fm=famOf(unit);
+  if(fu&&fu===fm)return FAM[fu][unit]/FAM[fu][u];
+  for(const c of conv)if(c.unit===u)return c.per;
+  for(const c of conv){const fc=famOf(c.unit);if(fc&&fc===fu)return c.per*FAM[fc][c.unit]/FAM[fc][u];}
+  return null;
+}
+function unitFactor(m,u){return factorFor(m.unit,convList(m),u);}
+function allUnits(m){const s=[m.unit];convList(m).forEach(c=>s.push(c.unit));UNITS.forEach(u=>s.push(u));return [...new Set(s.filter(has))];}
+function basePrice(m){return num(m.qty)>0?num(m.total)/num(m.qty):0;}
+function unitPrice(m,u){const f=unitFactor(m,u);return f?basePrice(m)/f:null;}
+function wasteOf(m){return has(m.waste)?num(m.waste):0;}
+const dn=s=>String(s||'').trim().toLocaleLowerCase('az').replace(/\s+/g,' ');
+function deptOf(b){const ds=S.settings.depts||[];return (b.key&&ds.find(x=>x.key===b.key))||(has(b.dept)?ds.find(x=>dn(x.name)===dn(b.dept)):null)||null;}
+function deptInfo(d){const hrs=num(S.settings.monthHours)||176;const ws=(d.workers||[]).filter(w=>num(w.salary)>0);
+  if(ws.length){const sum=ws.reduce((a,w)=>a+num(w.salary),0);return {rate:sum/(ws.length*hrs),auto:true,n:ws.length,sum};}
+  return {rate:num(d.rate),auto:false,n:0,sum:0};}
+function selWorkers(b,d){const sel=Array.isArray(b.sel)?b.sel:[];if(!sel.length||!d)return null;return (d.workers||[]).filter(w=>sel.includes(String(w.name||'').trim()));}
+function deptRate(b){const d=deptOf(b);if(!d)return 0;const ws=selWorkers(b,d);
+  if(ws){const paid=ws.filter(w=>num(w.salary)>0);const hrs=num(S.settings.monthHours)||176;if(paid.length)return paid.reduce((a,w)=>a+num(w.salary),0)/(paid.length*hrs);}
+  return deptInfo(d).rate;}
+function labTot(b,r){if(!(mins(b)>0))return '<span style="color:var(--or-ink);font-family:Geist,sans-serif;font-weight:600;font-size:12px">↑ dəqiqə yazın</span>';if(!(r.r>0))return '<span style="color:var(--or-ink);font-family:Geist,sans-serif;font-weight:600;font-size:12px">maaş yoxdur</span>';return m2(r.t);}
+function workerChips(b,i){const d=deptOf(b);const ws=(d&&d.workers||[]).filter(w=>has(w.name));if(!ws.length)return '';
+  const sel=Array.isArray(b.sel)?b.sel:[];const hrs=num(S.settings.monthHours)||176;
+  return `<div class="wchips"><span class="muted">Kimlər işləyir:</span>${ws.map(w=>{const nm=String(w.name).trim();const on=sel.includes(nm);
+    return `<button type="button" class="wchip${on?' on':''}" data-act="togW" data-i="${i}" data-w="${esc(nm)}" title="${num(w.salary)>0?esc(m2(num(w.salary)/hrs))+' / saat':'maaş yazılmayıb'}">${on?'✓ ':''}${esc(nm)}</button>`;}).join('')}
+    <span class="muted">${sel.length?`${sel.length} nəfər seçilib`:'seçilməyib — şöbənin hamısının ortası'}</span></div>`;}
+const TU={'dəq':1,'saat':60};
+function dayH(){return num(S.settings.dayHours)||8;}
+function tuF(u){return u==='gün'?dayH()*60:(TU[u]||1);}
+function mins(b){return has(b.m)?num(b.m)*tuF(b.tu||'dəq'):(has(b.h)?num(b.h)*60:0);}
+function fmtMin(m){if(m>=dayH()*60)return (Math.round(m/60/dayH()*100)/100+' gün').replace('.',',');if(m>=60)return (Math.round(m/60*100)/100+' saat').replace('.',',');return Math.round(m)+' dəq';}
+function modelOf(p){return p&&p.modelId?(S.catalog.models||[]).find(m=>m.id===p.modelId):null;}
+function measFor(p,b){const m=modelOf(p);const v=m&&b.key&&m.meas?m.meas[b.key]:null;return v||b.meas||null;}
+function roundUp(x,step){step=num(step);return step>0?Math.ceil(x/step-1e-9)*step:Math.round(x*100)/100;}
+function calc(p){
+  const s=S.settings;
+  let mat=0,lab=0,missing=0;const B=batchOf(p);
+  const lines=(p.lines||[]).map(l=>{
+    const m=S.mats.get(l.matId);
+    if(!m){if(l.matId)missing++;return {up:0,w:0,t:0,tb:0,miss:!!l.matId};}
+    const up=unitPrice(m,l.unit||m.unit),w=wasteOf(m);
+    if(up==null)return {up:null,w,t:0,tb:0,need:true};
+    const tb=num(l.qty)*up*(1+w/100),t=tb/B;
+    mat+=t;return {up,w,t,tb};
+  });
+  const labor=(p.labor||[]).map(b=>{const r=deptRate(b),n=has(b.n)?num(b.n):1,mh=n*mins(b)/60,t=mh*r;lab+=t;return {r,t,mh};});
+  const labDept=lab;let ex=0;
+  const extras=(p.extra||[]).map(x=>{const t=x.forBatch?num(x.amt)/B:num(x.amt);ex+=t;return {t};});
+  lab+=ex;
+  const oh=has(p.overhead)?num(p.overhead):num(s.overhead);
+  const mk=has(p.markup)?num(p.markup):num(s.markup);
+  const rt=has(p.retail)?num(p.retail):num(s.retail);
+  const direct=mat+lab,ohAmt=direct*oh/100,cost=direct+ohAmt;
+  const b2b=cost>0?roundUp(cost*(1+mk/100),s.round):0;
+  const b2c=cost>0?roundUp(b2b*rt,s.round):0;
+  const vat=num(s.vat)/100;
+  const mB2b=b2b>0?(b2b-cost)/b2b*100:0, mB2c=b2c>0?(b2c-cost)/b2c*100:0;
+  const needConv=lines.filter(x=>x.need).length;
+  return {B,lines,labor,extras,ex,labDept,mat,lab,direct,oh,ohAmt,cost,mk,rt,b2b,b2c,b2bV:b2b*(1+vat),b2cV:b2c*(1+vat),mB2b,mB2c,missing,needConv};
+}
+
+/* ---------- storage ---------- */
+function saveLocal(){try{localStorage.setItem(LSKEY,JSON.stringify({mats:[...S.mats.values()],prods:[...S.prods.values()],settings:S.settings}));}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LSKEY)||'null');if(!d)return;(d.mats||[]).forEach(m=>S.mats.set(m.id,m));(d.prods||[]).forEach(p=>S.prods.set(p.id,p));if(d.settings)S.settings=Object.assign({},DEF,d.settings);if(d.catalog)S.catalog=d.catalog;}catch(e){}}
+function fail(e){console.error(e);toast('Yadda saxlanmadı: '+(e&&e.message||'xəta'));}
+let svN=0;
+function track(pr){svN++;const n=$('#storeNote');if(n){n.textContent='Saxlanılır…';n.style.color='var(--or-ink)';}
+  return pr.then(()=>{},fail).finally(()=>{svN--;if(svN===0&&n){const t=new Date();n.textContent='✓ Yadda saxlanıldı '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');n.style.color='var(--teal)';}});}
+function putMat(m){S.mats.set(m.id,m);if(db)track(db.collection('materials').doc(m.id).set(m));else saveLocal();}
+function delMat(id){S.mats.delete(id);if(db)track(db.collection('materials').doc(id).delete());else saveLocal();}
+function putProd(p){S.prods.set(p.id,clone(p));if(db)track(db.collection('products').doc(p.id).set(clone(p)));else saveLocal();}
+function delProd(id){S.prods.delete(id);if(db)track(db.collection('products').doc(id).delete());else saveLocal();}
+let setPending=0,setLastJson='';
+function putSettings(){clearTimeout(setT);setT=null;
+  if(!db){saveLocal();return Promise.resolve();}
+  const data=clone(S.settings);setLastJson=JSON.stringify(data);setPending++;
+  return track(db.doc('settings/main').set(data)).finally(()=>{setPending--;});}
+
+function flushDraft(){if(saveT){clearTimeout(saveT);saveT=null;if(draft)putProd(draft);}}
+function touch(){lastEdit=Date.now();clearTimeout(saveT);saveT=setTimeout(()=>{saveT=null;if(draft)putProd(draft);},600);}
+
+/* ---------- helpers ---------- */
+function sortedMats(){return [...S.mats.values()].sort((a,b)=>(a.group||'').localeCompare(b.group||'','az')||(a.name||'').localeCompare(b.name||'','az'));}
+function sortedProds(){return [...S.prods.values()].sort((a,b)=>(a.name||'').localeCompare(b.name||'','az'));}
+function groups(){const g=new Set(Object.keys(GROUP_WASTE));S.mats.forEach(m=>{if(has(m.group))g.add(m.group);});return [...g].sort((a,b)=>a.localeCompare(b,'az'));}
+function usage(id){let n=0;S.prods.forEach(p=>{if((p.lines||[]).some(l=>l.matId===id))n++;});return n;}
+function ensureSel(){
+  if(V.sel&&S.prods.has(V.sel)){if(!draft||draft.id!==V.sel)draft=clone(S.prods.get(V.sel));return;}
+  const first=sortedProds()[0];V.sel=first?first.id:null;draft=first?clone(first):null;
+}
+function matSelect(l,i){
+  const ms=sortedMats();let html='<option value="">Material seçin…</option><option value="__new">+ Yeni material yarat…</option>',g=null;
+  ms.forEach(m=>{if(m.group!==g){if(g!==null)html+='</optgroup>';g=m.group;html+=`<optgroup label="${esc(g||'Qrupsuz')}">`;}
+    html+=`<option value="${esc(m.id)}"${m.id===l.matId?' selected':''}>${esc(m.name)}</option>`;});
+  if(g!==null)html+='</optgroup>';
+  if(l.matId&&!S.mats.has(l.matId))html+=`<option value="${esc(l.matId)}" selected>(silinmiş material)</option>`;
+  return `<select data-f="l.mat" data-i="${i}" aria-label="Material">${html}</select>`;
+}
+function unitSelect(l,i){
+  const m=S.mats.get(l.matId);if(!m)return `<select disabled aria-label="Vahid"><option>—</option></select>`;
+  const u=l.unit||m.unit,all=allUnits(m);if(!all.includes(u))all.push(u);
+  const ok=all.filter(x=>unitFactor(m,x)!=null),no=all.filter(x=>unitFactor(m,x)==null);
+  const o=x=>`<option${x===u?' selected':''}>${esc(x)}</option>`;
+  return `<select data-f="l.unit" data-i="${i}" aria-label="Vahid"><optgroup label="Hesablanır">${ok.map(o).join('')}</optgroup>${no.length?`<optgroup label="Çevirmə yazmaq lazımdır">${no.map(o).join('')}</optgroup>`:''}</select>`;
+}
+function matSumTxt(c){return c.B>1?`${m2(c.mat*c.B)} (${c.B} əd.) · ${m2(c.mat)} / 1 əd.`:m2(c.mat);}
+function batchOf(p){const b=num(p&&p.batch);return b>0?b:1;}
+function shareTxt(r,B){return B>1&&r.t>0?'1 ədədə: '+m2(r.t):'';}
+function armBtn(key,cls,label,armedLabel){const a=armed===key;return `<button type="button" class="${cls}${a?' arm':''}" data-act="del" data-k="${esc(key)}" title="Sil">${a?armedLabel:label}</button>`;}
+
+/* ---------- render ---------- */
+function renderTabs(){$('#tabs').innerHTML=TABS.map(([k,t])=>`<button type="button" class="tab${V.tab===k?' on':''}" data-act="tab" data-t="${k}">${t}</button>`).join('');}
+function render(){
+  renderTabs();
+  const el=$('#main');
+  if(!(loaded.mats&&loaded.prods)){el.innerHTML='<div class="card empty">Məlumatlar yüklənir…</div>';$('#mbar').hidden=true;return;}
+  if(V.tab==='calc')el.innerHTML=viewCalc();
+  else if(V.tab==='mats')el.innerHTML=viewMats();
+  else if(V.tab==='prices')el.innerHTML=viewPrices();
+  else el.innerHTML=viewSettings();
+  renderBar();
+}
+const normName=s=>String(s||'').trim().toLowerCase();
+function listEntries(){
+  const out=[],linked=new Set(),names=new Set();
+  S.prods.forEach(p=>{if(p.modelId)linked.add(p.modelId);names.add(normName(p.name));});
+  S.prods.forEach(p=>{const src=draft&&draft.id===p.id?draft:p;out.push({kind:'p',id:p.id,name:src.name||'Adsız',cat:src.category||'Digər',src});});
+  (S.catalog.models||[]).forEach(m=>{if(linked.has(m.id)||names.has(normName(m.name)))return;out.push({kind:'m',id:m.id,name:m.name,cat:m.cat||'Digər'});});
+  out.sort((a,b)=>a.cat.localeCompare(b.cat,'az')||a.name.localeCompare(b.name,'az'));
+  return out;
+}
+function prodListHtml(){
+  const q=V.psearch.trim().toLowerCase();
+  const es=listEntries().filter(e=>!q||e.name.toLowerCase().includes(q)||e.cat.toLowerCase().includes(q));
+  if(!es.length)return '<div class="empty">Məhsul yoxdur</div>';
+  let g=null,h='';
+  es.forEach(e=>{if(e.cat!==g){g=e.cat;h+=`<div class="pgh">${esc(g)}</div>`;}
+    if(e.kind==='p'){const c=calc(e.src);h+=`<button type="button" class="pitem${e.id===V.sel?' on':''}" data-act="pick" data-id="${esc(e.id)}"><span class="n">${esc(e.name)}</span><span class="p mono">${c.cost>0?m0(c.b2c)+' · maya '+m0(c.cost):'hesablanmayıb'}</span></button>`;}
+    else h+=`<button type="button" class="pitem new" data-act="pickModel" data-id="${esc(e.id)}"><span class="n">${esc(e.name)}</span><span class="p">kalkulyasiya yoxdur</span></button>`;});
+  return h;
+}
+function mobOptions(){
+  let g=null,h='';
+  listEntries().forEach(e=>{if(e.cat!==g){if(g!==null)h+='</optgroup>';g=e.cat;h+=`<optgroup label="${esc(g)}">`;}
+    h+=e.kind==='p'?`<option value="p:${esc(e.id)}"${e.id===V.sel?' selected':''}>${esc(e.name)}</option>`:`<option value="m:${esc(e.id)}">${esc(e.name)} — yeni</option>`;});
+  return g!==null?h+'</optgroup>':'<option>Məhsul yoxdur</option>';
+}
+function laborFromRoute(m){
+  return (m.route||[]).filter(k=>k&&k!=='logistics').map(k=>{const d=(S.settings.depts||[]).find(x=>x.key===k);const ms=m.meas&&m.meas[k];
+    return {dept:d?d.name:((S.catalog.deptNames||{})[k]||k),key:k,n:'1',m:ms&&ms[1]>=3&&ms[0]>=3?String(ms[0]):'',meas:ms||null};});
+}
+function createFromModel(id){
+  const m=(S.catalog.models||[]).find(x=>x.id===id);if(!m)return null;
+  const p={id:'mdl-'+m.id,modelId:m.id,name:m.name,category:m.cat||'',sku:'',route:m.route||[],lines:[],labor:laborFromRoute(m),overhead:'',markup:'',retail:'',note:'',createdAt:new Date().toISOString()};
+  putProd(p);return p;
+}
+function viewCalc(){
+  ensureSel();
+  const desk=`<aside class="plist-desk card" style="padding:12px">
+      <div class="row-flex"><button type="button" class="btn pri sm sp" data-act="newProd">+ Yeni məhsul</button>${mcp?'<button type="button" class="btn sm" data-act="syncModels" title="Sonno POS-dan modelləri yenilə">↻ Modellər</button>':''}</div>
+      <input type="search" placeholder="Məhsul axtar…" value="${esc(V.psearch)}" data-f="psearch" style="margin-top:8px">
+      <div class="plist" id="plist">${prodListHtml()}</div></aside>`;
+  const mob=`<div class="mob-only card" style="padding:12px"><div class="row-flex">
+      <select data-f="pickSel" class="sp" style="flex:1 1 180px" aria-label="Məhsul">${mobOptions()}</select>
+      <button type="button" class="btn pri" data-act="newProd">+ Yeni</button>${mcp?'<button type="button" class="btn" data-act="syncModels">↻</button>':''}</div></div>`;
+  if(!draft){
+    return `<div class="cgrid">${desk}<div>${mob}<div class="card empty" style="margin-top:12px">Hələ məhsul yoxdur. <br><br><button type="button" class="btn pri" data-act="newProd">+ İlk məhsulu yarat</button><p class="hint">Əvvəlcə "Materiallar" bölməsində materialları və qiymətlərini əlavə edin.</p></div></div><div></div></div>`;
+  }
+  return `<div class="cgrid">${desk}<div>${mob}<div id="editor" style="margin-top:0">${editorHtml()}</div></div><div class="sumcol" id="sum">${summaryHtml()}</div></div>`;
+}
+function editorHtml(){
+  const p=draft,c=calc(p),s=S.settings;
+  const noMats=S.mats.size===0;
+  const lines=(p.lines||[]).map((l,i)=>{const m=S.mats.get(l.matId),r=c.lines[i];
+    return `<div class="lrow">
+      <div class="m">${matSelect(l,i)}${r.miss?'<div class="missing">Bu material silinib — başqasını seçin</div>':''}</div>
+      <div class="d">
+        <div><span class="mini">Miqdar</span><input class="num" inputmode="decimal" value="${esc(l.qty)}" data-f="l.qty" data-i="${i}" aria-label="Miqdar"></div>
+        <div><span class="mini">Vahid</span>${unitSelect(l,i)}</div>
+        <div><span class="mini">Vahid qiyməti</span><div class="val" data-o="up${i}">${m&&r.up!=null?m4(r.up):'—'}</div></div>
+        <div class="tot"><span class="mini">Cəmi (itki ${m?r.w:0}%)</span><div class="val b" data-o="lt${i}" title="${m?'İtki '+r.w+'% daxil':''}">${m2(r.tb)}</div><div class="share" data-o="sh${i}">${shareTxt(r,c.B)}</div></div>
+      </div>
+      ${armBtn('line:'+i,'x','×','✓')}
+    </div>${r.need?`<div class="convrow"><span>"${esc(m.name)}" <b>${esc(m.unit)}</b> ilə alınıb. ${esc(l.unit)} ilə hesablamaq üçün yazın:</span><span style="white-space:nowrap">1 ${esc(m.unit)} =</span><input class="num" inputmode="decimal" data-f="l.conv" data-i="${i}" placeholder="?" aria-label="Çevirmə"><span>${esc(l.unit)}</span><button type="button" class="btn sm pri" data-act="convSave" data-i="${i}">Yadda saxla</button></div>`:''}${V.quick&&V.quick.i===i?quickHtml():''}`;}).join('');
+  const depts=s.depts||[];
+  const labor=(p.labor||[]).map((b,i)=>{const r=c.labor[i];
+    const cur=deptOf(b);const opts=depts.map((d,ix)=>[d,ix]).filter(([d])=>(!d.example||d===cur)&&has(d.name)).map(([d,ix])=>`<option value="${ix}"${d===cur?' selected':''}>${esc(d.name)}</option>`).join('')+(b.dept&&!cur?`<option value="" selected>${esc(b.dept)} (tapılmadı)</option>`:'');
+    const ms=measFor(p,b);
+    return `<div class="lrow">
+      <div class="m"><select data-f="b.dept" data-i="${i}" aria-label="Şöbə"><option value="">Şöbə seçin…</option>${opts}</select></div>
+      <div class="d">
+        <div><span class="mini">Nəfər</span><input class="num" inputmode="decimal" value="${esc(has(b.n)?b.n:1)}" data-f="b.n" data-i="${i}" aria-label="Nəfər"></div>
+        <div><span class="mini">Vaxt (1 ədəd)</span><div class="tvin"><input class="num" inputmode="decimal" value="${esc(has(b.m)?b.m:(has(b.h)?Math.round(num(b.h)*60):''))}" data-f="b.m" data-i="${i}" aria-label="Vaxt" placeholder="${ms&&(b.tu||'dəq')==='dəq'?esc(ms[0]):''}"><select data-f="b.tu" data-i="${i}" aria-label="Vaxt vahidi">${['dəq','saat','gün'].map(u=>`<option${(b.tu||'dəq')===u?' selected':''}>${u}</option>`).join('')}</select></div></div>
+        <div><span class="mini">1 saat qiyməti</span><div class="val" data-o="br${i}">${m2(r.r)}</div></div>
+        <div class="tot"><span class="mini">Cəmi</span><div class="val b" data-o="bt${i}">${labTot(b,r)}</div></div>
+      </div>
+      ${armBtn('lab:'+i,'x','×','✓')}
+    </div>${workerChips(b,i)}${ms?`<div class="meas">Başla→Tamamla ölçüsü: <b class="mono">${esc(ms[0])} dəq</b> / 1 ədəd · ${esc(ms[1])} sifariş${ms[1]<3?' (az məlumat)':''}${(String(ms[0])!==String(b.m)||(b.tu||'dəq')!=='dəq')?`<button type="button" class="btn" data-act="useMeas" data-i="${i}">Bunu götür</button>`:''}</div>`:''}`;}).join('');
+  setTimeout(()=>ensureImg(p.modelId),0);
+  return `<div class="card"><div class="phead">
+      <div class="pimg" id="pimg" data-mid="${esc(p.modelId||'')}">${imgBoxHtml(p.modelId)}</div><div style="min-width:0">
+      <div class="row-flex" style="align-items:flex-start">
+        <div class="sp" style="min-width:200px"><input class="pname" value="${esc(p.name)}" data-f="p.name" aria-label="Məhsulun adı" placeholder="Məhsulun adı"></div>
+        <button type="button" class="btn sm" data-act="dupProd">Kopyala</button>
+        ${armBtn('prod:'+p.id,'btn sm dang','Sil','Təsdiqlə — sil')}
+      </div>
+      <div class="fgrid" style="margin-top:10px">
+        <div><label class="f">Kateqoriya</label><input value="${esc(p.category)}" data-f="p.category" placeholder="Stul, Divan, Masa…" list="catlist"></div>
+        <div><label class="f">Artikul / kod</label><input value="${esc(p.sku)}" data-f="p.sku" placeholder="məs. ST-014"></div>
+      </div>
+      ${(()=>{const md=modelOf(p);const route=(md&&md.route)||p.route||[];
+        return `<div style="margin-top:10px"><label class="f">Sistemdəki model (Sonno POS)</label><select data-f="p.model"><option value="">— bağlı deyil —</option>${(S.catalog.models||[]).map(m=>`<option value="${esc(m.id)}"${m.id===p.modelId?' selected':''}>${esc(m.name)} · ${esc(m.cat)}</option>`).join('')}</select></div>`+
+        (route.length?`<div class="route"><span class="muted" style="font-size:12px;margin-right:4px">Marşrut:</span>${route.map((k,ix)=>`<span class="chip t">${ix+1}. ${esc((S.catalog.deptNames||{})[k]||k)}</span>`).join('')}</div>`:'');})()}
+      <datalist id="catlist">${[...new Set([...S.prods.values()].map(x=>x.category).filter(has))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>
+    </div></div></div>
+    <div class="card">
+      <h3>Resept — materiallar</h3>
+      <label class="batch">Neçə ədəd məhsul üçün yazırsınız? <input class="num" inputmode="numeric" data-f="p.batch" value="${esc(has(p.batch)?p.batch:1)}" aria-label="Partiya sayı"> ədəd</label>
+      ${noMats?'<div class="warn">Material kataloqu boşdur. Əvvəlcə "Materiallar" bölməsində material əlavə edin.</div>':''}
+      <div class="lines mats-lines">${(p.lines||[]).length?`<div class="lhead"><span>Material</span><span>Miqdar (${c.B} əd.)</span><span>Vahid</span><span>Vahid qiyməti</span><span>Cəmi</span><span></span></div>`:''}${lines}</div>
+      <div class="row-flex" style="margin-top:10px"><button type="button" class="btn" data-act="addLine">+ Material əlavə et</button><button type="button" class="btn" data-act="addLineNew">+ Kataloqda olmayan material</button><span class="sp"></span><span style="text-align:right"><span class="muted">Material cəmi:&nbsp;</span><b class="mono" data-o="matsum">${matSumTxt(c)}</b></span></div>
+      <p class="hint"><b>Partiya:</b> yuxarıda bir dəfə məs. 6 yazın, sonra bütün materialları 6 stul üçün yazın (1 list dikt, 2 kq yapışqan…). Sistem hamısını 6-ya bölüb 1 stulun maya dəyərini, həm də 6 stulun cəmini göstərir.<br>İstənilən vahidi seçə bilərsiniz. m³↔dm³↔litr, kq↔qram, metr↔sm və s. avtomatik çevrilir. Fərqli növ vahid (məs. m³ alınıb, kq ilə hesablanır) üçün bir dəfə "1 m³ = 680 kq" yazırsınız. Cəmiyə materialın itki faizi əlavə olunur.</p>
+    </div>
+    <div class="card lab">
+      <h3>İşçilik — şöbələr üzrə vaxt</h3>
+      ${!depts.length?'<div class="warn">Şöbələrin 1 saat qiyməti yoxdur. "Parametrlər" bölməsində şöbə əlavə edin.</div>':''}
+      <div class="lines">${(p.labor||[]).length?'<div class="lhead"><span>Şöbə</span><span style="text-align:right">Nəfər</span><span style="text-align:right">Vaxt</span><span style="text-align:right">1 saat qiyməti</span><span style="text-align:right">Cəmi</span><span></span></div>':''}${labor}</div>
+      <p class="hint">1 ədəd məhsula sərf olunan vaxt — dəqiqə, saat və ya gün seçin. Məs: Koala tikişdə 2 dərzi birlikdə 20 dəqiqə işləyir → Nəfər 2, Vaxt 20 dəq. Divanın karkası 1 usta 2 gün → Nəfər 1, Vaxt 2 gün (1 gün = ${esc(dayH())} saat). 1 saatın qiyməti "Parametrlər"də işçi maaşlarından avtomatik hesablanır. Boz yazı — sistemdə Başla/Tamamla düymələri ilə ölçülən orta vaxtdır.</p>
+      <div class="row-flex" style="margin-top:10px"><button type="button" class="btn" data-act="addLab">+ Şöbə əlavə et</button><span class="sp"></span><span style="white-space:nowrap"><span class="muted">İşçilik cəmi:&nbsp;</span><b class="mono" data-o="labsum">${m2(c.lab)}</b></span></div>
+    </div>
+    <div class="card">
+      <h3>Əl ilə əlavə işçilik — muzdlu işçi, kənar xidmət</h3>
+      <div class="lines">${(p.extra||[]).map((x,i)=>`<div class="xrow">
+        <input data-f="x.name" data-i="${i}" value="${esc(x.name)}" placeholder="məs. Muzdlu dərzi" aria-label="Ad">
+        <input class="num" inputmode="decimal" data-f="x.amt" data-i="${i}" value="${esc(x.amt)}" placeholder="₼" aria-label="Məbləğ">
+        ${c.B>1?`<label class="xb"><input type="checkbox" data-f="x.batch" data-i="${i}"${x.forBatch?' checked':''}> ${c.B} ədədin hamısı üçün</label>`:'<span class="xb muted">1 ədəd üçün</span>'}
+        <div class="val b" data-o="xt${i}">${m2(c.extras[i].t)}</div>
+        ${armBtn('ext:'+i,'x','×','✓')}</div>`).join('')}</div>
+      <div class="row-flex" style="margin-top:10px"><button type="button" class="btn" data-act="addExtra">+ Əlavə xərc</button><span class="sp"></span><span><span class="muted">Cəmi (1 ədədə):&nbsp;</span><b class="mono" data-o="exsum">${m2(c.ex)}</b></span></div>
+      <p class="hint">Məs: divanın tikişini kənar dərziyə 80 ₼-ə verirsiniz → "Muzdlu dərzi", 80. Məbləğ işçiliyə əlavə olunur və mayaya düşür.${c.B>1?' Məbləğ bütün partiya üçündürsə, qutunu işarələyin — sistem ədədə bölər.':''}</p>
+    </div>
+    <div class="card">
+      <h3>Bu məhsul üçün faizlər</h3>
+      <div class="ovr">
+        <div><label class="f">Əlavə xərc %</label><input class="num" inputmode="decimal" value="${esc(p.overhead)}" placeholder="${esc(s.overhead)}" data-f="p.overhead"></div>
+        <div><label class="f">Topdan əlavə %</label><input class="num" inputmode="decimal" value="${esc(p.markup)}" placeholder="${esc(s.markup)}" data-f="p.markup"></div>
+        <div><label class="f">Pərakəndə əmsal</label><input class="num" inputmode="decimal" value="${esc(p.retail)}" placeholder="${esc(s.retail)}" data-f="p.retail"></div>
+      </div>
+      <p class="hint">Boş saxlasanız "Parametrlər"dəki ümumi dəyər işlənir.</p>
+      <label class="f" style="margin-top:10px">Qeyd</label>
+      <textarea rows="2" data-f="p.note" placeholder="Ölçü, parça kateqoriyası, variant…">${esc(p.note)}</textarea>
+    </div>`;
+}
+function summaryHtml(){
+  if(!draft)return '';
+  const c=calc(draft),s=S.settings;
+  const tot=c.cost||1;
+  const warn=c.cost>0&&c.mB2b<num(s.minMargin)?`<div class="warn">Topdan marja ${pct(c.mB2b)} — minimum ${esc(s.minMargin)}%-dən aşağıdır.</div>`:'';
+  const miss=(c.missing?`<div class="warn">${c.missing} sətirdə material tapılmadı.</div>`:'')+(c.needConv?`<div class="warn">${c.needConv} sətirdə vahid çevirməsi yazılmayıb — həmin sətirlər hesaba düşmür.</div>`:'');
+  return `<div class="card sum">
+    <h3>Maya dəyəri — 1 ədəd</h3>
+    <div class="ln"><span>Materiallar</span><span class="mono">${m2(c.mat)}</span></div>
+    <div class="ln"><span>İşçilik${c.ex?' (şöbələr)':''}</span><span class="mono">${m2(c.labDept)}</span></div>
+    ${c.ex?`<div class="ln"><span>Əl ilə əlavə işçilik</span><span class="mono">${m2(c.ex)}</span></div>`:''}
+    <div class="ln"><span class="muted">Birbaşa xərc</span><span class="mono">${m2(c.direct)}</span></div>
+    <div class="ln"><span>Əlavə xərc (${pct(c.oh)})</span><span class="mono">${m2(c.ohAmt)}</span></div>
+    <div class="hr"></div>
+    <div class="cost"><span style="font-weight:600">Maya dəyəri</span><span class="v">${m2(c.cost)}</span></div>
+    <div class="stack" aria-hidden="true"><i style="width:${c.mat/tot*100}%;background:var(--teal)"></i><i style="width:${c.lab/tot*100}%;background:var(--or)"></i><i style="width:${c.ohAmt/tot*100}%;background:var(--soft)"></i></div>
+    <div class="legend"><span style="--c:var(--teal)">Material ${pct(c.mat/tot*100)}</span><span style="--c:var(--or)">İşçilik ${pct(c.lab/tot*100)}</span><span style="--c:var(--soft)">Əlavə ${pct(c.ohAmt/tot*100)}</span></div>
+    <div class="price b2b"><div class="k">Topdan · B2B</div><div class="v">${m2(c.b2b)}</div>
+      <div class="s"><span>+${pct(c.mk)} əlavə · marja ${pct(c.mB2b)}</span><span>ƏDV ilə ${m2(c.b2bV)}</span></div></div>
+    <div class="price b2c"><div class="k">Pərakəndə · B2C</div><div class="v">${m2(c.b2c)}</div>
+      <div class="s"><span>topdan × ${String(c.rt).replace('.',',')} · marja ${pct(c.mB2c)}</span><span>ƏDV ilə ${m2(c.b2cV)}</span></div></div>
+    ${c.B>1?`<div class="bsum"><h3 style="margin-bottom:6px">${c.B} ədəd üçün cəmi</h3>
+      <div class="ln"><span>Maya dəyəri</span><span class="mono">${m2(c.cost*c.B)}</span></div>
+      <div class="ln"><span>Topdan</span><span class="mono" style="color:var(--teal-d)">${m2(c.b2b*c.B)}</span></div>
+      <div class="ln"><span>Pərakəndə</span><span class="mono" style="color:var(--or-ink)">${m2(c.b2c*c.B)}</span></div></div>`:''}
+    ${warn}${miss}
+    <p class="hint">Qiymətlər ${esc(s.round)} ₼-ə yuxarı yuvarlaqlaşdırılır. ƏDV ${esc(s.vat)}%.</p>
+  </div>`;
+}
+function renderBar(){
+  const bar=$('#mbar');
+  if(V.tab!=='calc'||!draft){bar.hidden=true;return;}
+  const c=calc(draft);bar.hidden=false;
+  bar.innerHTML=`<div><small>Maya</small><b>${m2(c.cost)}</b></div><div><small>Topdan</small><b>${m0(c.b2b)}</b></div><div><small>Pərakəndə</small><b>${m0(c.b2c)}</b></div>`;
+}
+function refreshCalc(){
+  if(V.tab!=='calc'||!draft)return;
+  const c=calc(draft);
+  c.lines.forEach((r,i)=>{const a=R.querySelector(`[data-o="lt${i}"]`);if(a)a.textContent=m2(r.tb);const sh=R.querySelector(`[data-o="sh${i}"]`);if(sh)sh.textContent=shareTxt(r,c.B);const b=R.querySelector(`[data-o="up${i}"]`);if(b&&S.mats.get(draft.lines[i].matId))b.textContent=r.up!=null?m4(r.up):'—';});
+  c.labor.forEach((r,i)=>{const a=R.querySelector(`[data-o="bt${i}"]`);if(a)a.innerHTML=labTot(draft.labor[i],r);const b=R.querySelector(`[data-o="br${i}"]`);if(b)b.textContent=m2(r.r);});
+  const ms=R.querySelector('[data-o="matsum"]');if(ms)ms.textContent=matSumTxt(c);
+  const ls=R.querySelector('[data-o="labsum"]');if(ls)ls.textContent=m2(c.labDept);
+  c.extras.forEach((r,i)=>{const a=R.querySelector(`[data-o="xt${i}"]`);if(a)a.textContent=m2(r.t);});
+  const xs=R.querySelector('[data-o="exsum"]');if(xs)xs.textContent=m2(c.ex);
+  const sum=$('#sum');if(sum)sum.innerHTML=summaryHtml();
+  const pl=$('#plist');if(pl)pl.innerHTML=prodListHtml();
+  renderBar();
+}
+
+function unitDatalist(){return `<datalist id="unitlist">${UNITS.map(u=>`<option value="${esc(u)}">`).join('')}</datalist>`;}
+function quickHtml(){
+  const q=V.quick,up=num(q.qty)>0&&num(q.total)>0?num(q.total)/num(q.qty):0;
+  return `<div class="quick" id="quick"><b style="font-size:13px">Yeni material kataloqa</b>
+    <div class="fgrid" style="margin-top:8px">
+      <div class="full"><span class="mini">Ad *</span><input data-q="name" value="${esc(q.name)}" placeholder="məs. MDF 16 mm"></div>
+      <div><span class="mini">Qrup</span><input data-q="group" value="${esc(q.group)}" list="grplist2" placeholder="Lövhə"></div>
+      <div><span class="mini">Alış vahidi</span>${unitSel('data-q="unit"',q.unit,false)}</div>
+      ${PACK[q.unit]?`<div class="full"><span class="mini">1 ${esc(q.unit)} içində neçə var?</span><div class="row-flex" style="flex-wrap:nowrap"><input class="num" inputmode="decimal" data-q="inPer" value="${esc(q.inPer)}" placeholder="məs. 500" style="flex:1 1 90px">${unitSel('data-q="inUnit" style="flex:1 1 110px"',q.inUnit||PACK[q.unit],false)}</div></div>`:''}
+      <div><span class="mini">Alınan miqdar *</span><input class="num" inputmode="decimal" data-q="qty" value="${esc(q.qty)}" placeholder="10"></div>
+      <div><span class="mini">Ümumi məbləğ, ₼ *</span><input class="num" inputmode="decimal" data-q="total" value="${esc(q.total)}" placeholder="650"></div>
+    </div>
+    <div class="hint" id="qprev">${up?`1 ${esc(q.unit)} = <b class="mono">${m4(up)}</b>`:'Vahid qiyməti avtomatik hesablanacaq'}</div>
+    <datalist id="grplist2">${groups().map(g=>`<option value="${esc(g)}">`).join('')}</datalist>${unitDatalist()}
+    <div class="row-flex" style="margin-top:8px"><button type="button" class="btn pri sm" data-act="quickSave">Əlavə et və seç</button><button type="button" class="btn ghost sm" data-act="quickCancel">Ləğv et</button></div></div>`;
+}
+/* materials view */
+function mfPreview(){
+  const f=V.mf,q=num(f.qty),t=num(f.total);
+  if(!(q>0&&t>0))return '<div class="preview">Miqdar və ümumi məbləği yazın — vahid qiyməti avtomatik hesablanacaq.</div>';
+  const up=t/q,conv=(f.conv||[]).filter(c=>has(c.unit)&&num(c.per)>0).map(c=>({unit:String(c.unit).trim(),per:num(c.per)}));let extra='';
+  const shown=new Set([f.unit]);
+  conv.forEach(c=>{if(shown.has(c.unit))return;shown.add(c.unit);extra+=`<div style="margin-top:4px">1 ${esc(c.unit)} = <span class="mono">${m4(up/c.per)}</span></div>`;});
+  const fam=famOf(f.unit);if(fam)Object.keys(FAM[fam]).forEach(u=>{if(shown.has(u))return;shown.add(u);const k=factorFor(f.unit,conv,u);if(k)extra+=`<div style="margin-top:2px;font-size:12px">1 ${esc(u)} = <span class="mono">${m4(up/k)}</span></div>`;});
+  return `<div class="preview">1 ${esc(f.unit)} qiyməti<b>${m4(up)}</b>${extra}</div>`;
+}
+function convRowsHtml(){
+  const f=V.mf;
+  const st=PACK[f.unit]?1:0;
+  return (f.conv||[]).map((c,i)=>i<st?'':`<div class="crow"><span class="muted" style="white-space:nowrap">1 ${esc(f.unit||'vahid')} =</span><input class="num" inputmode="decimal" data-mc="per" data-i="${i}" value="${esc(c.per)}" placeholder="500">${unitSel(`data-mc="unit" data-i="${i}"`,c.unit||'kq',false)}<button type="button" class="x" data-act="delConv" data-i="${i}" title="Sil">×</button></div>`).join('');
+}
+function mformHtml(){
+  const f=V.mf,ed=V.editMat;
+  const wp=0;
+  return `<div class="card mform" id="mform">
+    <h3>${ed?'Materialı redaktə et':'Yeni material'}</h3>
+    <div class="fgrid">
+      <div class="full"><label class="f">Ad *</label><input data-mf="name" value="${esc(f.name)}" placeholder="məs. Fıstıq ağacı (massiv)"></div>
+      <div><label class="f">Qrup</label><input data-mf="group" value="${esc(f.group)}" list="grplist" placeholder="Massiv, Lövhə…"></div>
+      <div><label class="f">Alış vahidi</label>${f.other?`<input data-mf="unitOther" value="${esc(f.unit)}" placeholder="vahidi yazın">`:unitSel('data-mf="unit"',f.unit,true)}</div>
+      <div><label class="f">Alınan miqdar *</label><input class="num" inputmode="decimal" data-mf="qty" value="${esc(f.qty)}" placeholder="məs. 5"></div>
+      <div><label class="f">Ümumi məbləğ, ₼ *</label><input class="num" inputmode="decimal" data-mf="total" value="${esc(f.total)}" placeholder="məs. 4750"></div>
+      <div class="full" id="mfprev">${mfPreview()}</div>
+      ${PACK[f.unit]?`<div class="full preview" style="background:var(--or-l);color:var(--or-ink)"><label class="f" style="color:var(--or-ink)">1 ${esc(f.unit)} içində neçə var?</label>
+        <div class="row-flex" style="flex-wrap:nowrap"><input class="num" inputmode="decimal" data-mc="per" data-i="0" value="${esc((f.conv[0]||{}).per)}" placeholder="məs. 500" style="flex:1 1 100px">${unitSel('data-mc="unit" data-i="0" style="flex:1 1 120px"',(f.conv[0]||{}).unit||PACK[f.unit],false)}</div>
+        <p class="hint" style="margin:6px 0 0;color:var(--or-ink)">Məs: 1 korobka şurup = 500 ədəd · 1 rulon parça = 50 metr · 1 list = 2,98 m². Sonra reseptdə ${esc((f.conv[0]||{}).unit||PACK[f.unit])} ilə hesablaya bilərsiniz.</p></div>`:''}
+      <div class="full"><label class="f">${PACK[f.unit]?'Əlavə çevirmələr (istəyə görə)':'Vahid çevirmələri (istəyə görə)'}</label>
+        <p class="hint" style="margin:0 0 6px">Məs: 1 m³ = 680 kq · 1 litr lak = 1,1 kq. Bundan sonra reseptdə bu vahidlərlə də hesablamaq olur.</p>
+        <div id="convrows">${convRowsHtml()}</div>
+        <button type="button" class="btn sm" data-act="addConv">+ Çevirmə əlavə et</button></div>
+      <div><label class="f">Tullantı % (istəyə görə, adi halda 0)</label><input class="num" inputmode="decimal" data-mf="waste" value="${esc(f.waste)}" placeholder="${wp}" id="mfwaste"></div>
+      <div><label class="f">Təchizatçı</label><input data-mf="supplier" value="${esc(f.supplier)}" placeholder="istəyə görə"></div>
+    </div>
+    <datalist id="grplist">${groups().map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
+    ${unitDatalist()}
+    <div class="row-flex" style="margin-top:14px"><button type="button" class="btn pri" data-act="saveMat">${ed?'Yadda saxla':'+ Əlavə et'}</button><button type="button" class="btn ghost" data-act="cancelMat">${ed?'Ləğv et':'Təmizlə'}</button></div>
+    <p class="hint">Qiymət dəyişəndə yalnız "Alınan miqdar" və "Ümumi məbləğ"i yeniləyin — bütün məhsulların maya dəyəri avtomatik yenilənəcək.</p>
+  </div>`;
+}
+function matListHtml(){
+  const q=V.msearch.trim().toLowerCase();
+  const ms=sortedMats().filter(m=>!q||(m.name||'').toLowerCase().includes(q)||(m.group||'').toLowerCase().includes(q));
+  if(!ms.length)return `<div class="empty">${S.mats.size?'Axtarışa uyğun material yoxdur':'Hələ material yoxdur. "+ Yeni material" formasından əlavə edin.'}</div>`;
+  let rows='',cards='',g=null;
+  ms.forEach(m=>{
+    if(m.group!==g){g=m.group;rows+=`<tr class="gh"><td colspan="7">${esc(g||'Qrupsuz')}</td></tr>`;}
+    const up=basePrice(m),u=usage(m.id),sub=convList(m).map(c=>`<div class="muted" style="font-size:12px">1 ${esc(c.unit)} = ${m4(up/c.per)}</div>`).join('');
+    rows+=`<tr class="click" data-act="editMat" data-id="${esc(m.id)}"><td><b>${esc(m.name)}</b>${m.supplier?`<div class="muted" style="font-size:12px">${esc(m.supplier)}</div>`:''}</td>
+      <td class="r mono">${esc(m.qty)} ${esc(m.unit)}</td><td class="r mono">${m2(num(m.total))}</td>
+      <td class="r"><b class="mono">${m4(up)}</b> <span class="muted">/ ${esc(m.unit)}</span>${sub}</td>
+      <td class="r mono">${wasteOf(m)}%</td><td class="r">${u?`<span class="chip t">${u} məhsul</span>`:'<span class="chip">—</span>'}</td>
+      <td class="r" style="white-space:nowrap">${armBtn('mat:'+m.id,'x','×','✓')}</td></tr>`;
+    cards+=`<div class="mcard"><div class="top" data-act="editMat" data-id="${esc(m.id)}" style="cursor:pointer"><div style="min-width:0"><b>${esc(m.name)}</b><div class="muted" style="font-size:12px">${esc(m.group||'Qrupsuz')} · ${esc(m.qty)} ${esc(m.unit)} = ${m2(num(m.total))}</div></div>
+      <div style="text-align:right"><div class="up">${m4(up)}</div><div class="muted" style="font-size:12px">/ ${esc(m.unit)}</div></div></div>
+      <div class="row-flex" style="margin-top:8px">${sub}<span class="chip">itki ${wasteOf(m)}%</span>${u?`<span class="chip t">${u} məhsulda</span>`:''}<span class="sp"></span><button type="button" class="btn sm" data-act="editMat" data-id="${esc(m.id)}">Redaktə</button>${armBtn('mat:'+m.id,'btn sm dang','Sil','Təsdiqlə')}</div></div>`;
+  });
+  return `<div class="tblwrap"><table class="tbl desk-tbl"><thead><tr><th>Material</th><th class="r">Alış</th><th class="r">Məbləğ</th><th class="r">Vahid qiyməti</th><th class="r">İtki</th><th class="r">İstifadə</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="mcards">${cards}</div>`;
+}
+function viewMats(){
+  const showForm=V.mformOpen||V.editMat||(R.host.getBoundingClientRect().width>=900);
+  return `<div class="info"><b>Qiymətlər haradan gəlir?</b> Sistem özü bilmir — hər materialı bir dəfə buraya yazırsınız: neçə vahid alınıb və cəmi neçəyə. Sistem 1 vahidin qiymətini hesablayır. Yeni partiya fərqli qiymətə gələndə materialı açıb miqdar və məbləği yeniləyin — bütün məhsullar avtomatik yenidən hesablanır.</div>
+  ${showForm?'':'<button type="button" class="btn pri" data-act="openMat" style="width:100%;min-height:48px;margin-bottom:12px;font-size:15px">+ Yeni material əlavə et</button>'}
+  <div class="mgrid">
+    ${showForm?mformHtml():''}
+    <div class="card">
+      <div class="row-flex"><h3 style="margin:0" class="sp">Material kataloqu · ${S.mats.size}</h3></div>
+      <input type="search" placeholder="Material və ya qrup axtar…" value="${esc(V.msearch)}" data-f="msearch" style="margin:10px 0">
+      <div id="matlist">${matListHtml()}</div>
+    </div></div>`;
+}
+/* prices view */
+function viewPrices(){
+  const ps=sortedProds();
+  if(!ps.length)return '<div class="card empty">Hələ məhsul yoxdur.</div>';
+  const rows=ps.map(p=>{const c=calc(p);return `<tr class="click" data-act="openProd" data-id="${esc(p.id)}"><td><b>${esc(p.name||'Adsız')}</b><div class="muted" style="font-size:12px">${esc([p.category,p.sku].filter(has).join(' · '))}</div></td>
+    <td class="r mono">${m2(c.mat)}</td><td class="r mono">${m2(c.lab)}</td><td class="r mono"><b>${m2(c.cost)}</b></td>
+    <td class="r mono" style="color:var(--teal-d)"><b>${m2(c.b2b)}</b></td><td class="r mono" style="color:var(--or-ink)"><b>${m2(c.b2c)}</b></td>
+    <td class="r">${c.cost>0?`<span class="chip ${c.mB2b<num(S.settings.minMargin)?'o':'t'}">${pct(c.mB2b)}</span>`:''}</td></tr>`;}).join('');
+  return `<div class="card"><div class="row-flex"><h3 class="sp" style="margin:0">Qiymət siyahısı · ƏDV-siz</h3>${downloads?'<button type="button" class="btn" data-act="csv">CSV yüklə</button>':''}</div>
+    <div class="tblwrap" style="margin-top:10px"><table class="tbl" style="min-width:720px"><thead><tr><th>Məhsul</th><th class="r">Material</th><th class="r">İşçilik</th><th class="r">Maya</th><th class="r">Topdan</th><th class="r">Pərakəndə</th><th class="r">Topdan marja</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="hint">Sətrə basın — məhsulun kalkulyasiyası açılır. ƏDV ilə qiymət = qiymət × ${(1+num(S.settings.vat)/100).toFixed(2).replace('.',',')}.</p></div>`;
+}
+/* settings view */
+function viewSettings(){
+  const s=S.settings;
+  const f=(k,l,h)=>`<div><label class="f">${l}</label><input class="num" inputmode="decimal" data-s="${k}" value="${esc(s[k])}">${h?`<p class="hint">${h}</p>`:''}</div>`;
+  const depts=(s.depts||[]).map((d,i)=>{const inf=deptInfo(d);return `<div class="dcard">
+    <div class="hd"><input data-d="name" data-i="${i}" value="${esc(d.name)}" placeholder="Şöbə adı" style="font-weight:600">${d.example?'<span class="chip">nümunə</span>':'<span></span>'}${armBtn('dept:'+i,'x','×','✓')}</div>
+    ${(d.workers||[]).length?'<div class="wrow" style="margin-top:10px"><span class="mini" style="margin:0">İşçi</span><span class="mini" style="margin:0;text-align:right">Aylıq maaş, ₼</span><span></span></div>':''}
+    ${(d.workers||[]).map((w,j)=>`<div class="wrow"><input data-w="name" data-i="${i}" data-j="${j}" value="${esc(w.name)}" placeholder="İşçi adı"><input class="num" inputmode="decimal" data-w="salary" data-i="${i}" data-j="${j}" value="${esc(w.salary)}" placeholder="maaş ₼/ay"><button type="button" class="x" data-act="delWorker" data-i="${i}" data-j="${j}" title="Sil">×</button></div>`).join('')}
+    <div class="drate"><button type="button" class="btn sm" data-act="addWorker" data-i="${i}">+ İşçi</button><span data-o="dr${i}">${deptRateHtml(d,i)}</span></div>
+  </div>`;}).join('');
+  return `<div class="sgrid">
+    <div class="card"><h3>Ümumi faizlər</h3><div class="fgrid">
+      ${f('overhead','Əlavə xərc %','İcarə, işıq, idarəetmə, amortizasiya — birbaşa xərcin faizi')}
+      ${f('markup','Topdan əlavə %','Maya üzərinə B2B əlavə')}
+      ${f('retail','Pərakəndə əmsal','Topdan × əmsal (dünya praktikası 1,8–2,5)')}
+      ${f('vat','ƏDV %','')}
+      ${f('round','Yuvarlaqlaşdırma, ₼','Qiymət bu addıma yuxarı yuvarlanır')}
+      ${f('minMargin','Minimum marja %','Aşağı olanda xəbərdarlıq')}
+    </div></div>
+    <div class="card"><div class="row-flex" style="margin-bottom:12px"><h3 class="sp" style="margin:0">Şöbələr və işçi maaşları</h3><button type="button" class="btn pri sm" data-act="saveSet">Yadda saxla</button></div>
+      <div class="fgrid" style="margin-bottom:12px"><div><label class="f">1 işçinin ayda işlədiyi saat</label><input class="num" inputmode="decimal" data-s="monthHours" value="${esc(s.monthHours)}"></div><div><label class="f">1 iş günü neçə saatdır</label><input class="num" inputmode="decimal" data-s="dayHours" value="${esc(s.dayHours||8)}"></div><div class="hint" style="align-self:end">Məs: 22 gün × 8 saat = 176. 1 saat qiyməti = maaşların cəmi ÷ (işçi sayı × bu saat).</div></div>
+      <div class="info"><b>Maaşları bir dəfə yazın — yadda qalır.</b> İşçilər Sonno POS-dakı siyahıdan götürülüb. Hər işçinin aylıq maaşını yazın; şöbənin 1 saatının qiyməti avtomatik hesablanır və bütün məhsullarda istifadə olunur. Maaşı yazılmayan şöbədə 1 saat qiymətini əl ilə yaza bilərsiniz.</div>
+      ${depts||'<div class="empty" style="padding:12px">Şöbə yoxdur</div>'}
+      <div class="row-flex"><button type="button" class="btn" data-act="addDept">+ Şöbə əlavə et</button><span class="sp"></span><button type="button" class="btn pri" data-act="saveSet">Yadda saxla</button></div>
+      <p class="hint">Yazdıqlarınız avtomatik də saxlanılır — yuxarı sağ küncdə "✓ Yadda saxlanıldı" yazısı görünür.</p>
+
+    </div></div>`;
+}
+
+function deptRateHtml(d,i){const inf=deptInfo(d);
+  return inf.auto?`<span class="muted">${inf.n} işçi · ${m0(inf.sum)}/ay → 1 işçinin 1 saatı (orta):</span> <b>${m2(inf.rate)}</b>`
+    :(d.workers||[]).length?`<span class="muted">Yuxarıda hər işçinin maaşını yazın — 1 saat qiyməti özü hesablanacaq</span>`
+    :`<span class="muted">İşçi yoxdur. "+ İşçi" ilə əlavə edin və ya 1 işçinin 1 saatını birbaşa yazın, ₼:</span> <input class="num" inputmode="decimal" data-d="rate" data-i="${i}" value="${esc(d.rate)}" placeholder="₼/saat" style="width:100px;display:inline-block;min-height:34px">`;}
+/* ---------- Sonno POS (Supabase connector) ---------- */
+const SB={server:'Supabase',tool:'execute_sql',project:'vtnsamrkmnvbqecvcwrp'};
+let mcp=null;const IMG={},IMGST={};
+async function sql(q){
+  const r=await mcp.callTool(SB.server,SB.tool,{project_id:SB.project,query:q});
+  let t=r&&r.payload;if(t&&typeof t==='object'&&!Array.isArray(t)&&'result' in t)t=t.result;
+  if(Array.isArray(t))return t;
+  if(typeof t!=='string'){const tb=(r.content||[]).find(x=>x.type==='text');t=tb?tb.text:'';try{const j=JSON.parse(t);if(j&&j.result)t=j.result;}catch(e){}}
+  const m=String(t).match(/<untrusted-data-[^>]+>\s*([\s\S]*?)\s*<\/untrusted-data/);const body=m?m[1]:String(t);
+  const a=body.indexOf('['),b=body.lastIndexOf(']');if(a<0||b<a)throw {code:'parse',message:'Cavab oxunmadı'};
+  return JSON.parse(body.slice(a,b+1));
+}
+function mcpErrText(e){const k=e&&e.code;
+  if(k==='server_not_connected')return 'Supabase bağlantısı claude.ai-da qoşulmayıb (Settings → Connectors).';
+  if(k==='needs_reauth')return 'Supabase bağlantısını claude.ai Settings → Connectors-da yenidən qoşun.';
+  if(k==='not_in_manifest'||k==='approval_required'||k==='consent_required')return 'Supabase-ə icazə verilməyib.';
+  if(k==='server_unavailable')return 'Supabase hazırda cavab vermir.';
+  return 'Alınmadı'+(e&&e.message?': '+String(e.message).slice(0,80):'');}
+function imgBoxHtml(mid){
+  if(!mid)return '<div class="msg">Şəkil yoxdur<br>Sistemdəki modeli seçin</div>';
+  if(IMG[mid])return `<img src="${IMG[mid]}" alt="Model şəkli" data-act="openLb">${mcp?'<button type="button" class="btn sm" data-act="loadImg" style="position:absolute;right:6px;bottom:6px;min-height:30px;padding:0 8px" title="Şəkli sistemdən yenilə">↻</button>':''}`;
+  const st=IMGST[mid];
+  if(st==='loading')return '<div class="msg">Şəkil yüklənir…</div>';
+  if(st==='none')return '<div class="msg">Bu modelin sistemdə şəkli yoxdur</div>';
+  if(st&&st.err)return `<div class="msg">${esc(st.err)}${mcp?'<br><button type="button" class="btn sm" data-act="loadImg" style="margin-top:8px">Yenidən yoxla</button>':''}</div>`;
+  if(!mcp)return '<div class="msg">Şəkil üçün Supabase bağlantısı lazımdır</div>';
+  return '<div class="msg"><button type="button" class="btn sm" data-act="loadImg">Şəkli göstər</button></div>';
+}
+function paintImg(mid){const box=$('#pimg');if(box&&box.dataset.mid===String(mid||''))box.innerHTML=imgBoxHtml(mid);}
+function shrink(dataUrl,max){return new Promise(res=>{const im=new Image();im.onload=()=>{try{const s=Math.min(1,max/Math.max(im.width,im.height));const cv=document.createElement('canvas');cv.width=Math.round(im.width*s);cv.height=Math.round(im.height*s);const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);cx.drawImage(im,0,0,cv.width,cv.height);res(cv.toDataURL('image/jpeg',0.82));}catch(e){res(dataUrl);}};im.onerror=()=>res(null);im.src=dataUrl;});}
+const IMGCHK={};
+async function ensureImg(mid,force){
+  if(!mid||IMGST[mid]==='loading')return;
+  if(IMG[mid]&&!force&&(IMGCHK[mid]||!mcp))return;
+  let cachedMd5=null;
+  if(db&&!IMG[mid]){try{const s=await db.doc('thumbs/'+mid).get();if(s.exists&&s.data().img){IMG[mid]=s.data().img;cachedMd5=s.data().md5||null;paintImg(mid);}}catch(e){}}
+  else if(IMG[mid])cachedMd5=IMG['md5:'+mid]||null;
+  if(!mcp){paintImg(mid);return;}
+  if(!/^[0-9a-f-]{8,36}$/i.test(mid)){IMGST[mid]='none';paintImg(mid);return;}
+  IMGCHK[mid]=true;
+  try{
+    if(IMG[mid]&&!force){const h=await sql(`select md5(coalesce(img_url,'')) h from models where id::text like '${mid}%' limit 1`);
+      if(h[0]&&cachedMd5&&h[0].h===cachedMd5)return;}
+    if(!IMG[mid]){IMGST[mid]='loading';paintImg(mid);}
+    const rows=await sql(`select img_url, md5(coalesce(img_url,'')) h from models where id::text like '${mid}%' limit 1`);
+    const u=rows[0]&&rows[0].img_url;
+    if(!u){delete IMG[mid];IMGST[mid]='none';paintImg(mid);return;}
+    let out=u;if(/^data:image\//.test(u)){out=await shrink(u,700)||u;}
+    IMG[mid]=out;IMG['md5:'+mid]=rows[0].h;IMGST[mid]='ok';paintImg(mid);
+    if(db&&out.length<240000)db.doc('thumbs/'+mid).set({img:out,md5:rows[0].h,savedAt:new Date().toISOString()}).catch(()=>{});
+  }catch(e){if(!IMG[mid]){IMGST[mid]={err:mcpErrText(e)};paintImg(mid);}}
+}
+const CATN={'dest':'Dəst','divan':'Divan','kreslo':'Kreslo','kunc_divan':'Künc divan','masa':'Masa','oturacaq':'Stul / oturacaq','':'Digər'};
+const CATALOG_SQL=`with t as (select o.model_id, case when l.dept_key='tikiş' then 'tikis' else l.dept_key end dk, l.duration_minutes::numeric/greatest(o.qty,1) pu from task_logs l join orders o on o.id=l.order_id where l.action='completed' and l.duration_minutes between 3 and 480 and o.model_id is not null),
+meas as (select model_id, jsonb_object_agg(dk, jsonb_build_array(round(med), n)) mj from (select model_id, dk, percentile_cont(0.5) within group (order by pu) med, count(*) n from t group by 1,2) z group by 1),
+r as (select m.id, s.ord, case when k='tikiş' then 'tikis' else k end k from models m, jsonb_array_elements(m.stages) with ordinality s(v,ord), unnest(string_to_array(coalesce(v->>'dept',''),'||')) k where m.is_active)
+select left(m.id::text,8) id, m.name, coalesce(m.category,'') cat, (select string_agg(nullif(k,''), ',' order by ord) from r where r.id=m.id) route, coalesce(meas.mj,'{}'::jsonb) meas
+from models m left join meas on meas.model_id=m.id where m.is_active and m.name<>'Test' order by m.category, m.name`;
+let syncing=false;
+async function syncModels(){
+  if(!mcp||syncing)return;syncing=true;toast('Modellər Sonno POS-dan yenilənir…');
+  try{const rows=await sql(CATALOG_SQL);
+    const seen={};const models=rows.map(r=>{let nm=r.name;const k=nm.toLowerCase();seen[k]=(seen[k]||0)+1;if(seen[k]>1)nm+=` (${seen[k]})`;
+      return {id:r.id,name:nm,cat:CATN[r.cat]||r.cat||'Digər',route:String(r.route||'').split(',').filter(Boolean),meas:typeof r.meas==='string'?JSON.parse(r.meas):(r.meas||{})};});
+    if(!models.length)throw {message:'boş cavab'};
+    const before=(S.catalog.models||[]).length;
+    S.catalog=Object.assign({},S.catalog,{models,syncedAt:new Date().toISOString()});
+    if(db)await db.doc('catalog/models').set(clone(S.catalog));
+    toast(`✓ ${models.length} model yeniləndi${models.length>before?` (+${models.length-before} yeni)`:''}`);render();
+  }catch(e){toast('Yenilənmədi: '+mcpErrText(e));}
+  syncing=false;
+}
+/* ---------- events ---------- */
+const ACT={
+  tab(b){flushDraft();V.tab=b.dataset.t;armed=null;render();kTop();},
+  pick(b){flushDraft();V.sel=b.dataset.id;draft=clone(S.prods.get(V.sel));render();},
+  openProd(b){flushDraft();V.sel=b.dataset.id;draft=null;V.tab='calc';render();kTop();},
+  newProd(){flushDraft();const p={id:uid('p'),name:'Yeni məhsul',category:'',sku:'',lines:[],labor:[],overhead:'',markup:'',retail:'',note:'',createdAt:new Date().toISOString()};
+    putProd(p);V.sel=p.id;draft=clone(p);V.tab='calc';render();setTimeout(()=>{const i=R.querySelector('.pname');if(i){i.focus();i.select();}},30);},
+  dupProd(){flushDraft();const p=clone(draft);p.id=uid('p');p.name=(p.name||'')+' (kopya)';p.createdAt=new Date().toISOString();putProd(p);V.sel=p.id;draft=clone(p);render();toast('Kopya yaradıldı');},
+  addLine(){draft.lines=draft.lines||[];draft.lines.push({matId:'',qty:'',unit:''});touch();render();const s=R.querySelectorAll('[data-f="l.mat"]');if(s.length)s[s.length-1].focus();},
+  addExtra(){draft.extra=draft.extra||[];draft.extra.push({name:'',amt:'',forBatch:false});touch();$('#editor').innerHTML=editorHtml();refreshCalc();const n=R.querySelectorAll('[data-f="x.name"]');if(n.length)n[n.length-1].focus();},
+  addLab(){draft.labor=draft.labor||[];draft.labor.push({dept:'',key:'',n:'1',m:''});touch();render();},
+  addLineNew(){draft.lines=draft.lines||[];draft.lines.push({matId:'',qty:'',unit:''});V.quick={i:draft.lines.length-1,name:'',group:'',unit:'ədəd',qty:'',total:''};touch();rerenderSoft();const n=R.querySelector('[data-q="name"]');if(n)n.focus();},
+  quickCancel(){V.quick=null;rerenderSoft();},
+  quickSave(){const q=V.quick;if(!q)return;
+    if(!has(q.name)){toast('Materialın adını yazın');return;}
+    if(!has(q.unit)){toast('Vahidi yazın');return;}
+    if(!(num(q.qty)>0)||!(num(q.total)>0)){toast('Miqdar və məbləği yazın');return;}
+    const m={id:uid('m'),name:q.name.trim(),group:(q.group||'').trim(),unit:q.unit.trim(),qty:num(q.qty),total:num(q.total),waste:'',conv:PACK[q.unit]&&num(q.inPer)>0?[{unit:q.inUnit||PACK[q.unit],per:num(q.inPer)}]:[],supplier:'',updatedAt:new Date().toISOString()};
+    putMat(m);if(draft.lines[q.i]){draft.lines[q.i].matId=m.id;draft.lines[q.i].unit=m.unit;}V.quick=null;touch();rerenderSoft();toast('Material kataloqa əlavə edildi');
+    const qi=R.querySelector(`[data-f="l.qty"][data-i="${q.i}"]`);if(qi)qi.focus();},
+  convSave(b){const i=+b.dataset.i,inp=R.querySelector(`[data-f="l.conv"][data-i="${i}"]`);saveLineConv(i,inp?inp.value:'');},
+  addConv(){V.mf.conv=V.mf.conv||[];if(PACK[V.mf.unit]&&!V.mf.conv.length)V.mf.conv.push({per:'',unit:PACK[V.mf.unit]});V.mf.conv=V.mf.conv.concat([{per:'',unit:'kq'}]);$('#convrows').innerHTML=convRowsHtml();const a=R.querySelectorAll('[data-mc="per"]');if(a.length)a[a.length-1].focus();},
+  delConv(b){V.mf.conv.splice(+b.dataset.i,1);$('#convrows').innerHTML=convRowsHtml();const pv=$('#mfprev');if(pv)pv.innerHTML=mfPreview();},
+  pickModel(b){flushDraft();const p=createFromModel(b.dataset.id);if(!p)return;V.sel=p.id;draft=clone(p);V.tab='calc';render();toast('Marşrut sistemdən götürüldü');},
+  useMeas(b){const i=+b.dataset.i,ms=measFor(draft,draft.labor[i]);if(!ms)return;draft.labor[i].m=String(ms[0]);draft.labor[i].tu='dəq';touch();$('#editor').innerHTML=editorHtml();refreshCalc();},
+  togW(b){const i=+b.dataset.i,nm=b.dataset.w,l=draft.labor[i];const sel=Array.isArray(l.sel)?l.sel.slice():[];const k=sel.indexOf(nm);
+    if(k>=0)sel.splice(k,1);else sel.push(nm);l.sel=sel;if(sel.length)l.n=String(sel.length);touch();$('#editor').innerHTML=editorHtml();refreshCalc();},
+  loadImg(){const box=$('#pimg');if(box&&box.dataset.mid){delete IMGST[box.dataset.mid];toast('Şəkil yenilənir…');ensureImg(box.dataset.mid,true);}},
+  openLb(){const box=$('#pimg');const mid=box&&box.dataset.mid;if(!IMG[mid])return;$('#lbimg').src=IMG[mid];$('#lightbox').hidden=false;},
+  closeLb(){$('#lightbox').hidden=true;},
+  syncModels(){syncModels();},
+  saveSet(){putSettings().then(()=>toast('✓ Yadda saxlanıldı'));},
+  addWorker(b){const d=S.settings.depts[+b.dataset.i];d.workers=(d.workers||[]).concat([{name:'',salary:''}]);putSettings();render();const w=R.querySelectorAll(`[data-w="name"][data-i="${b.dataset.i}"]`);if(w.length)w[w.length-1].focus();},
+  delWorker(b){const d=S.settings.depts[+b.dataset.i];const w=d.workers.splice(+b.dataset.j,1)[0];putSettings().then(()=>toast((w&&w.name?w.name+' ':'İşçi ')+'silindi'));render();},
+  addDept(){S.settings.depts=(S.settings.depts||[]).concat([{key:'u_'+uid(''),name:'',rate:'',workers:[]}]);putSettings();render();const d=R.querySelectorAll('[data-d="name"]');if(d.length)d[d.length-1].focus();},
+  openMat(){V.mformOpen=true;V.editMat=null;V.mf=blankMf();render();const i=R.querySelector('[data-mf="name"]');if(i)i.focus();},
+  editMat(b){const m=S.mats.get(b.dataset.id);if(!m)return;V.editMat=m.id;V.mformOpen=true;V.mf={name:m.name||'',group:m.group||'',unit:m.unit||'ədəd',qty:m.qty??'',total:m.total??'',waste:m.waste??'',conv:convList(m).map(c=>({per:c.per,unit:c.unit})),supplier:m.supplier||''};if(PACK[V.mf.unit]&&!V.mf.conv.length)V.mf.conv.push({per:'',unit:PACK[V.mf.unit]});render();const f=$('#mform');if(f)f.scrollIntoView({behavior:'smooth',block:'start'});},
+  cancelMat(){V.editMat=null;V.mformOpen=false;V.mf=blankMf();render();},
+  saveMat(){const f=V.mf;
+    if(!has(f.name)){toast('Materialın adını yazın');return;}
+    if(!(num(f.qty)>0)){toast('Alınan miqdarı yazın');return;}
+    if(!(num(f.total)>0)){toast('Ümumi məbləği yazın');return;}
+    if(!has(f.unit)){toast('Alış vahidini yazın');return;}
+    const old=V.editMat?S.mats.get(V.editMat):null;
+    const m={id:old?old.id:uid('m'),name:f.name.trim(),group:(f.group||'').trim(),unit:String(f.unit).trim(),qty:num(f.qty),total:num(f.total),waste:has(f.waste)?num(f.waste):'',conv:(f.conv||[]).filter(c=>has(c.unit)&&num(c.per)>0).map(c=>({unit:String(c.unit).trim(),per:num(c.per)})),subPer:'',subUnit:'',supplier:(f.supplier||'').trim(),updatedAt:new Date().toISOString()};
+    putMat(m);toast(old?'Yeniləndi':'Əlavə edildi');V.editMat=null;V.mformOpen=false;V.mf=blankMf();render();},
+  del(b){const k=b.dataset.k;
+    if(armed!==k){armed=k;clearTimeout(armT);armT=setTimeout(()=>{armed=null;rerenderSoft();},3500);rerenderSoft();return;}
+    armed=null;clearTimeout(armT);
+    const [t,v]=[k.slice(0,k.indexOf(':')),k.slice(k.indexOf(':')+1)];
+    if(t==='line'){draft.lines.splice(+v,1);touch();}
+    else if(t==='lab'){draft.labor.splice(+v,1);touch();}
+    else if(t==='ext'){draft.extra.splice(+v,1);touch();}
+    else if(t==='prod'){clearTimeout(saveT);saveT=null;delProd(v);draft=null;V.sel=null;toast('Məhsul silindi');}
+    else if(t==='mat'){const u=usage(v);delMat(v);if(V.editMat===v){V.editMat=null;V.mf=blankMf();}toast(u?`Silindi — ${u} məhsulda sətir boş qaldı`:'Material silindi');}
+    else if(t==='dept'){S.settings.depts.splice(+v,1);putSettings();}
+    render();},
+  csv(){if(!downloads)return;
+    const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"',n=x=>(Math.round(x*100)/100).toFixed(2);
+    const lines=[['Məhsul','Kateqoriya','Artikul','Material','İşçilik','Əlavə xərc','Maya','Topdan','Topdan ƏDV ilə','Pərakəndə','Pərakəndə ƏDV ilə','Topdan marja %'].map(q).join(';')];
+    sortedProds().forEach(p=>{const c=calc(p);lines.push([q(p.name),q(p.category),q(p.sku),n(c.mat),n(c.lab),n(c.ohAmt),n(c.cost),n(c.b2b),n(c.b2bV),n(c.b2c),n(c.b2cV),n(c.mB2b)].join(';'));});
+    downloads.save({filename:'sonno-qiymet-siyahisi.csv',data:'﻿'+lines.join('\r\n')}).catch(e=>{if(e&&e.code!=='declined')toast('Yükləmə alınmadı');});}
+};
+function saveLineConv(i,val){
+  const l=draft&&draft.lines[i],m=l&&S.mats.get(l.matId);if(!m)return;
+  const per=num(val);if(!(per>0)){toast('Rəqəm yazın');return;}
+  const conv=convList(m).filter(c=>c.unit!==l.unit);conv.push({unit:l.unit,per});
+  putMat(Object.assign({},m,{conv,subPer:'',subUnit:'',updatedAt:new Date().toISOString()}));
+  $('#editor').innerHTML=editorHtml();refreshCalc();toast(`Yadda saxlandı: 1 ${m.unit} = ${val} ${l.unit}`);
+}
+function rerenderSoft(){
+  if(V.tab==='mats'){const l=$('#matlist');if(l){l.innerHTML=matListHtml();return;}}
+  if(V.tab==='calc'&&$('#editor')){$('#editor').innerHTML=editorHtml();refreshCalc();return;}
+  render();
+}
+LIS.push(['click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const fn=ACT[b.dataset.act];if(fn){e.preventDefault();fn(b,e);}}]);
+function onInput(e){
+  const t=e.target;
+  if(t.dataset.f){
+    const f=t.dataset.f,i=+t.dataset.i;
+    if(f==='psearch'){if(e.type!=='input')return;V.psearch=t.value;const pl=$('#plist');if(pl)pl.innerHTML=prodListHtml();return;}
+    if(f==='msearch'){if(e.type!=='input')return;V.msearch=t.value;const l=$('#matlist');if(l)l.innerHTML=matListHtml();return;}
+    if(f==='pickSel'){if(e.type!=='change')return;flushDraft();const v=t.value;
+      if(v.startsWith('m:')){const p=createFromModel(v.slice(2));if(p){V.sel=p.id;draft=clone(p);}}else{V.sel=v.slice(2);draft=clone(S.prods.get(V.sel));}
+      render();return;}
+    if(f==='p.model'&&draft){if(e.type!=='change')return;const m=(S.catalog.models||[]).find(x=>x.id===t.value);draft.modelId=m?m.id:'';draft.route=m?m.route:[];
+      if(m&&!(draft.labor||[]).some(b=>has(b.dept)))draft.labor=laborFromRoute(m);touch();$('#editor').innerHTML=editorHtml();refreshCalc();return;}
+    if(!draft)return;
+    if(f.startsWith('p.')&&f!=='p.model'&&f!=='p.batch'){draft[f.slice(2)]=t.value;touch();refreshCalc();return;}
+    if(f==='l.qty'){draft.lines[i].qty=t.value;touch();refreshCalc();return;}
+    if(f==='p.batch'){draft.batch=t.value;touch();refreshCalc();const h=R.querySelector('.mats-lines .lhead span:nth-child(2)');if(h)h.textContent=`Miqdar (${batchOf(draft)} əd.)`;return;}
+    if(f==='l.conv'){if(e.type==='change'&&has(t.value))saveLineConv(i,t.value);return;}
+    if(f==='l.mat'){if(e.type!=='change')return;
+      if(t.value==='__new'){V.quick={i,name:'',group:'',unit:'ədəd',qty:'',total:''};draft.lines[i].matId='';rerenderSoft();const n=R.querySelector('[data-q="name"]');if(n)n.focus();return;}
+      if(V.quick&&V.quick.i===i)V.quick=null;
+      const m=S.mats.get(t.value);draft.lines[i].matId=t.value;draft.lines[i].unit=m?m.unit:'';touch();$('#editor').innerHTML=editorHtml();refreshCalc();const q=R.querySelector(`[data-f="l.qty"][data-i="${i}"]`);if(q)q.focus();return;}
+    if(f==='l.unit'){if(e.type!=='change')return;draft.lines[i].unit=t.value;touch();$('#editor').innerHTML=editorHtml();refreshCalc();return;}
+    if(f==='b.dept'){if(e.type!=='change')return;const d=(S.settings.depts||[])[+t.value];if(!d||t.value==='')return;
+      if(!has(d.key)){d.key='u_'+uid('');putSettings();}
+      draft.labor[i].dept=String(d.name).trim();draft.labor[i].key=d.key;draft.labor[i].sel=[];touch();$('#editor').innerHTML=editorHtml();refreshCalc();return;}
+    if(f==='b.m'){draft.labor[i].m=t.value;delete draft.labor[i].h;touch();refreshCalc();return;}
+    if(f==='b.h'){draft.labor[i].h=t.value;touch();refreshCalc();return;}
+    if(f==='x.name'){draft.extra[i].name=t.value;touch();return;}
+    if(f==='x.amt'){draft.extra[i].amt=t.value;touch();refreshCalc();return;}
+    if(f==='x.batch'){if(e.type!=='change')return;draft.extra[i].forBatch=t.checked;touch();refreshCalc();return;}
+    if(f==='b.tu'){if(e.type!=='change')return;draft.labor[i].tu=t.value;touch();refreshCalc();return;}
+    if(f==='b.n'){draft.labor[i].n=t.value;touch();refreshCalc();return;}
+  }
+  if(t.dataset.mf){
+    let k=t.dataset.mf;
+    if(k==='unit'){if(e.type!=='change')return;
+      if(t.value==='__other'){V.mf.other=true;V.mf.unit='';render();const o=R.querySelector('[data-mf="unitOther"]');if(o)o.focus();return;}
+      V.mf.unit=t.value;V.mf.conv=V.mf.conv||[];
+      if(PACK[t.value]){if(!V.mf.conv.length)V.mf.conv.push({per:'',unit:PACK[t.value]});else if(!has(V.mf.conv[0].per))V.mf.conv[0].unit=PACK[t.value];}
+      render();return;}
+    if(k==='unitOther'){V.mf.unit=t.value;const pv=$('#mfprev');if(pv)pv.innerHTML=mfPreview();return;}
+    V.mf[k]=t.value;
+    const pv=$('#mfprev');if(pv)pv.innerHTML=mfPreview();
+    if(k==='unit'){R.querySelectorAll('#convrows .crow > span').forEach(s=>s.textContent='1 '+(t.value||'vahid')+' =');}
+
+    return;
+  }
+  if(t.dataset.mc){V.mf.conv=V.mf.conv||[];const ix=+t.dataset.i;if(!V.mf.conv[ix])V.mf.conv[ix]={per:'',unit:PACK[V.mf.unit]||''};const c=V.mf.conv[ix];c[t.dataset.mc]=t.value;const pv=$('#mfprev');if(pv)pv.innerHTML=mfPreview();return;}
+  if(t.dataset.q==='unit'&&V.quick){if(e.type!=='change')return;V.quick.unit=t.value;V.quick.inUnit=PACK[t.value]||'';rerenderSoft();return;}
+  if(t.dataset.q&&V.quick){V.quick[t.dataset.q]=t.value;const q=V.quick,up=num(q.qty)>0&&num(q.total)>0?num(q.total)/num(q.qty):0;const pv=$('#qprev');if(pv)pv.innerHTML=up?`1 ${esc(q.unit)} = <b class="mono">${m4(up)}</b>`:'Vahid qiyməti avtomatik hesablanacaq';return;}
+  if(t.dataset.s||t.dataset.d||t.dataset.w){const n=$('#storeNote');if(n&&db){n.textContent='Saxlanılır…';n.style.color='var(--or-ink)';}}
+  if(t.dataset.s){S.settings[t.dataset.s]=t.value;clearTimeout(setT);setT=setTimeout(putSettings,600);return;}
+  if(t.dataset.d){S.settings.depts[+t.dataset.i][t.dataset.d]=t.value;clearTimeout(setT);setT=setTimeout(putSettings,600);return;}
+  if(t.dataset.w){const i=+t.dataset.i,d=S.settings.depts[i];d.workers[+t.dataset.j][t.dataset.w]=t.value;clearTimeout(setT);setT=setTimeout(putSettings,600);
+    if(t.dataset.w==='salary'){const o=R.querySelector(`[data-o="dr${i}"]`);const wasAuto=o&&!o.querySelector('input');const nowAuto=deptInfo(d).auto;if(o&&(wasAuto||nowAuto))o.innerHTML=deptRateHtml(d,i);}return;}
+  if(t.id==='rcPay'||t.id==='rcHrs'){const p=num($('#rcPay').value),h=num($('#rcHrs').value);$('#rcOut').innerHTML=p>0&&h>0?`1 saat qiyməti: <b>${m2(p/h)}</b> / saat`:'Fond ÷ saat = ₼/saat';}
+}
+LIS.push(['input',onInput]);
+LIS.push(['change',onInput]);
+window.addEventListener('resize',()=>{if(!alive())return;if(V.tab==='mats'&&!(R.activeElement&&R.activeElement.closest('#mform')))render();});
+
+/* ---------- remote updates ---------- */
+let rT=null;
+function onRemote(){clearTimeout(rT);rT=setTimeout(applyRemote,60);}
+function applyRemote(){
+  if(!(loaded.mats&&loaded.prods)){render();return;}
+  const ae=R.activeElement;
+  const typing=ae&&ae.matches&&ae.matches('input,textarea,select');
+  if(V.tab==='calc'){
+    if(V.sel&&!S.prods.has(V.sel)){draft=null;V.sel=null;render();return;}
+    if(draft&&V.sel&&Date.now()-lastEdit>4000&&!saveT){const fresh=S.prods.get(V.sel);if(fresh&&JSON.stringify(fresh)!==JSON.stringify(draft)){draft=clone(fresh);if(!typing){render();return;}}}
+    if(typing&&ae.closest('#editor,.plist-desk')){refreshCalc();return;}
+    render();return;
+  }
+  if(V.tab==='mats'){const l=$('#matlist');if(l&&typing){l.innerHTML=matListHtml();return;}render();return;}
+  if(V.tab==='settings'&&typing)return;
+  render();
+}
+
+async function init(){
+  render();
+  try{ if(window.claude&&typeof window.claude.use==='function'){
+      const [d,dl]=await Promise.all([window.claude.use('db').catch(()=>null),window.claude.use('downloads').catch(()=>null)]);
+      db=d;downloads=dl;
+      window.claude.use('mcp').then(m=>{mcp=m;if(m)render();}).catch(()=>{});} }catch(e){db=null;}
+  if(!db){
+    loadLocal();loaded.mats=loaded.prods=loaded.settings=true;
+    $('#storeNote').textContent='Bu brauzerdə saxlanılır';render();return;
+  }
+  $('#storeNote').textContent='Avtomatik yadda saxlanılır';
+  const err=e=>{console.error(e);$('#storeNote').textContent='Bağlantı xətası — səhifəni yeniləyin';};
+  db.collection('materials').onSnapshot(snap=>{S.mats.clear();snap.docs.forEach(d=>S.mats.set(d.id,Object.assign(clone(d.data()),{id:d.id})));loaded.mats=true;onRemote();},err);
+  db.collection('products').onSnapshot(snap=>{S.prods.clear();snap.docs.forEach(d=>S.prods.set(d.id,Object.assign(clone(d.data()),{id:d.id})));loaded.prods=true;onRemote();},err);
+  db.doc('catalog/models').onSnapshot(snap=>{S.catalog=Object.assign({models:[],deptNames:{}},clone(snap.exists?snap.data():{}));onRemote();},()=>{});
+  db.doc('settings/main').onSnapshot(snap=>{const data=snap.exists?snap.data():{};
+    if(loaded.settings&&(setPending>0||setT||JSON.stringify(data)===setLastJson))return;
+    S.settings=Object.assign({},DEF,clone(data));loaded.settings=true;onRemote();},err);
+}
+window.addEventListener('pagehide',()=>{if(alive())flushDraft();});
+document.addEventListener('visibilitychange',()=>{if(alive()&&document.visibilityState==='hidden'){flushDraft();if(setT)putSettings();}});
+
+/* ===== Sonno POS adaptasiyası: saxlama Supabase-də (yalnız admin) ===== */
+const lastCost={};
+function alive(){return !!(R&&R.host&&R.host.isConnected);}
+function kTop(){const mc=document.getElementById('main-content');if(mc&&R){const top=R.host.getBoundingClientRect().top-mc.getBoundingClientRect().top+mc.scrollTop-8;mc.scrollTo({top:Math.max(0,top)});}}
+function kUser(){return (typeof currentUser!=='undefined')?currentUser:null;}
+function kAuth(){const u=kUser();if(!u||u.role!=='admin'||!u.id)return null;return {p_uid:u.id,p_pw:u.password_hash||''};}
+async function rpc(fn,args){const a=kAuth();if(!a)throw {message:'Bu bölmə yalnız admin üçündür'};
+  const {data,error}=await sb.rpc(fn,Object.assign({},a,args||{}));if(error)throw error;return data;}
+function fail(e){console.error(e);toast('Yadda saxlanmadı: '+(e&&e.message||'xəta'));}
+function isUuid(x){return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(x||''));}
+function costOf(p){const c=calc(p);return c.cost>0?Math.round(c.cost*100)/100:null;}
+function setModelCost(mid,cost){
+  [window._adminModels,window._allModelsCache,(typeof appModels!=='undefined'?appModels:null)].forEach(arr=>{
+    (arr||[]).forEach(m=>{if(m&&m.id===mid)m.cost_price=cost;});});
+}
+function putMat(m){S.mats.set(m.id,m);track(rpc('kalk_put',{p_kind:'material',p_id:m.id,p_data:m}));schedCostSync();}
+function delMat(id){S.mats.delete(id);track(rpc('kalk_del',{p_kind:'material',p_id:id}));schedCostSync();}
+function putProd(p){const c=clone(p);S.prods.set(c.id,c);
+  const cost=isUuid(c.modelId)?costOf(c):null;if(cost!=null)lastCost[c.id]=cost;
+  track(rpc('kalk_put',{p_kind:'product',p_id:c.id,p_data:c,p_cost:cost}).then(r=>{if(r&&r.model_cost!=null)setModelCost(c.modelId,Number(r.model_cost));}));}
+function delProd(id){S.prods.delete(id);track(rpc('kalk_del',{p_kind:'product',p_id:id}));}
+function putSettings(){clearTimeout(setT);setT=null;const data=clone(S.settings);
+  return track(rpc('kalk_put',{p_kind:'settings',p_id:'main',p_data:data})).then(()=>schedCostSync());}
+let costT=null;
+function schedCostSync(){clearTimeout(costT);costT=setTimeout(()=>{
+  S.prods.forEach(p=>{if(!isUuid(p.modelId))return;const src=draft&&draft.id===p.id?draft:p;const cost=costOf(src);
+    if(cost!=null&&lastCost[p.id]!==cost){lastCost[p.id]=cost;const c=clone(src);S.prods.set(c.id,c);
+      track(rpc('kalk_put',{p_kind:'product',p_id:c.id,p_data:c,p_cost:cost}).then(r=>{if(r&&r.model_cost!=null)setModelCost(c.modelId,Number(r.model_cost));}));}});
+},1500);}
+
+function kDeptNames(){const o={};
+  if(typeof DEPT_INFO!=='undefined')Object.entries(DEPT_INFO).forEach(([k,v])=>{if(v&&v.name)o[k]=v.name;});
+  (S.settings.depts||[]).forEach(d=>{if(d.key&&has(d.name))o[d.key]=String(d.name).trim();});
+  return o;}
+async function buildCatalog(force){
+  let models=window._adminModels;
+  if(force||!models||!models.length){
+    const {data,error}=await sb.from('models').select('id,name,category,stages,img_url,is_active,cost_price');
+    if(error)throw error;models=data||[];
+    if(window._adminModels)window._adminModels=models.concat([]);
+  }
+  let meas={};try{meas=await rpc('kalk_meas')||{};}catch(e){console.warn('kalk_meas',e);}
+  const seen={};
+  const list=models.filter(m=>m&&m.is_active!==false&&m.name!=='Test').map(m=>{
+    let nm=String(m.name||'').trim()||'Adsız';const k=nm.toLowerCase();seen[k]=(seen[k]||0)+1;if(seen[k]>1)nm+=` (${seen[k]})`;
+    const route=[];(Array.isArray(m.stages)?m.stages:[]).forEach(s=>{String((s&&s.dept)||'').split('||').forEach(x=>{x=x.trim();if(x)route.push(x==='tikiş'?'tikis':x);});});
+    if(m.img_url)IMG[m.id]=m.img_url;else{delete IMG[m.id];IMGST[m.id]='none';}
+    return {id:m.id,name:nm,cat:CATN[m.category||'']||m.category||'Digər',route,meas:meas[m.id]||{}};});
+  list.sort((a,b)=>a.cat.localeCompare(b.cat,'az')||a.name.localeCompare(b.name,'az'));
+  S.catalog={models:list,deptNames:kDeptNames(),syncedAt:new Date().toISOString()};
+}
+async function ensureImg(mid,force){
+  if(!mid)return;
+  if(force){try{const {data}=await sb.from('models').select('img_url').eq('id',mid).maybeSingle();
+      if(data&&data.img_url){IMG[mid]=data.img_url;delete IMGST[mid];}else{delete IMG[mid];IMGST[mid]='none';}}catch(e){IMGST[mid]={err:'Şəkil yüklənmədi'};}}
+  else if(!IMG[mid])IMGST[mid]='none';
+  paintImg(mid);
+}
+async function syncModels(){
+  if(syncing)return;syncing=true;toast('Modellər yenilənir…');
+  try{await buildCatalog(true);toast('✓ '+S.catalog.models.length+' model yeniləndi');render();}
+  catch(e){toast('Yenilənmədi: '+(e&&e.message||'xəta'));}
+  syncing=false;
+}
+async function kLoad(){
+  loaded.mats=loaded.prods=loaded.settings=false;render();
+  try{
+    const d=await rpc('kalk_get');
+    S.mats.clear();S.prods.clear();
+    ((d&&d.materials)||[]).forEach(m=>{if(m&&m.id)S.mats.set(m.id,m);});
+    ((d&&d.products)||[]).forEach(p=>{if(p&&p.id)S.prods.set(p.id,p);});
+    S.settings=Object.assign({},DEF,(d&&d.settings)||{});
+    await buildCatalog(false);
+    S.prods.forEach(p=>{if(isUuid(p.modelId)){const c=costOf(p);if(c!=null)lastCost[p.id]=c;}});
+    loaded.mats=loaded.prods=loaded.settings=true;
+    const n=$('#storeNote');if(n){n.textContent='Sonno POS bazasında saxlanılır';n.style.color='';}
+  }catch(e){
+    console.error(e);
+    $('#main').innerHTML=`<div class="card empty">Kalkulyasiya açılmadı: ${esc(e&&e.message||String(e))}<br><br><button type="button" class="btn" data-act="reload">Yenidən cəhd et</button></div>`;
+    return;
+  }
+  render();
+}
+ACT.reload=()=>kLoad();
+function kOffsets(){if(!R)return;const bn=document.getElementById('bottom-nav');
+  const h=bn&&getComputedStyle(bn).display!=='none'?bn.offsetHeight:0;
+  R.host.style.setProperty('--kbar',(h?h+6:8)+'px');R.host.style.setProperty('--kb',(h+80)+'px');}
+function mount(host){
+  const u=kUser();
+  if(!u||u.role!=='admin'){host.innerHTML='<div style="padding:20px;color:#5B6470">Bu bölmə yalnız admin üçündür.</div>';return;}
+  if(!document.getElementById('kalk-fonts')){const l=document.createElement('link');l.id='kalk-fonts';l.rel='stylesheet';
+    l.href='https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap';document.head.appendChild(l);}
+  R=host.shadowRoot||host.attachShadow({mode:'open'});
+  R.innerHTML='<style>'+KALK_CSS+'</style><div class="kroot">'+KALK_HTML+'</div>';
+  LIS.forEach(([t,f])=>R.addEventListener(t,f));
+  mcp=true;
+  downloads={save:({filename,data})=>{const b=new Blob([data],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);return Promise.resolve();}};
+  V.tab='calc';V.sel=null;V.quick=null;draft=null;armed=null;
+  kOffsets();window.addEventListener('resize',kOffsets);
+  kLoad();
+}
+window.SonnoKalk={mount};
+
+})();
 </script>
 
   <!-- Yeni müştəri modal -->
